@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Socio;
+use App\Models\Beneficiario as Socio;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -27,6 +27,8 @@ class SocioController extends Controller
             'ci' => 'required|string|unique:socios,ci',
             'telefono' => 'nullable|string|max:20',
             'direccion' => 'required|string|max:255',
+            'user_id' => 'nullable|exists:users,id',
+            'tipo' => 'required|in:socio,usuario',
         ]);
 
         return Socio::create($request->all());
@@ -46,6 +48,9 @@ class SocioController extends Controller
             'ci' => 'required|string|unique:socios,ci,' . $socio->id,
             'telefono' => 'nullable|string|max:20',
             'direccion' => 'required|string|max:255',
+            'user_id' => 'nullable|exists:users,id',
+             'tipo' => 'required|in:socio,usuario',
+
         ]);
 
         $socio->update($request->all());

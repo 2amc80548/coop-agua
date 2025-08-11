@@ -10,17 +10,18 @@ class Conexion extends Model
 
     protected $fillable = [
         'codigo_medidor',
-        'socio_id',
+        'beneficiario_id',
         'estado',
         'direccion',
         'zona',
     ];
 
-    // La conexión pertenece a un socio
-    public function socio()
+    // La conexión pertenece a un beneficiario
+    public function beneficiario()
     {
-        return $this->belongsTo(Socio::class, 'socio_id');
+        return $this->belongsTo(Beneficiario::class, 'beneficiario_id');
     }
+    
 
     // Una conexión tiene muchas lecturas
     public function lecturas()

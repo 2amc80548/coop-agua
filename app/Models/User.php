@@ -24,8 +24,6 @@ class User extends Authenticatable
        'name',
         'email',
         'password',
-        'ci',
-        'telefono',
     ];
 
     protected $hidden = [
@@ -44,5 +42,10 @@ class User extends Authenticatable
     {
         return $this->roles->pluck('name');
     }
+    public function beneficiario()
+{
+    return $this->hasOne(Beneficiario::class, 'user_id');
+}
+
 
 }
