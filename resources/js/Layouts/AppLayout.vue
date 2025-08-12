@@ -112,13 +112,13 @@ const logout = () => {
                 <nav class="p-4 space-y-2 flex-1">
                     <!-- Opciones según rol -->
                     <template v-if="$page.props.auth.user.role_names?.includes('Administrador')">
-                        <Link href="/usuarios" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                        <Link href="/users" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
                             <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zM9.002 18.005a7.995 7.995 0 01-.225-3.003c0-.124.01-.25-.015-.375c-.024-.226.046-.45.195-.626.149-.176.353-.28.572-.28h1.161c.219 0 .423.104.572.28.149.176.219.4.195.626-.025.125-.015.251-.015.375a7.995 7.995 0 01-.225 3.003h-1.148zm1.002-8a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span>
                             <span v-if="!isSidebarHidden">Usuarios</span>
                         </Link>
-                        <Link href="/socios" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                        <Link href="/beneficiarios" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
                             <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18H4v-3a4 4 0 018.88-2.31c.22.13.434.288.64.464l-.001.001c.212.183.398.397.587.644.133.176.27.355.405.539.096.13.19.263.28.401l-.001-.001c.135.207.288.423.454.646.126.166.257.336.395.511a4.002 4.002 0 01-1.39 1.488L16 18z"/></svg></span>
-                            <span v-if="!isSidebarHidden">Socios</span>
+                            <span v-if="!isSidebarHidden">Beneficiarios</span>
                         </Link>
                         <Link href="/facturas" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
                             <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 012.707 13H4a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 000 2h14a1 1 0 000-2h-1a1 1 0 01-1-1v-2a1 1 0 011-1h1.293a1 1 0 01.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 4a4 4 0 014 4v4H6z"/></svg></span>
@@ -131,9 +131,9 @@ const logout = () => {
                     </template>
 
                     <template v-else-if="$page.props.auth.user.role_names?.includes('Secretaria')">
-                        <Link href="/socio" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                        <Link href="/beneficiario" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
                             <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18H4v-3a4 4 0 018.88-2.31c.22.13.434.288.64.464l-.001.001c.212.183.398.397.587.644.133.176.27.355.405.539.096.13.19.263.28.401l-.001-.001c.135.207.288.423.454.646.126.166.257.336.395.511a4.002 4.002 0 01-1.39 1.488L16 18z"/></svg></span>
-                            <span v-if="!isSidebarHidden">Socios</span>
+                            <span v-if="!isSidebarHidden">Beneficiarios</span>
                         </Link>
                         <Link href="/pago" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
                             <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>

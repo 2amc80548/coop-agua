@@ -42,9 +42,10 @@ class User extends Authenticatable
     {
         return $this->roles->pluck('name');
     }
-    public function beneficiario()
+
+public function beneficiario()
 {
-    return $this->hasOne(Beneficiario::class, 'user_id');
+    return $this->belongsTo(Beneficiario::class);
 }
 
 

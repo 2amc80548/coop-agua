@@ -16,8 +16,8 @@ use App\Http\Controllers\{
 
 // Otros controladores
 use App\Http\Controllers\{
-    UsuarioController,
-    SocioController,
+    UserController,
+    BeneficiarioController,
     ConexionController,
     LecturaController,
     FacturaController,
@@ -85,8 +85,8 @@ Route::middleware(['auth', 'role:Usuario'])
 // RUTAS PARA ADMINISTRADOR
 // ================================
 Route::middleware(['auth', 'role:Administrador'])->group(function () {
-    Route::resource('usuarios', UsuarioController::class);
-    Route::resource('socios', SocioController::class);
+    Route::resource('users', UserController::class);
+    Route::resource('beneficiarios', BeneficiarioController::class);
     Route::resource('ingresos-egresos', IngresoEgresoController::class);
     Route::resource('accesos-autorizados', AccesoAutorizadoController::class);
     Route::resource('facturas', FacturaController::class);
@@ -101,7 +101,7 @@ Route::middleware(['auth', 'role:Administrador'])->group(function () {
 // RUTAS PARA SECRETARIA
 // ================================
 Route::middleware(['auth', 'role:Secretaria'])->group(function () {
-    Route::resource('socio', SocioController::class)->names('secretaria.socios');
+    Route::resource('beneficiario', SocioController::class)->names('secretaria.socios');
     Route::resource('factura', FacturaController::class);
     Route::resource('pago', PagoController::class);
     Route::resource('accesos-autorizados', AccesoAutorizadoController::class);

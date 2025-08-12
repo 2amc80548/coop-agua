@@ -8,7 +8,6 @@ class Beneficiario extends Model
     protected $table = 'beneficiarios';
 
     protected $fillable = [
-        'user_id',
         'nombre_completo',
         'ci',
         'telefono',
@@ -18,7 +17,7 @@ class Beneficiario extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->hasOne(User::class);
     }
 
     public function conexiones()
