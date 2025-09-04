@@ -3,27 +3,34 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+// Route::get('/user', function (Request $request) {
+//     return $request->user();
+// })->middleware('auth:sanctum');
+
 
 
 use App\Models\Beneficiario;
+Route::get('/beneficiarios/buscar', function (Request $request) {
+    $query = $request->input('q');
 
-Route::get('/beneficiarios/buscar/{ci}', function ($ci) {
-    $beneficiario = Beneficiario::where('ci', $ci)->first();
-
-    if (!$beneficiario) {
-        return response()->json(['message' => 'No encontrado'], 404);
+    if (strlen($query) < 2) {
+        return response()->json([]);
     }
 
-    return response()->json([
-        'id' => $beneficiario->id,
-        'nombre_completo' => $beneficiario->nombre_completo,
-        'tiene_usuario' => $beneficiario->user ? true : false
-    ]);
+    $beneficiarios = Beneficiario::where('ci', 'like', "%{$query}%")
+        ->orWhere('nombre_completo', 'like', "%{$query}%")
+        ->withCount('users') // ✅ Añade users_count directamente
+        ->limit(10)
+        ->get()
+        ->map(function ($b) {
+            return [
+                'id' => $b->id,
+                'nombre_completo' => $b->nombre_completo,
+                'ci' => $b->ci,
+                'usuarios_count' => $b->users_count, // ✅ Viene de withCount
+                'puede_tener_mas' => $b->users_count < 2
+            ];
+        });
+
+    return response()->json($beneficiarios);
 });
-
-use App\Http\Controllers\UserController;
-
-Route::apiResource('users', UserController::class);

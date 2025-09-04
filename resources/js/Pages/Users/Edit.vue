@@ -1,5 +1,6 @@
 <!-- resources/js/Pages/Users/Edit.vue -->
 <template>
+  <app-layout>
   <div class="p-6">
     <h1 class="text-2xl font-bold mb-6">Editar Usuario</h1>
 
@@ -42,9 +43,11 @@
       </div>
     </form>
   </div>
+  </app-layout>
 </template>
 
 <script setup>
+import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({

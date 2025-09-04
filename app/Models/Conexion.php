@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Beneficiario;
+
 
 class Conexion extends Model
 {
@@ -14,6 +16,8 @@ class Conexion extends Model
         'estado',
         'direccion',
         'zona',
+        'fecha_instalacion',
+        'tipo_conexion',
     ];
 
     // La conexión pertenece a un beneficiario

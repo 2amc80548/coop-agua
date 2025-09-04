@@ -112,7 +112,7 @@ Route::middleware(['auth', 'role:Secretaria'])->group(function () {
 // RUTAS PARA TÉCNICO
 // ================================
 Route::middleware(['auth', 'role:Tecnico'])->group(function () {
-    Route::resource('conexiones', ConexionController::class);
+    Route::resource('conexione', ConexionController::class);
     Route::resource('lecturas', LecturaController::class);
     Route::get('socios/{id}', [SocioController::class, 'show'])->name('socios.show');
 });

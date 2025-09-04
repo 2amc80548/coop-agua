@@ -1,9 +1,10 @@
 <!-- resources/js/Pages/Users/Index.vue -->
 <template>
+  <app-layout>
   <div class="p-6">
-    <h1 class="text-2xl font-bold mb-6">Usuarios Asignados</h1>
+    <h1 class="text-2xl font-bold mb-6">Usuarios</h1>
     <Link href="/users/create" class="bg-blue-600 text-white px-4 py-2 rounded mb-6 inline-block">
-      + Asignar Usuario
+      + Crear Usuario
     </Link>
 
     <!-- Mensaje flash -->
@@ -16,7 +17,8 @@
         <tr>
           <th class="py-3 px-4 text-left">Nombre</th>
           <th class="py-3 px-4 text-left">Email</th>
-          <th class="py-3 px-4 text-left">Beneficiario CI</th>
+          <th class="py-3 px-4 text-left">Rol</th>
+          <th class="py-3 px-4 text-left">Beneficiario (CI)</th>
           <th class="py-3 px-4 text-left">Acciones</th>
         </tr>
       </thead>
@@ -24,7 +26,22 @@
         <tr v-for="user in users" :key="user.id" class="border-t">
           <td class="py-3 px-4">{{ user.name }}</td>
           <td class="py-3 px-4">{{ user.email }}</td>
-          <td class="py-3 px-4">{{ user.beneficiario?.ci || 'N/A' }}</td>
+          <td class="py-3 px-4">
+            <span
+              v-for="role in user.roles"
+              :key="role.id"
+              class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mr-1"
+            >
+              {{ role.name }}
+            </span>
+          </td>
+          <td class="py-3 px-4">
+            <template v-if="user.beneficiario">
+              <div>{{ user.beneficiario.nombre_completo }}</div>
+              <div class="text-xs text-gray-500">CI: {{ user.beneficiario.ci }}</div>
+            </template>
+            <span v-else class="text-gray-400">Sin beneficiario</span>
+          </td>
           <td class="py-3 px-4 space-x-2">
             <Link :href="`/users/${user.id}/edit`" class="text-yellow-600 hover:underline text-sm">Editar</Link>
             <button @click="eliminarUsuario(user.id)" class="text-red-600 hover:underline text-sm">Eliminar</button>
@@ -33,20 +50,25 @@
       </tbody>
     </table>
   </div>
+  </app-layout>
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import { Link, router } from '@inertiajs/vue3';
 
-defineProps({
-  users: Array
-});
+defineProps({ users: Array });
 
 const eliminarUsuario = (id) => {
-  if (confirm('¿Eliminar este usuario? Esta acción desvinculará al beneficiario.')) {
-    axios.delete(`/users/${id}`)
-      .then(() => location.reload())
-      .catch(() => alert('Error al eliminar'));
+  if (confirm('¿Eliminar este usuario? Esta acción no se puede deshacer.')) {
+    router.delete(`/users/${id}`, {
+      onSuccess: () => {
+        console.log('Eliminado correctamente');
+      },
+      onError: (errors) => {
+        alert('Error: ' + Object.values(errors).join(', '));
+      }
+    });
   }
 };
 </script>

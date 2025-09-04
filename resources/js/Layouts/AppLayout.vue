@@ -128,6 +128,35 @@ const logout = () => {
                             <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
                             <span v-if="!isSidebarHidden">Pagos</span>
                         </Link>
+                        <Link href="/ingresos-egresos" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                            <span v-if="!isSidebarHidden">Ingresos/Egresos</span>
+                        </Link>
+                        <Link href="/accesos-autorizados" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                            <span v-if="!isSidebarHidden">Accesos Autorizados</span>
+                        </Link>
+                        <Link href="/reportes" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                            <span v-if="!isSidebarHidden">Reportes</span>
+                        </Link> 
+                        <Link href="/lecturas" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                            <span v-if="!isSidebarHidden">Lecturas</span>
+                        </Link> 
+                        <Link href="/auditoria" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                            <span v-if="!isSidebarHidden">Auditoría</span>
+                        </Link> 
+                        <Link href="/notificaciones" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                            <span v-if="!isSidebarHidden">Notificaciones</span>
+                        </Link> 
+                        <Link href="/conexiones" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                            <span v-if="!isSidebarHidden">Conexiones</span>
+                        </Link> 
+
                     </template>
 
                     <template v-else-if="$page.props.auth.user.role_names?.includes('Secretaria')">
@@ -142,7 +171,7 @@ const logout = () => {
                     </template>
 
                     <template v-else-if="$page.props.auth.user.role_names?.includes('Tecnico')">
-                        <Link href="/conexiones" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                        <Link href="/conexione" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
                             <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-8V5a1 1 0 012 0v5a1 1 0 01-2 0zm-1-2.5a.5.5 0 011 0v.5a.5.5 0 01-1 0v-.5zm4 0a.5.5 0 011 0v.5a.5.5 0 01-1 0v-.5z" clip-rule="evenodd"/></svg></span>
                             <span v-if="!isSidebarHidden">Conexiones</span>
                         </Link>

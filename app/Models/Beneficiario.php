@@ -19,9 +19,14 @@ class Beneficiario extends Model
     {
         return $this->hasOne(User::class);
     }
-
+   
     public function conexiones()
     {
         return $this->hasMany(Conexion::class, 'beneficiario_id');
+    }
+
+    public function users()
+    {
+        return $this->hasMany(User::class);
     }
 }

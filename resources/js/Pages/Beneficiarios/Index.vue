@@ -1,4 +1,5 @@
 <template>
+  <app-layout>
   <div class="p-6">
     <h1 class="text-2xl font-bold mb-6">Beneficiarios</h1>
 
@@ -51,11 +52,13 @@
       </tbody>
     </table>
   </div>
+</app-layout>
 </template>
 
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import axios from 'axios'; // ← Importa axios
+import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
   beneficiarios: {

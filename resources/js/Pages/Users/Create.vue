@@ -1,116 +1,163 @@
 <!-- resources/js/Pages/Users/Create.vue -->
-<template>
-  <div class="p-6">
-    <h1 class="text-2xl font-bold mb-6">Asignar Usuario a Beneficiario</h1>
-
-    <!-- Búsqueda por CI -->
-    <div class="mb-6">
-      <label class="block text-sm font-medium mb-1">CI del Beneficiario</label>
-      <input
-        v-model="ci"
-        @input="buscarBeneficiario"
-        type="text"
-        class="border rounded px-3 py-2 w-full"
-        placeholder="Ingresa el CI"
-        :disabled="form.processing"
-      />
-      <div v-if="mensajeBusqueda" class="text-sm mt-2" :class="{
-        'text-green-600': beneficiarioEncontrado,
-        'text-red-600': !beneficiarioEncontrado && mensajeBusqueda
-      }">
-        {{ mensajeBusqueda }}
-      </div>
-    </div>
-
-    <!-- Formulario de usuario (solo si beneficiario encontrado y no tiene usuario) -->
-    <form v-if="beneficiarioEncontrado && !beneficiarioTieneUsuario" @submit.prevent="crearUsuario" class="space-y-4">
-      <input type="hidden" v-model="form.beneficiario_id" />
-
-      <div>
-        <label>Nombre del Beneficiario</label>
-        <input v-model="form.name" type="text" class="border rounded px-3 py-2 w-full" disabled />
-      </div>
-
-      <div>
-        <label>Email</label>
-        <input v-model="form.email" type="email" class="border rounded px-3 py-2 w-full" required />
-        <div v-if="form.errors.email" class="text-red-500 text-sm mt-1">{{ form.errors.email }}</div>
-      </div>
-
-      <div>
-        <label>Contraseña</label>
-        <input v-model="form.password" type="password" class="border rounded px-3 py-2 w-full" required />
-        <div v-if="form.errors.password" class="text-red-500 text-sm mt-1">{{ form.errors.password }}</div>
-      </div>
-
-      <div class="flex space-x-4">
-        <button
-          type="submit"
-          :disabled="form.processing"
-          class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-        >
-          {{ form.processing ? 'Guardando...' : 'Asignar Usuario' }}
-        </button>
-        <Link href="/users" class="bg-gray-500 text-white px-6 py-2 rounded">Cancelar</Link>
-      </div>
-    </form>
-
-    <!-- Mensaje si ya tiene usuario -->
-    <div v-else-if="beneficiarioTieneUsuario" class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-      Este beneficiario ya tiene un usuario asignado. No se puede crear otro.
-    </div>
-  </div>
-</template>
-
 <script setup>
-import { ref } from 'vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import { ref, watch } from 'vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 
-const ci = ref('');
-const beneficiarioEncontrado = ref(false);
-const beneficiarioTieneUsuario = ref(false);
-const mensajeBusqueda = ref('');
+const props = defineProps({
+  rolesPersonal: Array,
+  roleUsuario: Object
+});
 
 const form = useForm({
+  tipo: 'personal',
   name: '',
   email: '',
   password: '',
   beneficiario_id: null,
+  role_id: null
 });
 
-// Buscar beneficiario por CI
+const query = ref('');
+const beneficiarios = ref([]);
+const seleccionado = ref(null);
+const buscando = ref(false);
+
+// Buscar mientras escribe
 const buscarBeneficiario = async () => {
-  if (ci.value.length < 3) {
-    limpiarFormulario();
+  if (query.value.length < 2) {
+    beneficiarios.value = [];
     return;
   }
 
+  buscando.value = true;
   try {
-    const response = await axios.get(`/api/beneficiarios/buscar/${ci.value}`);
-    const data = response.data;
-
-    form.name = data.nombre_completo;
-    form.beneficiario_id = data.id;
-    beneficiarioEncontrado.value = true;
-    beneficiarioTieneUsuario.value = data.tiene_usuario;
-    mensajeBusqueda.value = `Beneficiario encontrado: ${data.nombre_completo}`;
-  } catch (error) {
-    limpiarFormulario();
-    mensajeBusqueda.value = 'Beneficiario no encontrado.';
+    const res = await axios.get(`/api/beneficiarios/buscar?q=${encodeURIComponent(query.value)}`);
+    beneficiarios.value = res.data;
+  } catch (e) {
+    beneficiarios.value = [];
+  } finally {
+    buscando.value = false;
   }
 };
 
-const limpiarFormulario = () => {
-  beneficiarioEncontrado.value = false;
-  beneficiarioTieneUsuario.value = false;
-  mensajeBusqueda.value = '';
-  form.name = '';
-  form.beneficiario_id = null;
+// Seleccionar beneficiario
+const seleccionar = (b) => {
+  seleccionado.value = b;
+  beneficiarios.value = [];
+  query.value = b.nombre_completo;
+  form.beneficiario_id = b.id;
+  form.name = b.nombre_completo; // Nombre inicial
+  form.role_id = props.roleUsuario?.id;
+
+  if (!b.puede_tener_mas) {
+    alert('Este beneficiario ya tiene 2 usuarios.');
+  }
 };
 
-// Crear el usuario
+// Limpiar al cambiar de tipo
+watch(() => form.tipo, () => {
+  if (form.tipo === 'personal') {
+    form.beneficiario_id = null;
+    form.name = '';
+    form.role_id = null;
+    query.value = '';
+    seleccionado.value = null;
+    beneficiarios.value = [];
+  }
+});
+
+// Crear usuario
 const crearUsuario = () => {
+  if (form.tipo === 'beneficiario' && seleccionado.value && !seleccionado.value.puede_tener_mas) {
+    alert('Este beneficiario ya tiene 2 usuarios.');
+    return;
+  }
   form.post('/users');
 };
 </script>
+
+<template>
+  <app-layout>
+  <div class="p-6">
+    <h1 class="text-2xl font-bold mb-6">Crear Usuario</h1>
+
+    <!-- Tipo -->
+    <div class="mb-6">
+      <label class="mr-4"><input type="radio" v-model="form.tipo" value="beneficiario" /> Beneficiario</label>
+      <label><input type="radio" v-model="form.tipo" value="personal" /> Personal</label>
+    </div>
+
+    <!-- Beneficiario -->
+    <div v-if="form.tipo === 'beneficiario'" class="border p-4 rounded mb-6">
+      <label>Buscar Beneficiario por CI o Nombre</label>
+      <input
+        v-model="query"
+        @input="buscarBeneficiario"
+        type="text"
+        class="border p-2 w-full"
+        placeholder="Escribe para buscar..."
+      />
+
+      <!-- Lista -->
+      <ul v-if="beneficiarios.length > 0" class="border rounded mt-2 max-h-40 overflow-y-auto">
+        <li
+          v-for="b in beneficiarios"
+          :key="b.id"
+          @click="seleccionar(b)"
+          class="p-2 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+          :class="{ 'text-red-500': !b.puede_tener_mas }"
+        >
+          {{ b.nombre_completo }} (CI: {{ b.ci }}) - {{ b.usuarios_count }}/2 usuarios
+        </li>
+      </ul>
+    </div>
+
+    <!-- Personal -->
+    <div v-if="form.tipo === 'personal'" class="border p-4 rounded mb-6">
+      <div class="mb-4">
+        <label>Nombre</label>
+        <input v-model="form.name" class="border p-2 w-full" required />
+      </div>
+      <div>
+        <label>Rol</label>
+        <select v-model="form.role_id" class="border p-2 w-full" required>
+          <option value="">Seleccionar</option>
+          <option v-for="rol in rolesPersonal" :value="rol.id">{{ rol.name }}</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Campos comunes -->
+    <div class="space-y-4">
+      <div>
+        <label>Nombre del Usuario (editable)</label>
+        <input v-model="form.name" class="border p-2 w-full" required />
+      </div>
+      <div>
+        <label>Email</label>
+        <input v-model="form.email" type="email" class="border p-2 w-full" required />
+        <div v-if="form.errors.email" class="text-red-500 text-sm">{{ form.errors.email }}</div>
+      </div>
+      <div>
+        <label>Contraseña</label>
+        <input v-model="form.password" type="password" class="border p-2 w-full" required />
+        <div v-if="form.errors.password" class="text-red-500 text-sm">{{ form.errors.password }}</div>
+      </div>
+
+      <div class="flex space-x-4">
+        <button @click="crearUsuario" :disabled="form.processing" class="bg-blue-600 text-white px-6 py-2 rounded">
+          {{ form.processing ? 'Guardando...' : 'Crear Usuario' }}
+        </button>
+        <Link href="/users" class="bg-gray-500 text-white px-6 py-2 rounded">Cancelar</Link>
+      </div>
+    </div>
+  </div>
+  </app-layout>
+</template>
+
+<style scoped>
+ul { list-style: none; padding: 0; margin: 0; }
+li { cursor: pointer; }
+</style>
