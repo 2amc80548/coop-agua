@@ -1,8 +1,41 @@
+<script setup>
+import { Link, useForm } from '@inertiajs/vue3';
+
+const form = useForm({
+  nombre_completo: '',
+  ci: '',
+  celular: '',
+  direccion: '',
+  zona: '',
+  tipo: '',
+  fecha_afiliacion: '',
+  fecha_baja: '',
+  codigo: '',
+  tenencia: '',
+  estado: 'activo',
+  adulto_mayor: false,
+  // requisitos
+  req: {
+    fotocopia_ci: false,
+    plano_ubicacion: false,
+    doc_compra_venta: false,
+    croquis: false,
+    certificacion_otb: false,
+    observaciones: '',
+  }
+});
+
+const submit = () => {
+  form.post('/afiliados');
+};
+</script>
+
 <template>
   <div class="p-6">
     <h1 class="text-2xl font-bold mb-6">Crear Afiliado</h1>
 
     <form @submit.prevent="submit" class="space-y-6 bg-white p-6 rounded shadow">
+
       <div>
         <label class="block text-sm font-medium mb-1">Nombre Completo</label>
         <input v-model="form.nombre_completo" type="text" class="border rounded px-3 py-2 w-full" required />
@@ -30,6 +63,18 @@
 
       <div class="grid md:grid-cols-2 gap-4">
         <div>
+          <label class="block text-sm font-medium mb-1">Zona</label>
+          <input v-model="form.zona" type="text" class="border rounded px-3 py-2 w-full" />
+          <div v-if="form.errors.zona" class="text-red-500 text-sm mt-1">{{ form.errors.zona }}</div>
+        </div>
+        <div class="flex items-center gap-2 mt-6">
+          <input id="adulto" type="checkbox" v-model="form.adulto_mayor" />
+          <label for="adulto" class="text-sm font-medium">Adulto mayor (20% desc. consumo)</label>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
           <label class="block text-sm font-medium mb-1">Tipo</label>
           <select v-model="form.tipo" class="border rounded px-3 py-2 w-full" required>
             <option value="">Seleccionar tipo</option>
@@ -49,7 +94,7 @@
         </div>
       </div>
 
-      <div class="grid md:grid-cols-2 gap-4">
+      <div class="grid md:grid-cols-3 gap-4">
         <div>
           <label class="block text-sm font-medium mb-1">Fecha de Afiliación</label>
           <input v-model="form.fecha_afiliacion" type="date" class="border rounded px-3 py-2 w-full" />
@@ -60,18 +105,10 @@
           <input v-model="form.fecha_baja" type="date" class="border rounded px-3 py-2 w-full" />
           <div v-if="form.errors.fecha_baja" class="text-red-500 text-sm mt-1">{{ form.errors.fecha_baja }}</div>
         </div>
-      </div>
-
-      <div class="grid md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium mb-1">Código</label>
           <input v-model="form.codigo" type="text" class="border rounded px-3 py-2 w-full" required />
           <div v-if="form.errors.codigo" class="text-red-500 text-sm mt-1">{{ form.errors.codigo }}</div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Barrio</label>
-          <input v-model="form.barrio" type="text" class="border rounded px-3 py-2 w-full" />
-          <div v-if="form.errors.barrio" class="text-red-500 text-sm mt-1">{{ form.errors.barrio }}</div>
         </div>
       </div>
 
@@ -144,34 +181,3 @@
     </form>
   </div>
 </template>
-
-<script setup>
-import { Link, useForm } from '@inertiajs/vue3';
-
-const form = useForm({
-  nombre_completo: '',
-  ci: '',
-  celular: '',
-  direccion: '',
-  tipo: '',
-  fecha_afiliacion: '',
-  fecha_baja: '',
-  codigo: '',
-  barrio: '',
-  tenencia: '',
-  estado: 'activo',
-  // requisitos
-  req: {
-    fotocopia_ci: false,
-    plano_ubicacion: false,
-    doc_compra_venta: false,
-    croquis: false,
-    certificacion_otb: false,
-    observaciones: '',
-  }
-});
-
-const submit = () => {
-  form.post('/afiliados');
-};
-</script>

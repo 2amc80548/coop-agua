@@ -40,16 +40,17 @@ const confirmDelete = (id) => {
             <th class="py-3 px-4 text-left text-sm font-semibold">Celular</th>
             <th class="py-3 px-4 text-left text-sm font-semibold">Dirección</th>
             <th class="py-3 px-4 text-left text-sm font-semibold">Código</th>
-            <th class="py-3 px-4 text-left text-sm font-semibold">Barrio</th>
+            <th class="py-3 px-4 text-left text-sm font-semibold">Zona</th>
             <th class="py-3 px-4 text-left text-sm font-semibold">Tipo</th>
+            <th class="py-3 px-4 text-left text-sm font-semibold">Estado</th>
+            <th class="py-3 px-4 text-left text-sm font-semibold">Adulto mayor</th>
             <th class="py-3 px-4 text-left text-sm font-semibold">Tenencia</th>
             <th class="py-3 px-4 text-left text-sm font-semibold">Acciones</th>
-            <th class="py-3 px-4 text-left text-sm font-semibold">Estado</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!afiliados.length">
-            <td colspan="9" class="py-4 text-center text-gray-500">No hay afiliados registrados.</td>
+            <td colspan="11" class="py-4 text-center text-gray-500">No hay afiliados registrados.</td>
           </tr>
 
           <tr v-for="a in afiliados" :key="a.id" class="border-t">
@@ -58,8 +59,7 @@ const confirmDelete = (id) => {
             <td class="py-3 px-4">{{ a.celular ?? '—' }}</td>
             <td class="py-3 px-4">{{ a.direccion }}</td>
             <td class="py-3 px-4">{{ a.codigo }}</td>
-            <td class="py-3 px-4">{{ a.barrio ?? '—' }}</td>
-            <td class="py-3 px-4 capitalize">{{ a.estado }}</td>
+            <td class="py-3 px-4">{{ a.zona ?? '—' }}</td>
             <td class="py-3 px-4">
               <span :class="{
                 'bg-green-100 text-green-800': a.tipo === 'socio',
@@ -68,8 +68,21 @@ const confirmDelete = (id) => {
                 {{ a.tipo }}
               </span>
             </td>
+            <td class="py-3 px-4">
+              <span :class="{
+                'bg-green-100 text-green-800': a.estado === 'activo',
+                'bg-yellow-100 text-yellow-800': a.estado === 'suspendido',
+                'bg-red-100 text-red-800': a.estado === 'baja'
+              }" class="px-2 py-1 rounded text-xs font-medium">
+                {{ a.estado }}
+              </span>
+            </td>
+            <td class="py-3 px-4">
+              {{ a.adulto_mayor ? 'Sí' : 'No' }}
+            </td>
             <td class="py-3 px-4 capitalize">{{ a.tenencia }}</td>
             <td class="py-3 px-4 space-x-2">
+              <Link :href="`/afiliados/${a.id}`" class="text-blue-600 hover:underline text-sm">Ver</Link>
               <Link :href="`/afiliados/${a.id}/edit`" class="text-yellow-600 hover:underline text-sm">Editar</Link>
               <button @click="confirmDelete(a.id)" class="text-red-600 hover:underline text-sm">Eliminar</button>
             </td>
@@ -79,4 +92,3 @@ const confirmDelete = (id) => {
     </div>
   </app-layout>
 </template>
-
