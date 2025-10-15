@@ -84,13 +84,13 @@ const logout = () => {
                         />
                         <span>{{ $page.props.auth.user.name }}</span>
                     </div>
-                    <!-- Solo foto cuando está colapsado -->
+                    <!-- Solo foto cuando está colapsado 
                     <img
                         v-else
                         class="h-10 w-10 rounded-full object-cover"
                         :src="$page.props.auth.user.profile_photo_url"
                         :alt="$page.props.auth.user.name"
-                    />
+                    />   -->
 
                     <!-- Botón de toggle: 3 líneas o flecha -->
                     <button
@@ -109,57 +109,94 @@ const logout = () => {
                 </div>
 
                 <!-- Menú de navegación -->
-                <nav class="p-4 space-y-2 flex-1">
+                <nav class="p-6 space-y-2 flex-1">
                     <!-- Opciones según rol -->
                     <template v-if="$page.props.auth.user.role_names?.includes('Administrador')">
-                        <Link href="/usuarios" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
-                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zM9.002 18.005a7.995 7.995 0 01-.225-3.003c0-.124.01-.25-.015-.375c-.024-.226.046-.45.195-.626.149-.176.353-.28.572-.28h1.161c.219 0 .423.104.572.28.149.176.219.4.195.626-.025.125-.015.251-.015.375a7.995 7.995 0 01-.225 3.003h-1.148zm1.002-8a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span>
+                        <Link href="/users" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zM9.002 18.005a7.995 7.995 0 01-.225-3.003c0-.124.01-.25-.015-.375c-.024-.226.046-.45.195-.626.149-.176.353-.28.572-.28h1.161c.219 0 .423.104.572.28.149.176.219.4.195.626-.025.125-.015.251-.015.375a7.995 7.995 0 01-.225 3.003h-1.148zm1.002-8a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span> -->
                             <span v-if="!isSidebarHidden">Usuarios</span>
                         </Link>
-                        <Link href="/socios" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
-                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18H4v-3a4 4 0 018.88-2.31c.22.13.434.288.64.464l-.001.001c.212.183.398.397.587.644.133.176.27.355.405.539.096.13.19.263.28.401l-.001-.001c.135.207.288.423.454.646.126.166.257.336.395.511a4.002 4.002 0 01-1.39 1.488L16 18z"/></svg></span>
-                            <span v-if="!isSidebarHidden">Socios</span>
+                        
+                        <Link href="/afiliados" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18H4v-3a4 4 0 018.88-2.31c.22.13.434.288.64.464l-.001.001c.212.183.398.397.587.644.133.176.27.355.405.539.096.13.19.263.28.401l-.001-.001c.135.207.288.423.454.646.126.166.257.336.395.511a4.002 4.002 0 01-1.39 1.488L16 18z"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">Afiliados</span>
                         </Link>
                         <Link href="/facturas" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
-                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 012.707 13H4a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 000 2h14a1 1 0 000-2h-1a1 1 0 01-1-1v-2a1 1 0 011-1h1.293a1 1 0 01.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 4a4 4 0 014 4v4H6z"/></svg></span>
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 012.707 13H4a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 000 2h14a1 1 0 000-2h-1a1 1 0 01-1-1v-2a1 1 0 011-1h1.293a1 1 0 01.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 4a4 4 0 014 4v4H6z"/></svg></span> -->
                             <span v-if="!isSidebarHidden">Facturas</span>
                         </Link>
                         <Link href="/pagos" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
-                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span> -->
                             <span v-if="!isSidebarHidden">Pagos</span>
                         </Link>
+                        <Link href="/IngresosEgresos" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg  class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">Ingresos/Egresos</span>
+                        </Link>
+                        <!-- <Link href="/accesos-autorizados" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                            <span v-if="!isSidebarHidden">Accesos Autorizados</span>
+                        </Link> -->
+                        <Link href="/reportes" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">Reportes</span>
+                        </Link> 
+                        <Link href="/lecturas" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">Lecturas</span>
+                        </Link> 
+                       
+                        <!-- <Link href="/notificaciones" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                            <span v-if="!isSidebarHidden">Notificaciones</span>
+                        </Link>  -->
+                        <Link href="/conexiones" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">Conexiones</span>
+                        </Link> 
+
                     </template>
 
                     <template v-else-if="$page.props.auth.user.role_names?.includes('Secretaria')">
-                        <Link href="/socio" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
-                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18H4v-3a4 4 0 018.88-2.31c.22.13.434.288.64.464l-.001.001c.212.183.398.397.587.644.133.176.27.355.405.539.096.13.19.263.28.401l-.001-.001c.135.207.288.423.454.646.126.166.257.336.395.511a4.002 4.002 0 01-1.39 1.488L16 18z"/></svg></span>
-                            <span v-if="!isSidebarHidden">Socios</span>
+                        <Link href="/beneficiario" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18H4v-3a4 4 0 018.88-2.31c.22.13.434.288.64.464l-.001.001c.212.183.398.397.587.644.133.176.27.355.405.539.096.13.19.263.28.401l-.001-.001c.135.207.288.423.454.646.126.166.257.336.395.511a4.002 4.002 0 01-1.39 1.488L16 18z"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">Beneficiarios</span>
                         </Link>
-                        <Link href="/pago" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
-                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span>
+                        <Link href="/conexiones" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">Conexiones</span>
+                        </Link> 
+                        <Link href="/factura" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 012.707 13H4a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 000 2h14a1 1 0 000-2h-1a1 1 0 01-1-1v-2a1 1 0 011-1h1.293a1 1 0 01.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 4a4 4 0 014 4v4H6z"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">Facturas</span>
+                        </Link>
+                        <Link href="/pagos" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 00-2 2v6a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-3V3a1 1 0 00-2 0v1H9V3a1 1 0 00-2 0v1H4zm0 2h12v6H4V6zm-1 8h14a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 01-1-1v-2a1 1 0 011-1z"/></svg></span> -->
                             <span v-if="!isSidebarHidden">Pagos</span>
                         </Link>
+                        
                     </template>
 
                     <template v-else-if="$page.props.auth.user.role_names?.includes('Tecnico')">
-                        <Link href="/conexiones" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
-                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-8V5a1 1 0 012 0v5a1 1 0 01-2 0zm-1-2.5a.5.5 0 011 0v.5a.5.5 0 01-1 0v-.5zm4 0a.5.5 0 011 0v.5a.5.5 0 01-1 0v-.5z" clip-rule="evenodd"/></svg></span>
-                            <span v-if="!isSidebarHidden">Conexiones</span>
-                        </Link>
-                        <Link href="/lecturas" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
-                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6zm1 2h6v2H7V6zm0 3h6v2H7V9zm0 3h6v2H7v-2z" clip-rule="evenodd"/></svg></span>
+                       
+                        <Link href="/lectura" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6zm1 2h6v2H7V6zm0 3h6v2H7V9zm0 3h6v2H7v-2z" clip-rule="evenodd"/></svg></span> -->
                             <span v-if="!isSidebarHidden">Lecturas</span>
+                        </Link>
+                        <Link href="/facturass" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 012.707 13H4a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 000 2h14a1 1 0 000-2h-1a1 1 0 01-1-1v-2a1 1 0 011-1h1.293a1 1 0 01.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 4a4 4 0 014 4v4H6z"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">Facturas</span>
                         </Link>
                     </template>
 
                     <template v-else-if="$page.props.auth.user.role_names?.includes('Usuario')">
                         <Link href="/mi-cuenta" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
-                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg></span>
-                            <span v-if="!isSidebarHidden">Mi cuenta</span>
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">mis facturas</span>
                         </Link>
                         <Link href="/notificaciones" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors duration-200">
-                            <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 012.707 13H4a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 000 2h14a1 1 0 000-2h-1a1 1 0 01-1-1v-2a1 1 0 011-1h1.293a1 1 0 01.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 110-6 3 3 0 010 6z"/></svg></span>
-                            <span v-if="!isSidebarHidden">Notificaciones</span>
+                            <!-- <span class="mr-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 012.707 13H4a1 1 0 011 1v2a1 1 0 01-1 1H3a1 1 0 000 2h14a1 1 0 000-2h-1a1 1 0 01-1-1v-2a1 1 0 011-1h1.293a1 1 0 01.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 110-6 3 3 0 010 6z"/></svg></span> -->
+                            <span v-if="!isSidebarHidden">historial de pagos</span>
                         </Link>
                     </template>
                 </nav>
@@ -186,21 +223,21 @@ const logout = () => {
                             <div class="flex items-center justify-between w-full px-3 py-2 rounded-lg text-gray-700 dark:text-gray-300 transition-colors duration-200">
                                 <div class="flex items-center">
                                     <span class="mr-3">
-                                        <!-- Icono del sol o luna según modo -->
-                                        <svg v-if="!darkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <!-- Icono del sol o luna según modo  -->
+                                        <!-- <svg v-if="!darkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
                                         </svg>
                                         <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-                                        </svg>
+                                        </svg> -->
                                     </span>
-                                    <span>{{ darkMode ? 'Modo Oscuro' : 'Modo Claro' }}</span>
-                                </div>
+                                    <!-- <span>{{ darkMode ? 'Modo Oscuro' : 'Modo Claro' }}</span> -->
+                                </div>    
                                 <!-- Switch de modo oscuro -->
-                                <label for="darkModeSwitch" class="relative inline-flex items-center cursor-pointer">
+                                <!-- <label for="darkModeSwitch" class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="darkModeSwitch" :checked="darkMode" @change="toggleDarkMode" class="sr-only peer">
                                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                                </label>
+                                </label> -->
                             </div>
                         </div>
                     </details>
@@ -228,12 +265,12 @@ const logout = () => {
                                     <ApplicationMark class="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
                                 </Link>
                                 <div class="ml-4 hidden md:flex flex-col">
-                                    <span class="font-semibold text-gray-800 dark:text-gray-200">CooperatiDAva de Agua</span>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ currentTime }}</span>
+                                    <span class="font-semibold text-gray-800 dark:text-gray-200">Cooperativa de Agua</span>
+                                    <!-- <span class="text-xs text-gray-500 dark:text-gray-400">{{ currentTime }}</span> -->
                                 </div>
                             </div>
 
-                            <!-- Barra de búsqueda -->
+                            <!-- Barra de búsqueda 
                             <div class="flex-1 flex justify-center px-2">
                                 <div class="relative w-full max-w-md">
                                     <input
@@ -245,7 +282,7 @@ const logout = () => {
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                                     </svg>
                                 </div>
-                            </div>
+                            </div>  -->
 
                             <!-- Espacio vacío para centrar (evita duplicado del logo) -->
                             <div class="hidden md:flex"></div>

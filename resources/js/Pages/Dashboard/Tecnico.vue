@@ -1,28 +1,17 @@
 <template>
-   <AppLayout title="Panel Tecnico">
-  <div class="p-6">
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-3xl font-bold mb-4">Panel de Técnico</h1>
-        <p>Bienvenido, aquí puedes gestionar conexiones y registrar lecturas de medidores.</p>
+  <AppLayout title="Dashboard">
+    <div class="py-12">
+      <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
+          <div class="p-6 text-gray-900">
+            <h2 class="text-xl font-semibold mb-4">tecnico</h2>
+          </div>
+        </div>
       </div>
-      
-      <button 
-        @click="cerrarSesion"
-        class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
-      >
-        Cerrar Sesión
-      </button>
     </div>
-  </div>
-</AppLayout>
+  </AppLayout>
 </template>
 
 <script setup>
-import { router } from '@inertiajs/vue3'
-import AppLayout from '@/Layouts/AppLayout.vue'; 
-
-const cerrarSesion = () => {
-  router.post(route('logout'))
-}
+import AppLayout from '@/Layouts/AppLayout.vue'
 </script>

@@ -16,8 +16,8 @@ use App\Http\Controllers\{
 
 // Otros controladores
 use App\Http\Controllers\{
-    UsuarioController,
-    SocioController,
+    UserController,
+    AfiliadoController,
     ConexionController,
     LecturaController,
     FacturaController,
@@ -84,27 +84,25 @@ Route::middleware(['auth', 'role:Usuario'])
 // ================================
 // RUTAS PARA ADMINISTRADOR
 // ================================
-Route::middleware(['auth', 'role:Administrador'])->group(function () {
-    Route::resource('usuarios', UsuarioController::class);
-    Route::resource('socios', SocioController::class);
-    Route::resource('ingresos-egresos', IngresoEgresoController::class);
-    Route::resource('accesos-autorizados', AccesoAutorizadoController::class);
+Route::middleware(['auth', 'role:Administrador']) ->group(function () {
+    Route::resource('users', UserController::class);
+    Route::resource('afiliados', AfiliadoController::class);
+    Route::resource('IngresosEgresos', IngresoEgresoController::class);
     Route::resource('facturas', FacturaController::class);
     Route::resource('pagos', PagoController::class);
     Route::resource('conexiones', ConexionController::class);
-    Route::resource('lecturas', LecturaController::class);
+    Route::resource('lecturas', LecturaController::class)->names('lecturas');
     Route::resource('reportes', ReporteController::class);
-    Route::get('auditoria', [AuditoriaController::class, 'index'])->name('auditoria.index');
+    
 });
 
 // ================================
 // RUTAS PARA SECRETARIA
 // ================================
 Route::middleware(['auth', 'role:Secretaria'])->group(function () {
-    Route::resource('socio', SocioController::class)->names('secretaria.socios');
+    Route::resource('afiliado', AfiliadoController::class)->names('secretaria.afiliado');
     Route::resource('factura', FacturaController::class);
     Route::resource('pago', PagoController::class);
-    Route::resource('accesos-autorizados', AccesoAutorizadoController::class);
     Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
 });
 
@@ -112,9 +110,10 @@ Route::middleware(['auth', 'role:Secretaria'])->group(function () {
 // RUTAS PARA TÉCNICO
 // ================================
 Route::middleware(['auth', 'role:Tecnico'])->group(function () {
-    Route::resource('conexiones', ConexionController::class);
-    Route::resource('lecturas', LecturaController::class);
-    Route::get('socios/{id}', [SocioController::class, 'show'])->name('socios.show');
+
+    Route::resource('lectura', LecturaController::class);
+    Route::resource('facturass', FacturaController::class);
+   
 });
 
 // ================================

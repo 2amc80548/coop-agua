@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
+
 {
     use HasRoles;
     use HasApiTokens;
@@ -18,14 +19,12 @@ class User extends Authenticatable
     use HasProfilePhoto;
     use Notifiable;
     use TwoFactorAuthenticatable;
-
-    // ✅ ESTO ES LO QUE TE FALTA - AGREGA TODOS LOS CAMPOS:
+ 
     protected $fillable = [
        'name',
         'email',
         'password',
-        'ci',
-        'telefono',
+        'afiliado_id',
     ];
 
     protected $hidden = [
@@ -44,5 +43,15 @@ class User extends Authenticatable
     {
         return $this->roles->pluck('name');
     }
+
+public function afiliado()
+{
+    return $this->belongsTo(Afiliado::class);
+}
+
+public function lecturasRegistradas() {
+    return $this->hasMany(Lectura::class, 'registrado_por');
+}
+
 
 }

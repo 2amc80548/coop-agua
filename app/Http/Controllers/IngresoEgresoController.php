@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\IngresoEgreso;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class IngresoEgresoController extends Controller
 {
@@ -11,6 +13,7 @@ class IngresoEgresoController extends Controller
     {
         $query = IngresoEgreso::query();
 
+        // Filtros opcionales
         if ($request->filled('tipo')) {
             $query->where('tipo', $request->tipo);
         }
@@ -23,7 +26,22 @@ class IngresoEgresoController extends Controller
             $query->whereBetween('fecha', [$request->fecha_inicio, $request->fecha_fin]);
         }
 
-        return $query->get();
+        $registros = $query->with('usuarioRegistrado')->get();
+
+        return Inertia::render('IngresosEgresos/Index', [  
+            'registros' => $registros,
+            'filters' => [
+                'tipo' => $request->tipo,
+                'categoria' => $request->categoria,
+                'fecha_inicio' => $request->fecha_inicio,
+                'fecha_fin' => $request->fecha_fin,
+            ],
+        ]);
+    }
+
+    public function create()
+    {
+        return Inertia::render('IngresosEgresos/Create'); 
     }
 
     public function store(Request $request)
@@ -34,21 +52,38 @@ class IngresoEgresoController extends Controller
             'descripcion' => 'nullable|string|max:255',
             'monto' => 'required|numeric|min:0',
             'fecha' => 'required|date',
-            'registrado_por' => 'required|exists:users,id',
         ]);
 
-        $registro = IngresoEgreso::create($request->all());
+        $registro = IngresoEgreso::create([
+            'tipo' => $request->tipo,
+            'categoria' => $request->categoria,
+            'descripcion' => $request->descripcion,
+            'monto' => $request->monto,
+            'fecha' => $request->fecha,
+            'registrado_por' => Auth::id(),
+        ]);
 
-        return response()->json([
-            'message' => 'Registro creado correctamente',
-            'registro' => $registro,
-        ], 201);
+        return redirect()
+            ->route('IngresosEgresos.index')
+            ->with('success', 'Registro creado correctamente.');
     }
 
     public function show($id)
     {
+        $registro = IngresoEgreso::with('usuarioRegistrado')->findOrFail($id);
+
+        return Inertia::render('IngresosEgresos/Show', [  
+            'registro' => $registro,
+        ]);
+    }
+
+    public function edit($id)
+    {
         $registro = IngresoEgreso::findOrFail($id);
-        return response()->json($registro);
+
+        return Inertia::render('IngresosEgresos/Edit', [  
+            'registro' => $registro,
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -61,15 +96,19 @@ class IngresoEgresoController extends Controller
             'descripcion' => 'nullable|string|max:255',
             'monto' => 'required|numeric|min:0',
             'fecha' => 'required|date',
-            'registrado_por' => 'required|exists:users,id',
         ]);
 
-        $registro->update($request->all());
-
-        return response()->json([
-            'message' => 'Registro actualizado correctamente',
-            'registro' => $registro,
+        $registro->update([
+            'tipo' => $request->tipo,
+            'categoria' => $request->categoria,
+            'descripcion' => $request->descripcion,
+            'monto' => $request->monto,
+            'fecha' => $request->fecha,
         ]);
+
+        return redirect()
+            ->route('IngresosEgresos.index')
+            ->with('success', 'Registro actualizado correctamente.');
     }
 
     public function destroy($id)
@@ -77,6 +116,8 @@ class IngresoEgresoController extends Controller
         $registro = IngresoEgreso::findOrFail($id);
         $registro->delete();
 
-        return response()->json(['message' => 'Registro eliminado correctamente']);
+        return redirect()
+            ->route('IngresosEgresos.index')
+            ->with('success', 'Registro eliminado correctamente.');
     }
 }

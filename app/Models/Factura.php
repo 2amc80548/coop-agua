@@ -16,7 +16,6 @@ class Factura extends Model
         'estado',
         'fecha_emision',
         'fecha_pago',
-        
     ];
 
     // La factura pertenece a una conexión

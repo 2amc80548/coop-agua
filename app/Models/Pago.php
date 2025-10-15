@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 
 class Pago extends Model
 {
@@ -25,6 +26,6 @@ class Pago extends Model
     // El pago fue registrado por un usuario
     public function usuarioRegistrado()
     {
-        return $this->belongsTo(Usuario::class, 'registrado_por');
+        return $this->belongsTo(User::class, 'registrado_por');
     }
 }

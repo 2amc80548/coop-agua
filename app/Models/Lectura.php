@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
+
 
 class Lectura extends Model
 {
@@ -26,7 +28,7 @@ class Lectura extends Model
     // La lectura fue registrada por un usuario (técnico)
     public function usuarioRegistrado()
     {
-        return $this->belongsTo(Usuario::class, 'registrado_por');
+         return $this->belongsTo(User::class, 'registrado_por');
     }
 
     // Una lectura tiene una factura asociada
