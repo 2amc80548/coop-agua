@@ -2,34 +2,32 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
-class AfiliadoRequisito extends Model
+/**
+ * Este es un modelo Pivot personalizado.
+ * Representa la tabla 'afiliado_requisito'.
+ */
+class AfiliadoRequisito extends Pivot
 {
-    protected $table = 'afiliado_requisitos';
+    /**
+     * La tabla asociada con el modelo pivot.
+     *
+     * @var string
+     */
+    protected $table = 'afiliado_requisito';
 
-    protected $fillable = [
-        'afiliado_id',
-        'escenario',            // copia de tenencia
-        'fotocopia_ci',
-        'plano_ubicacion',
-        'doc_compra_venta',
-        'croquis',
-        'certificacion_otb',
-        'observaciones',
-        'registrado_por',
-    ];
+    /**
+     * Indica si el modelo debe tener timestamps.
+     *
+     * @var bool
+     */
+    public $timestamps = true; // Ya que definimos created_at/updated_at
 
+    /**
+     * Conversión de tipos (casts) para la fecha.
+     */
     protected $casts = [
-        'fotocopia_ci'      => 'boolean',
-        'plano_ubicacion'   => 'boolean',
-        'doc_compra_venta'  => 'boolean',
-        'croquis'           => 'boolean',
-        'certificacion_otb' => 'boolean',
+        'fecha_entrega' => 'date:Y-m-d',
     ];
-
-    public function afiliado()
-    {
-        return $this->belongsTo(Afiliado::class);
-    }
 }

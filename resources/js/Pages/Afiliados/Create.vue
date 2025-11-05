@@ -1,183 +1,322 @@
 <script setup>
-import { Link, useForm } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import Modal from '@/Components/Modal.vue';
+import axios from 'axios'; // No es necesario si solo usamos 'zonas.store'
 
+// --- 1. PROPS ---
+const props = defineProps({
+    zonas: Array,
+    requisitos: Array,
+    errors: Object,
+});
+const page = usePage();
+
+// --- 2. FORMULARIO PRINCIPAL ---
 const form = useForm({
-  nombre_completo: '',
-  ci: '',
-  celular: '',
-  direccion: '',
-  zona: '',
-  tipo: '',
-  fecha_afiliacion: '',
-  fecha_baja: '',
-  codigo: '',
-  tenencia: '',
-  estado: 'activo',
-  adulto_mayor: false,
-  // requisitos
-  req: {
-    fotocopia_ci: false,
-    plano_ubicacion: false,
-    doc_compra_venta: false,
-    croquis: false,
-    certificacion_otb: false,
-    observaciones: '',
-  }
+    nombre_completo: '',
+    ci: '',
+    celular: '',
+    direccion: '',
+    zona_id: '', 
+    tipo: 'socio',
+    estado: 'activo',
+    estado_servicio: 'activo',
+    fecha_afiliacion: new Date().toISOString().split('T')[0],
+    fecha_baja: null,
+    codigo: '',
+    tenencia: 'propietario',
+    adulto_mayor: false,
+    profile_photo: null,
+    requisitos_seleccionados: [],
+    crear_usuario: false, 
+    email: '',
+    password: '',
+    password_confirmation: '',
 });
 
+// --- 3. LÓGICA DE FOTO ---
+const photoPreview = ref(null);
+const photoInput = ref(null);
+const selectNewPhoto = () => photoInput.value.click();
+const updatePhotoPreview = () => {
+    const photo = photoInput.value.files[0];
+    if (!photo) return;
+    form.profile_photo = photo;
+    const reader = new FileReader();
+    reader.onload = (e) => { photoPreview.value = e.target.result; };
+    reader.readAsDataURL(photo);
+};
+
+// --- 4. LÓGICA DE REQUISITOS (Tu idea) ---
+const requisitosFiltrados = computed(() => {
+    if (!props.requisitos) return [];
+    const tenencia = form.tenencia;
+    return props.requisitos.filter(req => {
+        return req.es_para_todos ||
+               (req.es_para_propietario && tenencia === 'propietario') ||
+               (req.es_para_compra_venta && tenencia === 'compra_venta') ||
+               (req.es_para_posesion && tenencia === 'posesion');
+    });
+});
+watch(() => form.tenencia, () => {
+    form.requisitos_seleccionados = [];
+});
+
+// --- 5. LÓGICA DE "NUEVA ZONA" (¡CORREGIDA Y FUNCIONAL!) ---
+const showNuevaZonaModal = ref(false);
+const nuevaZonaForm = useForm({ nombre: '' });
+const zonasLocales = ref([...props.zonas]); // Lista local reactiva
+
+const guardarNuevaZona = () => {
+    nuevaZonaForm.post(route('zonas.store'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            // Leemos la 'nueva_zona' que el controlador nos envía en el flash
+            const nuevaZona = page.props.flash.nueva_zona;
+            if (nuevaZona) {
+                // 1. Añadimos la nueva zona a nuestra lista local 'zonasLocales'
+                zonasLocales.value.push(nuevaZona);
+                // 2. Opcional: Ordenamos la lista alfabéticamente
+                zonasLocales.value.sort((a, b) => a.nombre.localeCompare(b.nombre));
+                // 3. Seleccionamos automáticamente la zona que acabamos de crear
+                form.zona_id = nuevaZona.id; 
+            }
+            // 4. Cerramos el modal y limpiamos el formulario del modal
+            showNuevaZonaModal.value = false;
+            nuevaZonaForm.reset();
+        },
+        onError: (errors) => {
+            console.error("Error al guardar zona:", errors);
+            // El error (ej. 'nombre ya existe') se mostrará en el modal
+        }
+    });
+};
+
+// --- 6. LÓGICA DE ENVÍO (SUBMIT) ---
 const submit = () => {
-  form.post('/afiliados');
+    if (form.crear_usuario && form.password !== form.password_confirmation) {
+        form.setError('password', 'Las contraseñas no coinciden.');
+        return;
+    }
+    form.post(route('afiliados.store'), {
+        onError: (errors) => {
+            console.error("Errores de validación:", errors);
+        },
+    });
 };
 </script>
 
 <template>
-  <div class="p-6">
-    <h1 class="text-2xl font-bold mb-6">Crear Afiliado</h1>
+    <AppLayout title="Nuevo Afiliado">
+        <template #header>
+            <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+                Registrar Nuevo Afiliado
+            </h2>
+        </template>
 
-    <form @submit.prevent="submit" class="space-y-6 bg-white p-6 rounded shadow">
+        <div class="py-12">
+            <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+                <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-xl sm:rounded-lg p-6 md:p-8">
+                    
+                    <div v-if="form.hasErrors" class="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-6" role="alert">
+                       <p class="font-bold">Error de Validación</p>
+                       <p v-if="form.errors.error_general">{{ form.errors.error_general }}</p>
+                       <p v-else>Por favor, revise los campos marcados en rojo.</p>
+                       <ul class="list-disc ml-5 text-sm"><li v-for="(error, key) in form.errors" :key="key" v-if="key !== 'error_general'">{{ error }}</li></ul>
+                    </div>
+                
+                    <form @submit.prevent="submit" class="space-y-6">
 
-      <div>
-        <label class="block text-sm font-medium mb-1">Nombre Completo</label>
-        <input v-model="form.nombre_completo" type="text" class="border rounded px-3 py-2 w-full" required />
-        <div v-if="form.errors.nombre_completo" class="text-red-500 text-sm mt-1">{{ form.errors.nombre_completo }}</div>
-      </div>
+                        <div class="col-span-6 sm:col-span-4">
+                            <input ref="photoInput" type="file" class="hidden" @change="updatePhotoPreview" accept="image/*">
+                            <label class="block font-medium text-sm text-gray-700 dark:text-gray-300">Foto del Afiliado (Opcional)</label>
+                            <div class="mt-2 flex items-center gap-4">
+                                <span v-if="!photoPreview" class="block rounded-full w-20 h-20 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                    <svg class="h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                                </span>
+                                <img v-if="photoPreview" :src="photoPreview" alt="Vista previa" class="w-20 h-20 rounded-full object-cover">
+                                <button @click.prevent="selectNewPhoto" type="button" class="bg-gray-200 dark:bg-gray-700 dark:text-gray-200 text-gray-700 py-2 px-4 rounded-md text-sm hover:bg-gray-300">
+                                    {{ photoPreview ? 'Cambiar Foto' : 'Seleccionar Foto' }}
+                                </button>
+                            </div>
+                            <div v-if="form.errors.profile_photo" class="text-red-600 text-sm mt-1">{{ form.errors.profile_photo }}</div>
+                        </div>
 
-      <div class="grid md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">CI</label>
-          <input v-model="form.ci" type="text" class="border rounded px-3 py-2 w-full" required />
-          <div v-if="form.errors.ci" class="text-red-500 text-sm mt-1">{{ form.errors.ci }}</div>
+                        <div class="border-t dark:border-gray-700 pt-6 space-y-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Datos Personales</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="nombre_completo" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Nombre Completo *</label>
+                                    <input id="nombre_completo" v-model="form.nombre_completo" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required />
+                                    <div v-if="form.errors.nombre_completo" class="text-red-600 text-sm mt-1">{{ form.errors.nombre_completo }}</div>
+                                </div>
+                                <div>
+                                    <label for="ci" class="block font-medium text-sm text-gray-700 dark:text-gray-300">CI / Carnet de Identidad *</label>
+                                    <input id="ci" v-model="form.ci" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required />
+                                    <div v-if="form.errors.ci" class="text-red-600 text-sm mt-1">{{ form.errors.ci }}</div>
+                                </div>
+                                <div>
+                                    <label for="celular" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Celular</label>
+                                    <input id="celular" v-model="form.celular" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-t dark:border-gray-700 pt-6 space-y-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Domicilio</h3>
+                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="direccion" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Dirección *</label>
+                                    <input id="direccion" v-model="form.direccion" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required />
+                                    <div v-if="form.errors.direccion" class="text-red-600 text-sm mt-1">{{ form.errors.direccion }}</div>
+                                </div>
+                                
+                                <div>
+                                    <label for="zona_id" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Zona *</label>
+                                    <div class="mt-1 flex items-center gap-2"> 
+                                        <select id="zona_id" v-model="form.zona_id" class="flex-grow border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required>
+                                            <option value="" disabled>Seleccione una zona</option>
+                                            <option v-for="zona in zonasLocales" :key="zona.id" :value="zona.id">{{ zona.nombre }}</option>
+                                        </select>
+                                        <button @click.prevent="showNuevaZonaModal = true" type="button" class="flex-shrink-0 px-3 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600">+</button>
+                                    </div>
+                                    <div v-if="form.errors.zona_id" class="text-red-600 text-sm mt-1">{{ form.errors.zona_id }}</div>
+                                </div>
+                             </div>
+                        </div>
+
+                        <div class="border-t dark:border-gray-700 pt-6 space-y-4">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Datos de Afiliación</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label for="codigo" class="block font-medium text-sm ...">Código Afiliado *</label>
+                                    <input id="codigo" v-model="form.codigo" type="text" class="mt-1 block w-full ..." required />
+                                    <div v-if="form.errors.codigo" class="text-red-600 text-sm mt-1">{{ form.errors.codigo }}</div>
+                                </div>
+                                <div>
+                                    <label for="tipo" class="block font-medium text-sm ...">Tipo *</label>
+                                    <select id="tipo" v-model="form.tipo" class="mt-1 block w-full ...">
+                                        <option value="socio">Socio</option>
+                                        <option value="usuario">Usuario</option>
+                                    </select>
+                                </div>
+                                 <div>
+                                    <label for="tenencia" class="block font-medium text-sm ...">Tenencia *</label>
+                                    <select id="tenencia" v-model="form.tenencia" class="mt-1 block w-full ...">
+                                        <option value="propietario">Propietario</option>
+                                        <option value="compra_venta">Compra/Venta</option>
+                                        <option value="posesion">Posesión</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="fecha_afiliacion" class="block font-medium text-sm ...">Fecha Afiliación</label>
+                                    <input id="fecha_afiliacion" v-model="form.fecha_afiliacion" type="date" class="mt-1 block w-full ..." />
+                                </div>
+                                <div>
+                                    <label for="estado" class="block font-medium text-sm ...">Estado Contractual *</label>
+                                    <select id="estado" v-model="form.estado" class="mt-1 block w-full ...">
+                                        <option value="activo">Activo</option>
+                                        <option value="suspendido">Suspendido</option>
+                                        <option value="baja">Baja</option>
+                                    </select>
+                                </div>
+                                 <div>
+                                    <label for="estado_servicio" class="block font-medium text-sm ...">Estado Servicio *</label>
+                                    <select id="estado_servicio" v-model="form.estado_servicio" class="mt-1 block w-full ...">
+                                        <option value="activo">Activo</option>
+                                        <option value="en_corte">En Corte</option>
+                                        <option value="cortado">Cortado</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-3 flex items-center gap-2 mt-2">
+                                    <input id="adulto_mayor" v-model="form.adulto_mayor" type="checkbox" class="rounded ..." />
+                                    <label for="adulto_mayor" class="font-medium text-sm ...">¿Es Adulto Mayor? (Aplica descuento)</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="border-t dark:border-gray-700 pt-6">
+                             <h3 class="text-lg font-medium text-gray-900 dark:text-white">Requisitos Entregados</h3>
+                             <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Se mostrarán los requisitos según la Tenencia seleccionada.</p>
+                             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                 <template v-for="requisito in props.requisitos" :key="requisito.id">
+                                     <label v-if="
+                                                requisito.es_para_todos ||
+                                                (requisito.es_para_propietario && form.tenencia === 'propietario') ||
+                                                (requisito.es_para_compra_venta && form.tenencia === 'compra_venta') ||
+                                                (requisito.es_para_posesion && form.tenencia === 'posesion')
+                                            "
+                                            class="flex items-center gap-2 p-3 border dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700">
+                                         <input type="checkbox" :value="requisito.id" v-model="form.requisitos_seleccionados" class="rounded ..."/>
+                                         <span class="text-sm font-medium ...">{{ requisito.nombre }}</span>
+                                     </label>
+                                 </template>
+                             </div>
+                             <div v-if="requisitosFiltrados.length === 0 && form.tenencia" class="text-sm text-gray-500 italic mt-4">
+                                 (No hay requisitos definidos para la tenencia "{{ form.tenencia }}")
+                             </div>
+                        </div>
+
+                        <div class="border-t dark:border-gray-700 pt-6 space-y-4">
+                            <h3 class="text-lg font-medium ...">Acceso al Sistema (Opcional)</h3>
+                             <label class="flex items-center gap-2">
+                                 <input type="checkbox" v-model="form.crear_usuario" class="rounded ..." />
+                                 <span class="text-sm font-medium ...">Crear cuenta de usuario para este afiliado</span>
+                             </label>
+                             <div v-if="form.crear_usuario" class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border ...">
+                                <div>
+                                    <label for="email" class="block font-medium text-sm ...">Email (Usuario) *</label>
+                                    <input id="email" v-model="form.email" type="email" class="mt-1 block w-full ..." />
+                                    <div v-if="form.errors.email" class="text-red-600 text-sm mt-1">{{ form.errors.email }}</div>
+                                </div>
+                                <div>
+                                    <label for="password" class="block font-medium text-sm ...">Contraseña *</label>
+                                    <input id="password" v-model="form.password" type="password" class="mt-1 block w-full ..." />
+                                    <div v-if="form.errors.password" class="text-red-600 text-sm mt-1">{{ form.errors.password }}</div>
+                                </div>
+                                 <div>
+                                    <label for="password_confirmation" class="block font-medium text-sm ...">Confirmar Contraseña *</label>
+                                    <input id="password_confirmation" v-model="form.password_confirmation" type="password" class="mt-1 block w-full ..." />
+                                </div>
+                             </div>
+                         </div>
+
+                        <div class="flex justify-end gap-4 mt-8 pt-6 border-t dark:border-gray-700">
+                            <Link :href="route('afiliados.index')" class="bg-gray-500 ...">Cancelar</Link>
+                            <button type="submit" :disabled="form.processing" class="bg-blue-600 ...">
+                                {{ form.processing ? 'Guardando...' : 'Guardar Afiliado' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Celular</label>
-          <input v-model="form.celular" type="text" class="border rounded px-3 py-2 w-full" />
-          <div v-if="form.errors.celular" class="text-red-500 text-sm mt-1">{{ form.errors.celular }}</div>
-        </div>
-      </div>
+        
+        <Modal :show="showNuevaZonaModal" @close="showNuevaZonaModal = false" max-width="md">
+            <div class="p-6 dark:bg-gray-800 dark:text-gray-200">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-white">
+                    Agregar Nueva Zona
+                </h2>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    La zona se añadirá a la lista y se seleccionará automáticamente.
+                </p> 
+                <form @submit.prevent="guardarNuevaZona" class="mt-4 space-y-4">
+                     <div>
+                        <label for="nueva_zona_nombre" class="block font-medium text-sm ...">Nombre de la Zona *</label>
+                        <input id="nueva_zona_nombre" v-model="nuevaZonaForm.nombre" type="text" class="mt-1 block w-full ..." required />
+                        <div v-if="nuevaZonaForm.errors.nombre" class="text-red-600 text-sm mt-1">{{ nuevaZonaForm.errors.nombre }}</div>
+                    </div>
+                    <div class="flex justify-end gap-4">
+                        <button type="button" @click="showNuevaZonaModal = false" class="bg-gray-500 ...">Cancelar</button>
+                        <button type="submit" :disabled="nuevaZonaForm.processing" class="bg-blue-600 ...">
+                            {{ nuevaZonaForm.processing ? 'Guardando...' : 'Guardar Zona' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </Modal>
 
-      <div>
-        <label class="block text-sm font-medium mb-1">Dirección</label>
-        <input v-model="form.direccion" type="text" class="border rounded px-3 py-2 w-full" required />
-        <div v-if="form.errors.direccion" class="text-red-500 text-sm mt-1">{{ form.errors.direccion }}</div>
-      </div>
-
-      <div class="grid md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">Zona</label>
-          <input v-model="form.zona" type="text" class="border rounded px-3 py-2 w-full" />
-          <div v-if="form.errors.zona" class="text-red-500 text-sm mt-1">{{ form.errors.zona }}</div>
-        </div>
-        <div class="flex items-center gap-2 mt-6">
-          <input id="adulto" type="checkbox" v-model="form.adulto_mayor" />
-          <label for="adulto" class="text-sm font-medium">Adulto mayor (20% desc. consumo)</label>
-        </div>
-      </div>
-
-      <div class="grid md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">Tipo</label>
-          <select v-model="form.tipo" class="border rounded px-3 py-2 w-full" required>
-            <option value="">Seleccionar tipo</option>
-            <option value="socio">Socio</option>
-            <option value="usuario">Usuario</option>
-          </select>
-          <div v-if="form.errors.tipo" class="text-red-500 text-sm mt-1">{{ form.errors.tipo }}</div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Estado</label>
-          <select v-model="form.estado" class="border rounded px-3 py-2 w-full" required>
-            <option value="activo">Activo</option>
-            <option value="suspendido">Suspendido</option>
-            <option value="baja">Baja</option>
-          </select>
-          <div v-if="form.errors.estado" class="text-red-500 text-sm mt-1">{{ form.errors.estado }}</div>
-        </div>
-      </div>
-
-      <div class="grid md:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">Fecha de Afiliación</label>
-          <input v-model="form.fecha_afiliacion" type="date" class="border rounded px-3 py-2 w-full" />
-          <div v-if="form.errors.fecha_afiliacion" class="text-red-500 text-sm mt-1">{{ form.errors.fecha_afiliacion }}</div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Fecha de Baja</label>
-          <input v-model="form.fecha_baja" type="date" class="border rounded px-3 py-2 w-full" />
-          <div v-if="form.errors.fecha_baja" class="text-red-500 text-sm mt-1">{{ form.errors.fecha_baja }}</div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Código</label>
-          <input v-model="form.codigo" type="text" class="border rounded px-3 py-2 w-full" required />
-          <div v-if="form.errors.codigo" class="text-red-500 text-sm mt-1">{{ form.errors.codigo }}</div>
-        </div>
-      </div>
-
-      <div>
-        <label class="block text-sm font-medium mb-1">Tenencia</label>
-        <select v-model="form.tenencia" class="border rounded px-3 py-2 w-full" required>
-          <option value="">Seleccionar</option>
-          <option value="propietario">Propietario</option>
-          <option value="compra_venta">Compra/Venta</option>
-          <option value="posesion">Posesión (sin papeles)</option>
-        </select>
-        <div v-if="form.errors.tenencia" class="text-red-500 text-sm mt-1">{{ form.errors.tenencia }}</div>
-      </div>
-
-      <!-- Requisitos dinámicos -->
-      <div class="mt-4 p-4 border rounded">
-        <h2 class="font-semibold mb-2">Requisitos presentados</h2>
-
-        <label class="flex items-center gap-2 mb-1">
-          <input type="checkbox" v-model="form.req.fotocopia_ci" />
-          <span>Fotocopia de CI</span>
-        </label>
-
-        <div v-if="form.tenencia === 'propietario'">
-          <label class="flex items-center gap-2 mb-1">
-            <input type="checkbox" v-model="form.req.plano_ubicacion" />
-            <span>Plano de ubicación</span>
-          </label>
-        </div>
-
-        <div v-if="form.tenencia === 'compra_venta'">
-          <label class="flex items-center gap-2 mb-1">
-            <input type="checkbox" v-model="form.req.doc_compra_venta" />
-            <span>Documento de compra-venta (notariado)</span>
-          </label>
-        </div>
-
-        <div v-if="form.tenencia === 'posesion'">
-          <label class="flex items-center gap-2 mb-1">
-            <input type="checkbox" v-model="form.req.croquis" />
-            <span>Croquis</span>
-          </label>
-          <label class="flex items-center gap-2 mb-1">
-            <input type="checkbox" v-model="form.req.certificacion_otb" />
-            <span>Certificación OTB</span>
-          </label>
-        </div>
-
-        <label class="block mt-2">
-          <span class="text-sm text-gray-700">Observaciones</span>
-          <textarea v-model="form.req.observaciones" class="w-full border rounded px-3 py-2 mt-1" rows="2"></textarea>
-        </label>
-
-        <!-- Errores condicionales -->
-        <div class="text-red-600 text-sm mt-2" v-if="form.errors['req.fotocopia_ci']">{{ form.errors['req.fotocopia_ci'] }}</div>
-        <div class="text-red-600 text-sm" v-if="form.errors['req.plano_ubicacion']">{{ form.errors['req.plano_ubicacion'] }}</div>
-        <div class="text-red-600 text-sm" v-if="form.errors['req.doc_compra_venta']">{{ form.errors['req.doc_compra_venta'] }}</div>
-        <div class="text-red-600 text-sm" v-if="form.errors['req.croquis']">{{ form.errors['req.croquis'] }}</div>
-        <div class="text-red-600 text-sm" v-if="form.errors['req.certificacion_otb']">{{ form.errors['req.certificacion_otb'] }}</div>
-      </div>
-
-      <div class="flex gap-4">
-        <button type="submit" :disabled="form.processing" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 disabled:opacity-50">
-          Guardar
-        </button>
-        <Link href="/afiliados" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">
-          Cancelar
-        </Link>
-      </div>
-    </form>
-  </div>
+    </AppLayout>
 </template>

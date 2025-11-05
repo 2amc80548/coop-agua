@@ -1,286 +1,204 @@
-<!-- resources/js/Pages/Users/Create.vue -->
-<template>
-  <app-layout>
-    <div class="p-6 max-w-3xl mx-auto">
-      <h1 class="text-2xl font-bold mb-6">Crear Usuario</h1>
-
-      <!-- Flash success -->
-      <div v-if="$page.props.flash?.success" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-        {{ $page.props.flash.success }}
-      </div>
-
-      <form @submit.prevent="submit" class="space-y-6 bg-white p-6 rounded-lg shadow">
-        <!-- Tipo de usuario -->
-        <div>
-          <label class="block font-semibold mb-1">Tipo de cuenta</label>
-          <div class="flex items-center gap-4">
-            <label class="inline-flex items-center gap-2">
-              <input type="radio" value="afiliado" v-model="form.tipo" />
-              <span>Afiliado (usuario final)</span>
-            </label>
-            <label class="inline-flex items-center gap-2">
-              <input type="radio" value="personal" v-model="form.tipo" />
-              <span>Personal (Admin/Secretaria/Técnico)</span>
-            </label>
-          </div>
-          <p class="text-sm text-gray-500 mt-1">
-            Afiliado: cuenta ligada a un afiliado específico (solo verá sus datos).
-          </p>
-          <div v-if="errors.tipo" class="text-red-600 text-sm mt-1">{{ errors.tipo }}</div>
-        </div>
-
-        <!-- Nombre -->
-        <div>
-          <label class="block font-semibold mb-1">Nombre completo</label>
-          <input
-            v-model="form.name"
-            type="text"
-            class="w-full border rounded px-3 py-2"
-            placeholder="Nombre de la persona solicitante"
-            required
-          />
-          <div v-if="errors.name" class="text-red-600 text-sm mt-1">{{ errors.name }}</div>
-        </div>
-
-        <!-- Email -->
-        <div>
-          <label class="block font-semibold mb-1">Correo de acceso</label>
-          <input
-            v-model="form.email"
-            type="email"
-            class="w-full border rounded px-3 py-2"
-            placeholder="correo@ejemplo.com"
-            required
-          />
-          <div v-if="errors.email" class="text-red-600 text-sm mt-1">{{ errors.email }}</div>
-        </div>
-
-        <!-- Password -->
-        <div>
-          <label class="block font-semibold mb-1">Contraseña</label>
-          <input
-            v-model="form.password"
-            type="password"
-            class="w-full border rounded px-3 py-2"
-            placeholder="Mínimo 6 caracteres"
-            required
-          />
-          <div v-if="errors.password" class="text-red-600 text-sm mt-1">{{ errors.password }}</div>
-        </div>
-
-        <!-- Rol -->
-        <div>
-          <label class="block font-semibold mb-1">Rol</label>
-          <select
-            v-model="form.role_id"
-            class="w-full border rounded px-3 py-2"
-            :disabled="roleOptions.length === 0"
-            required
-          >
-            <option value="" disabled>Selecciona un rol…</option>
-            <option v-for="r in roleOptions" :key="r.id" :value="r.id">
-              {{ r.name }}
-            </option>
-          </select>
-          <div v-if="errors.role_id" class="text-red-600 text-sm mt-1">{{ errors.role_id }}</div>
-          <p v-if="form.tipo === 'afiliado' && !roleUsuario" class="text-sm text-amber-700 mt-1">
-            No se encontró el rol para “Usuario”. Revisa tus seeds/roles.
-          </p>
-        </div>
-
-        <!-- Afiliado (solo si tipo = afiliado) -->
-        <div v-if="form.tipo === 'afiliado'">
-          <label class="block font-semibold mb-1">Afiliado</label>
-
-          <!-- Buscador -->
-          <div class="relative">
-            <input
-              v-model="query"
-              type="text"
-              class="w-full border rounded px-3 py-2"
-              placeholder="Buscar por CI o nombre…"
-              @input="onQueryInput"
-              autocomplete="off"
-            />
-            <div
-              v-if="showDropdown && results.length"
-              class="absolute z-10 mt-1 w-full bg-white border rounded shadow"
-            >
-              <button
-                v-for="item in results"
-                :key="item.id"
-                type="button"
-                class="block w-full text-left px-3 py-2 hover:bg-gray-50"
-                @click="selectAfiliado(item)"
-              >
-                <div class="font-medium">{{ item.nombre_completo }}</div>
-                <div class="text-xs text-gray-500">CI: {{ item.ci }}</div>
-                <div class="text-xs" :class="item.puede_tener_mas ? 'text-green-600' : 'text-red-600'">
-                  Usuarios asignados: {{ item.usuarios_count }} / 2
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <!-- Selección actual -->
-          <div v-if="selectedAfiliado" class="mt-2 p-3 bg-gray-50 rounded border">
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="font-semibold">{{ selectedAfiliado.nombre_completo }}</div>
-                <div class="text-xs text-gray-500">CI: {{ selectedAfiliado.ci }}</div>
-                <div
-                  class="text-xs"
-                  :class="selectedAfiliado.puede_tener_mas ? 'text-green-700' : 'text-red-700'"
-                >
-                  Usuarios asignados: {{ selectedAfiliado.usuarios_count }} / 2
-                </div>
-              </div>
-              <button
-                type="button"
-                class="text-sm text-red-600 hover:underline"
-                @click="clearAfiliado"
-              >
-                Quitar
-              </button>
-            </div>
-          </div>
-
-          <div v-if="errors.afiliado_id" class="text-red-600 text-sm mt-1">{{ errors.afiliado_id }}</div>
-
-          <p v-if="selectedAfiliado && !selectedAfiliado.puede_tener_mas" class="text-sm text-red-600 mt-2">
-            Este afiliado ya tiene 2 usuarios asignados. Debes elegir otro.
-          </p>
-        </div>
-
-        <!-- Botón Guardar -->
-        <div class="pt-2">
-          <button
-            type="submit"
-            class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 disabled:opacity-60"
-            :disabled="form.processing || (form.tipo==='afiliado' && selectedAfiliado && !selectedAfiliado.puede_tener_mas)"
-          >
-            Guardar
-          </button>
-          <Link href="/users" class="ml-3 text-gray-700 hover:underline">Cancelar</Link>
-        </div>
-      </form>
-    </div>
-  </app-layout>
-</template>
-
 <script setup>
-import AppLayout from '@/Layouts/AppLayout.vue'
-import { Link, useForm, router } from '@inertiajs/vue3'
-import { computed, reactive, ref, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import axios from 'axios';
 
+// --- Props (del controlador 'create') --- 
 const props = defineProps({
-  rolesPersonal: { type: Array, default: () => [] }, // [{id, name}, ...]
-  roleUsuario: { type: Object, default: null }       // {id, name} o null
-})
+    rolesPersonal: Array,
+    roleUsuario: Object,
+    searchAfiliadosUrl: String, // URL de la API (ej. .../buscar-por-ci/__CI_PLACEHOLDER__)
+    errors: Object,
+});
 
-// --------------------
-// Form
-// --------------------
+// --- Formulario ---
 const form = useForm({
-  tipo: 'afiliado', // 'afiliado' | 'personal'
-  name: '',
-  email: '',
-  password: '',
-  role_id: '',
-  afiliado_id: null
-})
+    tipo: 'personal',
+    name: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
+    role_id: '',
+    afiliado_id: null,
+});
 
-// errores de validación de Laravel
-const errors = computed(() => form.errors || {})
-
-// Opciones de roles según tipo
+// --- Lógica de Roles Dinámicos ---
 const roleOptions = computed(() => {
-  if (form.tipo === 'afiliado') {
-    return props.roleUsuario ? [props.roleUsuario] : []
-  }
-  // personal
-  return props.rolesPersonal || []
-})
-
-// Resetear role_id cuando cambia el tipo
-watch(() => form.tipo, () => {
-  form.role_id = ''
-  if (form.tipo === 'afiliado') {
-    // si ya hay afiliado seleccionado y no puede tener más, advertimos en UI (submit se deshabilita)
-  } else {
-    // al pasar a personal, limpiamos afiliado
-    clearAfiliado()
-  }
-})
-
-// --------------------
-// Buscador de Afiliados
-// --------------------
-const query = ref('')
-const results = ref([])
-const showDropdown = ref(false)
-const selectedAfiliado = ref(null)
-let debounceTimer = null
-
-const onQueryInput = () => {
-  showDropdown.value = true
-  clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(async () => {
-    await fetchAfiliados(query.value)
-  }, 300)
-}
-
-async function fetchAfiliados(q) {
-  results.value = []
-  if (!q || q.length < 2) return
-  try {
-    // Ajusta la URL al endpoint que tengas activo
-    const res = await fetch(`/api/afiliados/buscar?q=${encodeURIComponent(q)}`)
-    if (!res.ok) return
-    const data = await res.json()
-    results.value = Array.isArray(data) ? data : []
-  } catch (e) {
-    console.error('Error buscando afiliados:', e)
-  }
-}
-
-function selectAfiliado(item) {
-  selectedAfiliado.value = item
-  form.afiliado_id = item.id
-  query.value = `${item.nombre_completo} (CI: ${item.ci})`
-  showDropdown.value = false
-}
-
-function clearAfiliado() {
-  selectedAfiliado.value = null
-  form.afiliado_id = null
-  query.value = ''
-  showDropdown.value = false
-}
-
-document.addEventListener('click', (e) => {
-  // cierra dropdown si se clickea fuera (sencillo)
-  const dropdown = document.querySelector('.relative')
-  if (dropdown && !dropdown.contains(e.target)) {
-    showDropdown.value = false
-  }
-})
-
-// --------------------
-// Submit
-// --------------------
-function submit() {
-  // Reglas rápidas de front:
-  if (form.tipo === 'afiliado') {
-    if (!form.afiliado_id) {
-      form.setError('afiliado_id', 'Debe seleccionar un afiliado.')
-      return
+    if (form.tipo === 'afiliado') {
+        return props.roleUsuario ? [props.roleUsuario] : [];
     }
-    if (selectedAfiliado.value && !selectedAfiliado.value.puede_tener_mas) {
-      form.setError('afiliado_id', 'Este afiliado ya alcanzó el máximo de 2 usuarios.')
-      return
+    return props.rolesPersonal || [];
+});
+
+watch(() => form.tipo, (newTipo) => {
+    form.role_id = '';
+    if (newTipo === 'afiliado' && props.roleUsuario) {
+        form.role_id = props.roleUsuario.id;
+    } else {
+        clearAfiliado();
     }
-  }
-  form.post('/users')
-}
+});
+// --- Fin Lógica de Roles ---
+
+// --- Lógica del Buscador de Afiliados ---
+const searchCi = ref('');
+const searchResult = ref(null);
+const searchMessage = ref('');
+const isSearching = ref(false);
+
+const buscarAfiliado = async () => {
+    if (!searchCi.value.trim()) {
+        searchMessage.value = 'Ingrese un CI para buscar.';
+        return;
+    }
+    isSearching.value = true;
+    searchResult.value = null;
+    form.afiliado_id = null;
+    searchMessage.value = 'Buscando...';
+
+    const url = props.searchAfiliadosUrl.replace('__CI_PLACEHOLDER__', searchCi.value.trim()); 
+    
+    try {
+        const response = await axios.get(url);
+        if (response.data) {
+            searchResult.value = response.data;
+            form.afiliado_id = response.data.id;
+            form.name = response.data.nombre_completo; // Autocompleta el nombre
+            searchMessage.value = `Afiliado: ${response.data.nombre_completo}`;
+        }
+        // No necesitas 'else' aquí, el 'catch' (404) maneja cuando no se encuentra
+    } catch (error) {
+        searchMessage.value = 'Error al buscar o afiliado no encontrado (404).';
+        console.error("Error buscando afiliado:", error);
+    } finally {
+        isSearching.value = false;
+    }
+};
+
+const clearAfiliado = () => {
+    searchResult.value = null;
+    form.afiliado_id = null;
+    searchCi.value = '';
+    searchMessage.value = '';
+    if (form.tipo === 'afiliado') {
+        form.name = ''; 
+    }
+};
+// --- Fin Lógica Buscador ---
+
+// --- Enviar Formulario ---
+const submit = () => {
+    // Si es 'afiliado', nos aseguramos que el 'name' sea el del afiliado
+    if (form.tipo === 'afiliado' && searchResult.value) {
+        form.name = searchResult.value.nombre_completo;
+    }
+    
+    form.post(route('users.store'), {
+        onError: (errors) => {
+            console.error("Errores de validación:", errors);
+            form.reset('password', 'password_confirmation'); // Limpia contraseñas
+        },
+        onSuccess: () => {
+            form.reset(); // Limpia todo el formulario
+            clearAfiliado(); // Limpia el buscador
+        }
+    });
+};
 </script>
+<template>
+    <AppLayout title="Crear Usuario">
+        <template #header>
+            <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+                Crear Nuevo Usuario
+            </h2>
+        </template>
+
+        <div class="py-12">
+            <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
+                <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-xl sm:rounded-lg p-6 md:p-8">
+                    
+                    <form @submit.prevent="submit" class="space-y-6">
+                        
+                        <div>
+                            <label class="block font-medium text-sm text-gray-700 dark:text-gray-300">Tipo de Usuario</label>
+                            <div class="mt-2 flex gap-6">
+                                <label class="flex items-center">
+                                    <input type="radio" v-model="form.tipo" value="personal" class="text-blue-600 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Personal (Admin, Secretaria, etc.)</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" v-model="form.tipo" value="afiliado" class="text-blue-600 focus:ring-blue-500">
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Afiliado (Cliente)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div v-if="form.tipo === 'personal'" class="space-y-4 p-4 border dark:border-gray-700 rounded-md">
+                            <h3 class="font-medium text-gray-700 dark:text-gray-300">Datos del Personal</h3>
+                            <div>
+                                <label for="name_personal" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Nombre Completo *</label>
+                                <input id="name_personal" v-model="form.name" type="text" class="mt-1 block w-full ... " required />
+                                <div v-if="form.errors.name" class="text-red-600 text-sm mt-1">{{ form.errors.name }}</div>
+                            </div>
+                            <div>
+                                <label for="role_personal" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Rol de Personal *</label>
+                                <select id="role_personal" v-model="form.role_id" class="mt-1 block w-full ..." required>
+                                    <option value="" disabled>Seleccione un rol</option>
+                                    <option v-for="role in roleOptions" :key="role.id" :value="role.id">{{ role.name }}</option>
+                                </select>
+                                 <div v-if="form.errors.role_id" class="text-red-600 text-sm mt-1">{{ form.errors.role_id }}</div>
+                            </div>
+                        </div>
+
+                        <div v-if="form.tipo === 'afiliado'" class="space-y-4 p-4 border dark:border-gray-700 rounded-md">
+                            <h3 class="font-medium text-gray-700 dark:text-gray-300">Datos del Afiliado</h3>
+                            <label class="block font-medium text-sm text-gray-700 dark:text-gray-300">Buscar Afiliado por CI *</label>
+                            <div class="flex gap-2">
+                                <input v-model="searchCi" @keydown.enter.prevent="buscarAfiliado" type="text" placeholder="Ingrese CI del afiliado..." class="flex-grow ..." />
+                                <button @click.prevent="buscarAfiliado" :disabled="isSearching" class="bg-indigo-600 text-white px-4 py-2 rounded disabled:opacity-50">
+                                    {{ isSearching ? 'Buscando...' : 'Buscar' }}
+                                </button>
+                            </div>
+                            <div v-if="searchMessage" :class="{'text-green-600': form.afiliado_id, 'text-red-600': !form.afiliado_id}" class="text-sm mt-1">{{ searchMessage }}</div>
+                            <div v-if="form.errors.afiliado_id" class="text-red-600 text-sm mt-1">{{ form.errors.afiliado_id }}</div>
+                            
+                            <input v-model="form.name" type="hidden" />
+                            <input v-model="form.role_id" type="hidden" />
+                        </div>
+
+                        <div class="border-t dark:border-gray-700 pt-6 space-y-4">
+                             <div>
+                                <label for="email" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Email (para inicio de sesión) *</label>
+                                <input id="email" v-model="form.email" type="email" class="mt-1 block w-full ..." required />
+                                <div v-if="form.errors.email" class="text-red-600 text-sm mt-1">{{ form.errors.email }}</div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="password" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Contraseña *</label>
+                                    <input id="password" v-model="form.password" type="password" class="mt-1 block w-full ..." required />
+                                    <div v-if="form.errors.password" class="text-red-600 text-sm mt-1">{{ form.errors.password }}</div>
+                                </div>
+                                <div>
+                                    <label for="password_confirmation" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Confirmar Contraseña *</label>
+                                    <input id="password_confirmation" v-model="form.password_confirmation" type="password" class="mt-1 block w-full ..." required />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-4 mt-8 pt-6 border-t dark:border-gray-700">
+                            <Link :href="route('users.index')" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition">
+                                Cancelar
+                            </Link>
+                            <button type="submit" 
+                                    :disabled="form.processing || (form.tipo === 'afiliado' && !form.afiliado_id)"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 transition">
+                                {{ form.processing ? 'Guardando...' : 'Crear Usuario' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </AppLayout>
+</template>

@@ -2,131 +2,289 @@
 
 namespace App\Http\Controllers;
 
+// --- Imports ---
 use App\Models\Factura;
-use App\Models\Conexion;
+use App\Models\Pago;
+use App\Models\Conexion; // Asegúrate que tu modelo Conexion esté en App\Models\Conexion
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log; // Para registrar errores
+use Illuminate\Support\Facades\View;
+// Importa tu paquete de PDF aquí cuando lo instales
+// use Barryvdh\DomPDF\Facade\Pdf; 
 
 class FacturaController extends Controller
 {
     /**
-     * Mostrar lista de facturas con filtros
+     * Define los permisos para cada acción del controlador.
+     * (¡Recuerda añadir esto si no lo has hecho!)
+     */
+    public function __construct()
+    {
+        // Protege TODOS los métodos
+        $this->middleware('role:Administrador|Secretaria')->except([
+            'misFacturas', 'imprimirFactura', 'show'
+        ]);
+        
+        // El Admin puede hacer todo, la Secretaria tiene excepciones
+        $this->middleware('role:Administrador')->only(['updateMonto', 'destroy']); // Solo Admin puede modificar montos o borrar (aunque destroy está deshabilitado)
+
+        $this->middleware('auth')->only(['misFacturas', 'imprimirFactura', 'show']);
+        // Permisos para las rutas que no son resource
+        //$this->middleware('role:Administrador|Secretaria')->only(['anular', 'descargarPdf', 'misFacturas']);
+    }
+
+
+    /**
+     * 1. Muestra la lista PROFESIONAL de facturas.
+     * Con filtros, paginación y búsqueda.
      */
     public function index(Request $request)
-{
-    $query = Factura::with('conexion.beneficiario');
+    {
+        $query = Factura::with([
+            'conexion:id,codigo_medidor,afiliado_id',
+            'conexion.afiliado:id,nombre_completo,ci' // ¡Asegúrate que la relación sea 'afiliado'!
+        ]);
 
-    if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
-        $query->whereBetween('fecha_emision', [$request->fecha_inicio, $request->fecha_fin]);
+        // --- Filtros ---
+        // 1. Búsqueda por N° Factura, Cód. Medidor, CI o Nombre
+        $query->when($request->input('search'), function ($q, $search) {
+            $q->where('id', 'like', "%{$search}%")
+              ->orWhereHas('conexion', function ($conQuery) use ($search) {
+                  $conQuery->where('codigo_medidor', 'like', "%{$search}%")
+                           ->orWhereHas('afiliado', function ($afilQuery) use ($search) { // ¡'afiliado'!
+                               $afilQuery->where('ci', 'like', "%{$search}%")
+                                         ->orWhere('nombre_completo', 'like', "%{$search}%");
+                           });
+              });
+        });
+
+        // 2. Filtro por Período
+        $query->when($request->input('periodo'), function ($q, $periodo) {
+            if (preg_match('/^\d{4}-\d{2}$/', $periodo)) {
+                $q->where('periodo', $periodo);
+            }
+        });
+
+        // 3. Filtro por Estado (¡'impaga' por defecto!)
+        $estadoFiltro = $request->input('estado', 'impaga'); // 'impaga' es el defecto
+        if ($estadoFiltro !== 'todos') { // 'todos' es la opción para verlas todas
+             $query->where('estado', $estadoFiltro);
+        }
+
+        // 4. Filtro por Rango de Fechas (opcional)
+        $query->when($request->filled('fecha_inicio') && $request->filled('fecha_fin'), function ($q) use ($request) {
+             try {
+                $inicio = Carbon::parse($request->fecha_inicio)->startOfDay();
+                $fin = Carbon::parse($request->fecha_fin)->endOfDay();
+                $q->whereBetween('fecha_emision', [$inicio, $fin]);
+             } catch (\Exception $e) { /* Ignorar fechas inválidas */ }
+        });
+
+        // Obtener períodos únicos para el dropdown
+        $periodos = Factura::select('periodo')
+                            ->whereNotNull('periodo')->where('periodo', '!=', '')
+                            ->distinct()->orderBy('periodo', 'desc')->pluck('periodo');
+
+        return Inertia::render('Facturas/Index', [
+            'facturas' => $query->orderBy('fecha_emision', 'desc')
+                                ->orderBy('id', 'desc')
+                                ->paginate(20) // ¡¡AQUÍ ESTÁ LA PAGINACIÓN!!
+                                ->withQueryString(), // Mantiene filtros en URL
+            'filters' => [ // Devolver filtros al frontend
+                'search' => $request->input('search'),
+                'periodo' => $request->input('periodo'),
+                'estado' => $estadoFiltro,
+                'fecha_inicio' => $request->input('fecha_inicio'),
+                'fecha_fin' => $request->input('fecha_fin'),
+            ],
+            'periodos' => $periodos,
+        ]);
     }
 
-    if ($request->filled('estado')) {
-        $query->where('estado', $request->estado);
-    }
-
-    $facturas = $query->get()->map(function ($factura) {
-        // Convertir campos decimales a float
-        $factura->monto_total = (float) $factura->monto_total;
-        $factura->consumo_m3 = $factura->consumo_m3 ? (float) $factura->consumo_m3 : 0;
-        return $factura;
-    });
-
-    return Inertia::render('Facturas/Index', [
-        'facturas' => $facturas,
-        'filters' => $request->only('fecha_inicio', 'fecha_fin', 'estado'),
-    ]);
-}
-    /**
-     * Mostrar formulario para crear factura
-     */
-    // public function create()
-    // {
-    //     $conexiones = Conexion::with('beneficiario')->get();
-
-    //     return Inertia::render('Facturas/Create', [
-    //         'conexiones' => $conexiones,
-    //     ]);
-    // }
-
-    // /**
-    //  * Guardar una nueva factura
-    //  */
-    // public function store(Request $request)
-    // {
-    //     $request->validate([
-    //         'conexion_id' => 'required|exists:conexiones,id',
-    //         'fecha_emision' => 'required|date',
-    //         'monto_total' => 'required|numeric|min:0',
-    //         'estado' => 'required|in:pendiente,pagada,anulada',
-    //     ]);
-
-    //     Factura::create($request->all());
-
-    //     return redirect()
-    //         ->route('facturas.index')
-    //         ->with('success', 'Factura creada correctamente.');
-    // }
 
     /**
-     * Mostrar detalles de una factura
+     * 2. Muestra el detalle de UNA factura (para verla, pagarla o imprimirla).
      */
     public function show($id)
     {
         $factura = Factura::with([
-            'conexion.beneficiario',
-            'pagos'
+            'conexion.afiliado', 
+            'lectura',          
+            'pagos' => fn($q) => $q->orderBy('fecha_pago', 'desc')
         ])->findOrFail($id);
 
-        return Inertia::render('Facturas/Show', [
+        // --- ¡SEGURIDAD! ---
+        // Si el usuario logueado es 'Usuario', verificar que sea SU factura
+        $user = Auth::user();
+        if ($user->hasRole('Usuario') && $factura->conexion->afiliado_id !== $user->afiliado_id) {
+            abort(403, 'No tiene permiso para ver esta factura.');
+        }
+
+        // Calcular saldo
+        $totalPagado = $factura->pagos->sum('monto_pagado');
+        $saldo = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado); 
+
+        return Inertia::render('Facturas/Show', [ // ¡Asegúrate que esta vista exista!
             'factura' => $factura,
+            'totalPagado' => $totalPagado,
+            'saldoPendiente' => max(0, $saldo),
         ]);
     }
 
     /**
-     * Mostrar formulario para editar
+     * 3. Anula una factura (cambia estado, NO la borra).
      */
-    public function edit($id)
-    {
-        $factura = Factura::with('conexion.beneficiario')->findOrFail($id);
-        $conexiones = Conexion::with('beneficiario')->get();
-
-        return Inertia::render('Facturas/Edit', [
-            'factura' => $factura,
-            'conexiones' => $conexiones,
-        ]);
-    }
-
-    /**
-     * Actualizar una factura
-     */
-    public function update(Request $request, $id)
+    public function anular(Request $request, $id)
     {
         $factura = Factura::findOrFail($id);
 
-        $request->validate([
-            'conexion_id' => 'required|exists:conexiones,id',
-            'fecha_emision' => 'required|date',
-            'monto_total' => 'required|numeric|min:0',
-            'estado' => 'required|in:pendiente,pagada,anulada',
+        if ($factura->estado === 'pagado') {
+             return redirect()->back()->withErrors(['error_general' => 'No se puede anular una factura que ya fue pagada.']);
+        }
+        if ($factura->estado === 'anulada') {
+             return redirect()->back()->with('info', 'Esta factura ya se encontraba anulada.');
+        }
+
+        try {
+            DB::transaction(function () use ($factura) {
+                $factura->estado = 'anulada';
+                $factura->deuda_pendiente = 0; 
+                $factura->save();
+
+                if ($factura->lectura && $factura->lectura->estado === 'facturado') {
+                    $factura->lectura->update(['estado' => 'pendiente']);
+                }
+            });
+        } catch (\Exception $e) {
+            Log::error('Error al anular factura:', ['error' => $e->getMessage(), 'factura_id' => $id]);
+            return redirect()->back()->withErrors(['error_general' => 'Error al anular la factura. Revise los logs.']);
+        }
+
+        return redirect()->route('facturas.index')->with('success', 'Factura F-'.str_pad($id, 6, '0', STR_PAD_LEFT).' anulada. La lectura asociada está pendiente de nuevo.');
+    }
+    
+    /**
+     * 4. Actualiza el monto de una factura (Descuento Manual).
+     */
+    public function updateMonto(Request $request, $id)
+    {
+        $factura = Factura::findOrFail($id);
+        
+        // (La autorización está en el __construct o en la ruta)
+
+        if ($factura->estado !== 'impaga') { 
+             return redirect()->back()->withErrors(['error_general' => 'Solo se pueden modificar facturas IMPAGAS.']);
+        }
+
+        $validated = $request->validate([
+            'monto_nuevo' => 'required|numeric|min:0|lte:' . $factura->monto_total, 
+            'justificacion_modificacion' => 'required|string|min:10|max:500',
+        ], [
+            'monto_nuevo.lte' => 'El monto nuevo no puede ser mayor al monto original.'
         ]);
+        
+        $montoNuevo = $validated['monto_nuevo'];
 
-        $factura->update($request->all());
+        DB::transaction(function () use ($factura, $montoNuevo, $validated) {
+            $montoAntiguo = $factura->monto_total;
+            $factura->monto_total = $montoNuevo;
+            $factura->deuda_pendiente = $montoNuevo;
+            $factura->justificacion_modificacion = $validated['justificacion_modificacion'] 
+                . " (Monto anterior: Bs " . $montoAntiguo . " - Modificado por: " . Auth::user()->name . ")";
+            if ($montoNuevo == 0) { $factura->estado = 'pagado'; }
+            $factura->save();
+        });
 
-        return redirect()
-            ->route('facturas.index')
-            ->with('success', 'Factura actualizada correctamente.');
+        return redirect()->route('facturas.show', $factura->id)
+                       ->with('success', '✅ Monto de factura actualizado y justificación guardada.');
+    }
+
+
+    /**
+     * 5. Genera y descarga la factura en formato PDF.
+     */
+   // --- EN: app/Http/Controllers/FacturaController.php ---
+// (Asegúrate de tener 'use Illuminate\Support\Facades\Auth;' y 'use Illuminate\Support\Facades\View;' al inicio)
+
+    /**
+     * 6. Muestra las facturas SOLO para el usuario autenticado (rol Usuario).
+     */
+   public function misFacturas(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user->afiliado_id) {
+            return Inertia::render('Usuario/MisFacturas', [
+                'facturas' => ['data' => []], 'filters' => [], 'periodos' => [],
+                'error' => 'Tu cuenta de usuario no está asociada a ningún afiliado.'
+            ]);
+        }
+        $afiliadoId = $user->afiliado_id;
+
+        $query = Factura::with('conexion:id,codigo_medidor')
+                         ->whereHas('conexion', fn($q) => $q->where('afiliado_id', $afiliadoId));
+ 
+        // Filtro de estado para el usuario ('impaga', 'pagado', 'todos')
+        $estadoFiltro = $request->input('estado', 'impaga'); // Mostrar impagas por defecto
+        if ($estadoFiltro !== 'todos') {
+            $query->where('estado', $estadoFiltro);
+        }
+         
+        $periodos = Factura::whereHas('conexion', fn($q) => $q->where('afiliado_id', $afiliadoId))
+                             ->select('periodo')->distinct()->orderBy('periodo','desc')->pluck('periodo');
+ 
+        // ¡ASEGÚRATE DE CREAR ESTA VISTA! resources/js/Pages/Usuario/MisFacturas.vue
+        return Inertia::render('Usuario/MisFacturas', [ 
+             'facturas' => $query->orderBy('periodo', 'desc')
+                                 ->paginate(10)
+                                 ->withQueryString(),
+             'filters' => $request->only(['estado']),
+             'periodos' => $periodos,
+             'error' => null
+        ]);
     }
 
     /**
-     * Eliminar una factura
+     * Muestra la factura en HTML/Blade para imprimir (en lugar de PDF).
      */
-    public function destroy($id)
+    public function imprimirFactura($id) // Renombrado de 'descargarPdf'
     {
-        $factura = Factura::findOrFail($id);
-        $factura->delete();
+         $user = Auth::user();
+         $factura = Factura::with([
+                'conexion.afiliado', 
+                'lectura.usuarioRegistrado', // Quién leyó 
+                'pagos.usuarioRegistrado' // Quién cobró
+            ])->findOrFail($id);
 
-        return redirect()
-            ->route('facturas.index')
-            ->with('success', 'Factura eliminada correctamente.');
+         // --- ¡SEGURIDAD! ---
+         if ($user->hasRole('Usuario') && $factura->conexion->afiliado_id !== $user->afiliado_id) {
+             abort(403, 'No tiene permiso para ver esta factura.');
+         }
+
+         $consumo = $factura->lectura ? ($factura->lectura->lectura_actual - $factura->lectura->lectura_anterior) : $factura->consumo_m3;
+         $totalPagado = $factura->pagos->sum('monto_pagado');
+         $saldo = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado);
+         $ultimoPago = $factura->pagos->sortByDesc('fecha_pago')->first();
+
+         // Renderizar una vista Blade simple para imprimir
+         return View::make('impresiones.factura', [ // ¡Necesitas crear esta vista!
+             'factura' => $factura,
+             'consumo' => $consumo,
+             'totalPagado' => $totalPagado,
+             'saldo' => $saldo,
+             'ultimoPago' => $ultimoPago,
+             'fechaImpresion' => Carbon::now('America/La_Paz')->format('d/m/Y H:i')
+         ]);
     }
+
+    // --- Métodos Deshabilitados (No se usan en este flujo) ---
+    public function create() { return redirect()->route('facturacion.generar.show')->with('info', 'Las facturas se generan desde "Facturación".'); }
+    public function store(Request $request) { abort(405, 'Acción no permitida. Use el módulo de Facturación.'); }
+    public function edit($id) { abort(405, 'Acción no permitida. Use "Ver" para modificar montos o anular.'); }
+    public function update(Request $request, $id) { abort(405, 'Acción no permitida. Use "updateMonto" o "anular".'); }
+    public function destroy($id) { abort(405, 'Acción no permitida. Use "anular".'); }
 }

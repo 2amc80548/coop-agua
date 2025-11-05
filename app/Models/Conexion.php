@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Afiliado;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Conexion extends Model
 {
@@ -13,7 +15,7 @@ class Conexion extends Model
         'afiliado_id',      
         'estado',
         'direccion',
-        'zona',
+        'zona_id',
         'fecha_instalacion',
         'tipo_conexion',
     ];
@@ -23,6 +25,7 @@ class Conexion extends Model
     {
         return $this->belongsTo(Afiliado::class, 'afiliado_id');
     }
+
 
     public function lecturas()
     {
@@ -37,5 +40,9 @@ class Conexion extends Model
     public function accesosAutorizados()
     {
         return $this->hasMany(AccesoAutorizado::class, 'conexion_id');
+    }
+    public function zona(): BelongsTo
+    {
+        return $this->belongsTo(Zona::class, 'zona_id');
     }
 }

@@ -2,178 +2,261 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Pago;
 use App\Models\Factura;
+use App\Models\Pago;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class PagoController extends Controller
 {
     /**
-     * Mostrar lista de pagos con filtros
+     * Define los permisos para cada acción del controlador.
+     */
+    public function __construct()
+    {
+        // Admin y Secretaria pueden ver/registrar pagos.
+        $this->middleware('role:Administrador|Secretaria')->except([
+            'miHistorial'// <-- ¡EXCEPCIÓN!
+        ]);
+        
+        // Solo Admin puede ANULAR un pago (acción delicada).
+        $this->middleware('role:Administrador')->only(['anular']);
+    }
+
+    /**
+     * Muestra el HISTORIAL de pagos, paginado y con filtros.
      */
     public function index(Request $request)
     {
-        $query = Pago::with('factura.conexion.beneficiario', 'usuarioRegistrado');
+        $query = Pago::with([
+            'factura:id,periodo,conexion_id',
+            'factura.conexion:id,codigo_medidor,afiliado_id',
+            'factura.conexion.afiliado:id,nombre_completo,ci', // ¡Cambiado a 'afiliado'!
+            'usuarioRegistrado:id,name'
+        ]);
 
-        if ($request->filled('fecha_inicio') && $request->filled('fecha_fin')) {
-            $query->whereBetween('fecha_pago', [$request->fecha_inicio, $request->fecha_fin]);
-        }
+        // Filtro por Rango de Fechas
+        $query->when($request->filled('fecha_inicio') && $request->filled('fecha_fin'), function ($q) use ($request) {
+             try {
+                $inicio = Carbon::parse($request->fecha_inicio)->startOfDay();
+                $fin = Carbon::parse($request->fecha_fin)->endOfDay();
+                $q->whereBetween('fecha_pago', [$inicio, $fin]);
+             } catch (\Exception $e) { /* Ignorar fechas inválidas */ }
+        });
 
-        if ($request->filled('factura_id')) {
-            $query->where('factura_id', $request->factura_id);
-        }
-
-        $pagos = $query->get();
+        // Búsqueda por Afiliado/Medidor
+        $query->when($request->input('search'), function ($q, $search) {
+            $q->whereHas('factura.conexion.afiliado', function ($afilQuery) use ($search) {
+                $afilQuery->where('nombre_completo', 'like', "%{$search}%")
+                          ->orWhere('ci', 'like', "%{$search}%");
+            })->orWhereHas('factura.conexion', function ($conQuery) use ($search) {
+                $conQuery->where('codigo_medidor', 'like', "%{$search}%");
+            });
+        });
+        
+        // Búsqueda por Forma de Pago
+        $query->when($request->input('forma_pago'), function ($q, $forma) {
+            $q->where('forma_pago', $forma);
+        });
 
         return Inertia::render('Pagos/Index', [
-            'pagos' => $pagos,
-            'filters' => $request->only('fecha_inicio', 'fecha_fin', 'factura_id'),
+            'pagos' => $query->orderBy('fecha_pago', 'desc')
+                             ->orderBy('id', 'desc')
+                             ->paginate(20)
+                             ->withQueryString(),
+            'filters' => $request->only('fecha_inicio', 'fecha_fin', 'search', 'forma_pago'),
         ]);
     }
 
     /**
-     * Mostrar formulario para crear pago
+     * Muestra el formulario para registrar un pago para UNA factura.
      */
     public function create(Request $request)
     {
-        //  Validar que factura_id exista
-        $request->validate([
-            'factura_id' => 'required|exists:facturas,id',
-        ]);
+        $request->validate(['factura_id' => 'required|exists:facturas,id']);
+        $factura = Factura::with('conexion.afiliado')->findOrFail($request->factura_id);
 
-        $factura = Factura::with('conexion.beneficiario')->findOrFail($request->factura_id);
+        if ($factura->estado !== 'impaga') {
+            return redirect()->route('facturas.show', $factura->id)
+                           ->withErrors(['error_general' => 'Esta factura ya está '.$factura->estado.' y no admite más pagos.']);
+        }
+
+        $saldoPendiente = $factura->deuda_pendiente;
+        if ($saldoPendiente <= 0) {
+             // Lógica de seguridad por si la deuda es 0 pero el estado es impago
+             $saldoPendiente = $factura->monto_total - $factura->pagos()->sum('monto_pagado');
+             if ($saldoPendiente <= 0) {
+                 $factura->update(['estado' => 'pagado', 'deuda_pendiente' => 0]);
+                 return redirect()->route('facturas.show', $factura->id)->with('info', 'La factura ya se encontraba pagada.');
+             }
+        }
 
         return Inertia::render('Pagos/Create', [
             'factura' => $factura,
-            'user_id' => Auth::id(),
+            'saldoPendiente' => $saldoPendiente,
         ]);
     }
 
     /**
-     * Guardar un nuevo pago
+     * Guarda el nuevo pago y actualiza la factura (¡SIN PAGOS PARCIALES!)
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'factura_id' => 'required|exists:facturas,id',
-            'monto_pagado' => 'required|numeric|min:0.01',
-            'metodo_pago' => 'required|string|max:50',
-            'fecha_pago' => 'required|date',
+            'fecha_pago' => 'required|date|before_or_equal:today',
+            'forma_pago' => 'required|string|in:Efectivo,QR,Tarjeta,Transferencia,Cheque,Otro',
+            'referencia' => 'nullable|string|max:255',
         ]);
 
-        $factura = Factura::findOrFail($request->factura_id);
+        try {
+            $pago = null;
+            DB::transaction(function () use ($validated, &$pago) {
+                
+                $factura = Factura::where('id', $validated['factura_id'])
+                                 ->lockForUpdate() // ¡Bloquea la fila para evitar pagos dobles!
+                                 ->first();
 
-        // Crear el pago
-        $pago = Pago::create([
-            'factura_id' => $request->factura_id,
-            'monto_pagado' => $request->monto_pagado,
-            'metodo_pago' => $request->metodo_pago,
-            'fecha_pago' => $request->fecha_pago,
-            'registrado_por' => Auth::id(),
-        ]);
+                if ($factura->estado !== 'impaga') {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'factura_id' => 'Esta factura ya no está "impaga". (Estado actual: '.$factura->estado.')'
+                    ]);
+                }
 
-        // Recalcular estado de la factura
-        $totalPagos = $factura->pagos()->sum('monto_pagado');
-        if ($totalPagos >= $factura->monto_total) {
-            $factura->estado = 'pagada';
-        } else {
-            $factura->estado = 'pendiente';
+                // El monto a pagar es la deuda total (REGLA: NO pagos parciales)
+                $montoAPagar = $factura->deuda_pendiente;
+                
+                if ($montoAPagar <= 0) {
+                     throw \Illuminate\Validation\ValidationException::withMessages([
+                        'factura_id' => 'Esta factura no tiene deuda pendiente (Saldo: 0).'
+                    ]);
+                }
+
+                // 1. Crear el Pago
+                $pago = Pago::create([
+                    'factura_id' => $factura->id,
+                    'monto_pagado' => $montoAPagar, // ¡Usamos el monto de la BD!
+                    'fecha_pago' => $validated['fecha_pago'],
+                    'forma_pago' => $validated['forma_pago'],
+                    'referencia' => $validated['referencia'],
+                    'registrado_por' => Auth::id(),
+                ]);
+
+                // 2. Actualizar la Factura
+                $factura->update([
+                    'estado' => 'pagado',
+                    'deuda_pendiente' => 0, // La deuda es cero
+                    'fecha_pago' => $validated['fecha_pago']
+                ]);
+            }); // Fin transacción
+
+            return redirect()->route('facturas.show', $validated['factura_id'])
+                           ->with('success', '✅ Pago registrado por Bs '.number_format($pago->monto_pagado, 2).'. Factura actualizada a "pagado".');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error al registrar pago:', ['error' => $e->getMessage(), 'request' => $request->all()]);
+            return redirect()->back()
+                           ->withErrors(['error_general' => 'Ocurrió un error inesperado al registrar el pago.'])
+                           ->withInput();
         }
-        $factura->save();
-
-        return redirect()
-            ->route('pagos.index')
-            ->with('success', 'Pago registrado correctamente.');
     }
 
     /**
-     * Mostrar detalles de un pago
+     * Muestra el detalle de un PAGO específico (historial).
      */
     public function show($id)
     {
         $pago = Pago::with([
-            'factura.conexion.beneficiario',
+            'factura.conexion.afiliado',
             'usuarioRegistrado'
         ])->findOrFail($id);
 
-        return Inertia::render('Pagos/Show', [
+        return Inertia::render('Pagos/Show', [ // ¡Vista nueva!
             'pago' => $pago,
         ]);
     }
-
+    
     /**
-     * Mostrar formulario para editar pago
+     * Anula un pago (acción de Admin).
+     * Esto revierte el pago Y la factura.
      */
-    public function edit($id)
-    {
-        $pago = Pago::with('factura.conexion.beneficiario')->findOrFail($id);
-        $facturas = Factura::with('conexion.beneficiario')->get(); // Todas las facturas
-
-        return Inertia::render('Pagos/Edit', [
-            'pago' => $pago,
-            'facturas' => $facturas,
-        ]);
-    }
-
-    /**
-     * Actualizar un pago
-     */
-    public function update(Request $request, $id)
+    public function anular(Request $request, $id) // 'id' es el ID del PAGO
     {
         $pago = Pago::findOrFail($id);
+        
+        try {
+            DB::transaction(function () use ($pago) {
+                $factura = $pago->factura;
+                
+                // 1. Revertir la Factura a 'impaga'
+                $factura->update([
+                    'estado' => 'impaga',
+                    'deuda_pendiente' => $factura->monto_total, // Restaura la deuda completa
+                    'fecha_pago' => null // Quita la fecha de pago
+                ]);
+                
+                // 2. Eliminar el Pago
+                $pago->delete();
+            });
 
-        $request->validate([
-            'factura_id' => 'required|exists:facturas,id',
-            'monto_pagado' => 'required|numeric|min:0.01',
-            'metodo_pago' => 'required|string|max:50',
-            'fecha_pago' => 'required|date',
-        ]);
-
-        $pago->update([
-            'factura_id' => $request->factura_id,
-            'monto_pagado' => $request->monto_pagado,
-            'metodo_pago' => $request->metodo_pago,
-            'fecha_pago' => $request->fecha_pago,
-        ]);
-
-        // Recalcular estado de la factura
-        $factura = $pago->factura;
-        $totalPagos = $factura->pagos()->sum('monto_pagado');
-        if ($totalPagos >= $factura->monto_total) {
-            $factura->estado = 'pagada';
-        } else {
-            $factura->estado = 'pendiente';
+        } catch (\Exception $e) {
+             Log::error('Error al anular pago:', ['error' => $e->getMessage(), 'pago_id' => $id]);
+             return redirect()->back()->withErrors(['error_general' => 'Error al anular el pago.']);
         }
-        $factura->save();
-
-        return redirect()
-            ->route('pagos.index')
-            ->with('success', 'Pago actualizado correctamente.');
+        
+        // Redirige a la factura, que ahora está impaga de nuevo
+        return redirect()->route('facturas.show', $pago->factura_id)
+                       ->with('success', '✅ Pago anulado. La factura ahora está "impaga" de nuevo.');
     }
 
-    /**
-     * Eliminar un pago
-     */
-    public function destroy($id)
+
+  public function miHistorial(Request $request)
     {
-        $pago = Pago::findOrFail($id);
-        $factura = $pago->factura;
-        $pago->delete();
+        $user = Auth::user();
 
-        // Recalcular estado de la factura
-        $totalPagos = $factura->pagos()->sum('monto_pagado');
-        if ($totalPagos >= $factura->monto_total) {
-            $factura->estado = 'pagada';
-        } else {
-            $factura->estado = 'pendiente';
+        if (!$user->afiliado_id) {
+            return Inertia::render('Usuario/HistorialPagos', [
+                'pagos' => ['data' => []],
+                'filters' => [],
+                'error' => 'Tu cuenta de usuario no está asociada a ningún afiliado.'
+            ]);
         }
-        $factura->save();
+        
+        $afiliadoId = $user->afiliado_id;
 
-        return redirect()
-            ->route('pagos.index')
-            ->with('success', 'Pago eliminado correctamente.');
+        $query = Pago::with([
+            'factura:id,periodo,monto_total',
+            'usuarioRegistrado:id,name' // El cajero que cobró
+        ])
+        // Busca pagos donde la factura asociada...
+        ->whereHas('factura', function ($facturaQuery) use ($afiliadoId) {
+            // ...pertenece a una conexión...
+            $facturaQuery->whereHas('conexion', function ($conexionQuery) use ($afiliadoId) {
+                // ...que pertenece a ESTE afiliado.
+                $conexionQuery->where('afiliado_id', $afiliadoId);
+            });
+        });
+
+        // (Aquí puedes añadir filtros de fecha si quieres)
+        
+        // ¡ASEGÚRATE DE CREAR ESTA VISTA! resources/js/Pages/Usuario/HistorialPagos.vue
+        return Inertia::render('Usuario/HistorialPagos', [ 
+            'pagos' => $query->orderBy('fecha_pago', 'desc')
+                             ->paginate(15)
+                             ->withQueryString(),
+            'filters' => $request->only([]), // Añade filtros si los pones
+            'error' => null
+        ]);
     }
+
+    // --- MÉTODOS OBSOLETOS (NO USAR) ---
+    public function edit($id) { abort(405, 'Los pagos no se editan, se anulan.'); }
+    public function update(Request $request, $id) { abort(405, 'Los pagos no se editan, se anulan.'); }
+    public function destroy($id) { abort(405, 'Los pagos no se eliminan, se anulan.'); }
 }

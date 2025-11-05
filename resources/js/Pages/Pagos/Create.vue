@@ -1,120 +1,104 @@
 <script setup>
-import { useForm } from '@inertiajs/vue3';
-import AppLayout from '@/Layouts/AppLayout.vue';
-import { Link } from '@inertiajs/vue3';
-// ✅ 1. Define props
+import { useForm, Link, Head } from '@inertiajs/vue3';
+import AppLayout from '@/Layouts/AppLayout.vue'; 
+
 const props = defineProps({
-    factura: Object,
-    errors: Object,
-    userId: Number, // ← nuevo
+    factura: Object, 
+    saldoPendiente: Number,
+    errors: Object, 
 });
 
-
-
-// ✅ 2. Verifica que factura exista antes de usarla
-if (!props.factura) {
-    console.error('Factura no recibida');
-    // O redirige
-    // router.visit(route('facturas.index'));
-}
-
-// ✅ 3. Inicializa el formulario
 const form = useForm({
-    factura_id: props.factura?.id || '',
-    monto_pagado: props.factura?.monto_total || '',
-    metodo_pago: 'efectivo',
+    factura_id: props.factura.id,
     fecha_pago: new Date().toISOString().split('T')[0],
-    registrado_por: props.userId,
+    forma_pago: 'Efectivo', 
+    referencia: '',
 });
 
-// ✅ 4. Solo envía si hay factura
 const submit = () => {
-    if (!form.factura_id) {
-        alert('No se especificó una factura');
-        return;
-    }
-    form.post(route('pagos.store'));
+    form.post(route('pagos.store'), {
+         // No es necesario 'monto_pagado', el backend lo toma de la BD
+    });
 };
+
+const formatCurrency = (amount) => { return (parseFloat(amount) || 0).toFixed(2); };
 </script>
 
 <template>
-    <AppLayout>
+    <AppLayout :title="'Registrar Pago F-' + factura.id">
+        <Head :title="'Registrar Pago F-' + factura.id" />
+        
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Registrar Pago -Factura F-{{ props.factura.id.toString().padStart(6, '0') }}
+                Registrar Pago - Factura F-{{ factura.id.toString().padStart(6, '0') }}
             </h2>
         </template>
 
         <div class="py-12">
-            <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6">
-                    <!-- Detalles de la factura -->
-                    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-                        <h3 class="text-lg font-medium text-blue-900">Factura a Pagar</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                            <p><strong>Beneficiario:</strong> {{ factura.conexion?.beneficiario?.nombre_completo }}</p>
-                            <p><strong>Medidor:</strong> {{ factura.conexion?.codigo_medidor }}</p>
-                            <p><strong>Monto Total:</strong> Bs {{ Number(props.factura.monto_total).toFixed(2) }}</p>
-                            <p><strong>Consumo:</strong> {{ Number(factura.consumo_m3).toFixed(2) }} m³</p>
-                        </div>
+            <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
+                 <div v-if="form.errors.error_general || (errors && errors.error_general)" 
+                      class="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-6 shadow-sm" role="alert">
+                   <p class="font-bold">Error</p>
+                   <p>{{ form.errors.error_general || (errors ? errors.error_general : 'No se pudo procesar.') }}</p>
+                    <ul v-if="form.errors.factura_id" class="list-disc ml-5 text-sm mt-1">
+                       <li>{{ form.errors.factura_id }}</li>
+                   </ul>
+                 </div>
+
+                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 md:p-8">
+                    <div class="mb-6 pb-4 border-b border-gray-200 text-sm">
+                        <h3 class="text-base font-semibold text-gray-800 mb-2">Resumen de la Factura Impaga</h3>
+                        <p><strong class="text-gray-600">Afiliado:</strong> {{ factura.conexion?.afiliado?.nombre_completo }}</p>
+                        <p><strong class="text-gray-600">Medidor:</strong> {{ factura.conexion?.codigo_medidor }}</p>
+                        <p><strong class="text-gray-600">Período:</strong> {{ factura.periodo }}</p>
+                        <p class="mt-2 text-base"><strong class="text-red-700">Monto a Pagar (Saldo):</strong> 
+                           <span class="font-bold text-lg text-red-700">Bs {{ formatCurrency(saldoPendiente) }}</span>
+                        </p>
                     </div>
 
-                    <!-- Formulario de pago -->
-                    <form @submit.prevent="submit">
-                        <!-- Monto pagado -->
-                        <div class="mb-4">
-                            <label class="block font-medium text-sm text-gray-700">Monto Pagado (Bs)</label>
+                    <form @submit.prevent="submit" class="space-y-4">
+                         <div class="mb-4">
+                            <label class="block font-medium text-sm text-gray-700">Monto a Pagar (Bs)</label>
                             <input
-                                v-model.number="form.monto_pagado"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                :max="factura.monto_total"
-                                class="border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm block mt-1 w-full"
-                                required
+                                :value="formatCurrency(saldoPendiente)"
+                                type="text"
+                                class="border-gray-300 rounded-md shadow-sm block mt-1 w-full bg-gray-100 cursor-not-allowed"
+                                disabled readonly
                             />
-                            <div v-if="errors.monto_pagado" class="text-red-600 text-sm mt-1">{{ errors.monto_pagado }}</div>
+                             <div v-if="form.errors.monto_pagado" class="text-red-600 text-xs mt-1">{{ form.errors.monto_pagado }}</div>
                         </div>
-
-                        <!-- Forma de pago -->
-                        <div class="mb-4">
-                            <label class="block font-medium text-sm text-gray-700">Forma de Pago</label>
-                            <select
-                                v-model="form.forma_pago"
-                                class="border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm block mt-1 w-full"
-                            >
-                                <option value="efectivo">Efectivo</option>
-                                <option value="transferencia">Transferencia</option>
-                                <option value="tarjeta">Tarjeta</option>
-                                <option value="cheque">Cheque</option>
+                        <div>
+                            <label for="fecha_pago" class="block text-sm font-medium text-gray-700">Fecha de Pago</label>
+                            <input id="fecha_pago" v-model="form.fecha_pago" type="date"
+                                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm ..." required>
+                            <div v-if="form.errors.fecha_pago" class="text-red-600 text-xs mt-1">{{ form.errors.fecha_pago }}</div>
+                        </div>
+                        <div>
+                            <label for="forma_pago" class="block text-sm font-medium text-gray-700">Forma de Pago</label>
+                            <select id="forma_pago" v-model="form.forma_pago" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm ..." required>
+                                <option>Efectivo</option>
+                                <option>QR</option>
+                                <option>Tarjeta</option>
+                                <option>Transferencia</option>
+                                <option>Cheque</option>
+                                <option>Otro</option>
                             </select>
-                            <div v-if="errors.forma_pago" class="text-red-600 text-sm mt-1">{{ errors.forma_pago }}</div>
+                             <div v-if="form.errors.forma_pago" class="text-red-600 text-xs mt-1">{{ form.errors.forma_pago }}</div>
                         </div>
-
-                        <!-- Fecha de pago -->
-                        <div class="mb-4">
-                            <label class="block font-medium text-sm text-gray-700">Fecha de Pago</label>
-                            <input
-                                v-model="form.fecha_pago"
-                                type="date"
-                                class="border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 rounded-md shadow-sm block mt-1 w-full"
-                                required
-                            />
-                            <div v-if="errors.fecha_pago" class="text-red-600 text-sm mt-1">{{ errors.fecha_pago }}</div>
+                         <div>
+                            <label for="referencia" class="block text-sm font-medium text-gray-700">Referencia (Opcional)</label>
+                            <input id="referencia" v-model="form.referencia" type="text" placeholder="N° transacción, N° cheque, etc."
+                                   class="mt-1 block w-full border-gray-300 rounded-md shadow-sm ...">
+                             <div v-if="form.errors.referencia" class="text-red-600 text-xs mt-1">{{ form.errors.referencia }}</div>
                         </div>
-
-                        <!-- Botones -->
-                        <div class="flex justify-end gap-3">
-                            <Link :href="route('facturas.show', factura.id)" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                        <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                             <Link :href="route('facturas.show', factura.id)" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded ...">
                                 Cancelar
-                            </Link>
-                            <button
-                                type="submit"
-                                :disabled="form.processing"
-                                class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
-                            >
-                                {{ form.processing ? 'Guardando...' : 'Registrar Pago' }}
-                            </button>
+                             </Link>
+                             <button type="submit" :disabled="form.processing || saldoPendiente <= 0"
+                                     class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded ...">
+                                 {{ form.processing ? 'Registrando...' : 'Confirmar Pago' }}
+                             </button>
                         </div>
                     </form>
                 </div>

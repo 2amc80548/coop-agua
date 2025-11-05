@@ -3,31 +3,26 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Spatie\Permission\Facades\Permission;
 
+// --- Controladores de Dashboard ---
+use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\SecretariaDashboardController;
+use App\Http\Controllers\TecnicoDashboardController;
+use App\Http\Controllers\UsuarioDashboardController;
 
-// Controladores de Dashboard
-use App\Http\Controllers\{
-    AdminDashboardController,
-    SecretariaDashboardController,
-    TecnicoDashboardController,
-    UsuarioDashboardController
-};
-
-// Otros controladores
-use App\Http\Controllers\{
-    UserController,
-    AfiliadoController,
-    ConexionController,
-    LecturaController,
-    FacturaController,
-    PagoController,
-    IngresoEgresoController,
-    AccesoAutorizadoController,
-    ReporteController,
-    AuditoriaController,
-    NotificacionController
-};
+// --- Otros Controladores ---
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\AfiliadoController;
+use App\Http\Controllers\ConexionController;
+use App\Http\Controllers\LecturaController;
+use App\Http\Controllers\FacturaController;
+use App\Http\Controllers\PagoController;
+use App\Http\Controllers\TarifaController;
+use App\Http\Controllers\TarifaConceptoController;
+use App\Http\Controllers\FacturacionController; 
+use App\Http\Controllers\ZonaController; 
+use App\Http\Controllers\ReclamoController; 
+use App\Http\Controllers\ReclamoTipoController; 
 
 // ================================
 // Página de bienvenida
@@ -42,86 +37,163 @@ Route::get('/', function () {
 });
 
 // ================================
-// Redirección inicial: /dashboard → según rol
+// Redirección de Dashboard 
 // ================================
 Route::middleware([
-    'auth:sanctum',
-    config('jetstream.auth_session'),
-    'verified',
+    'auth:sanctum', config('jetstream.auth_session'), 'verified',
 ])->get('/dashboard', function () {
     $user = auth()->user();
-
-    if ($user->hasRole('Administrador')) {
-        return redirect()->route('admin.dashboard');
-    } elseif ($user->hasRole('Secretaria')) {
-        return redirect()->route('secretaria.dashboard');
-    } elseif ($user->hasRole('Tecnico')) {
-        return redirect()->route('tecnico.dashboard');
-    } else {
-        return redirect()->route('usuario.dashboard');
-    }
+    if ($user->hasRole('Administrador')) { return redirect()->route('admin.dashboard'); }
+    if ($user->hasRole('Secretaria')) { return redirect()->route('secretaria.dashboard'); }
+    if ($user->hasRole('Tecnico')) { return redirect()->route('tecnico.dashboard'); }
+    return redirect()->route('usuario.dashboard');
 })->name('dashboard');
 
-// ================================
-// DASHBOARDS (usando controladores para cargar datos)
-// ================================
-Route::middleware(['auth', 'role:Administrador'])
-    ->get('/admin/dashboard', [AdminDashboardController::class, 'index'])
-    ->name('admin.dashboard');
+// ===============================================
+// RUTAS PARA USUARIOS AUTENTICADOS (TODOS LOS ROLES)
+// ===============================================
+Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified'])->group(function () {
 
-Route::middleware(['auth', 'role:Secretaria'])
-    ->get('/secretaria/dashboard', [SecretariaDashboardController::class, 'index'])
-    ->name('secretaria.dashboard');
+    // --- DASHBOARDS (Por Rol) ---
+    // (Estos sí necesitan prefijo y nombre para la redirección)
+    Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
+         ->middleware('role:Administrador')->name('admin.dashboard');
+    Route::get('/secretaria/dashboard', [SecretariaDashboardController::class, 'index'])
+         ->middleware('role:Secretaria')->name('secretaria.dashboard');
+    Route::get('/tecnico/dashboard', [TecnicoDashboardController::class, 'index'])
+         ->middleware('role:Tecnico')->name('tecnico.dashboard');
+    Route::get('/usuario/dashboard', [UsuarioDashboardController::class, 'index'])
+         ->middleware('role:Usuario')->name('usuario.dashboard');
 
-Route::middleware(['auth', 'role:Tecnico'])
-    ->get('/tecnico/dashboard', [TecnicoDashboardController::class, 'index'])
-    ->name('tecnico.dashboard');
+    // ===============================================
+    // RUTAS DE GESTIÓN (ESTRUCTURA LIMPIA Y ÚNICA)
+    // ===============================================
 
-Route::middleware(['auth', 'role:Usuario'])
-    ->get('/usuario/dashboard', [UsuarioDashboardController::class, 'index'])
-    ->name('usuario.dashboard');
-
-// ================================
-// RUTAS PARA ADMINISTRADOR
-// ================================
-Route::middleware(['auth', 'role:Administrador']) ->group(function () {
-    Route::resource('users', UserController::class);
-    Route::resource('afiliados', AfiliadoController::class);
-    Route::resource('IngresosEgresos', IngresoEgresoController::class);
-    Route::resource('facturas', FacturaController::class);
-    Route::resource('pagos', PagoController::class);
-    Route::resource('conexiones', ConexionController::class);
-    Route::resource('lecturas', LecturaController::class)->names('lecturas');
-    Route::resource('reportes', ReporteController::class);
+    // --- MÓDULOS CRUD ---
+    // (Protegidos por rol. Los permisos específicos van en cada Controlador)
+    Route::resource('users', UserController::class)->middleware('role:Administrador');
+    Route::resource('afiliados', AfiliadoController::class)->middleware('role:Administrador|Secretaria');
+    Route::resource('conexiones', ConexionController::class)->middleware('role:Administrador|Secretaria');
+    Route::resource('lecturas', LecturaController::class)->middleware('role:Administrador|Secretaria|Tecnico');
     
-});
+    // (Rutas de Factura separadas para permitir acceso de 'Usuario' a 'show')
+    Route::resource('facturas', FacturaController::class)
+         ->except(['show', 'create', 'store', 'edit', 'destroy']) // 'show' y 'destroy' se definen abajo
+         ->middleware('role:Administrador|Secretaria');
+         
+    Route::resource('pagos', PagoController::class)->middleware('role:Administrador|Secretaria');
+    Route::resource('tarifas', TarifaController::class)->middleware('role:Administrador');
+    Route::resource('tarifasConceptos', TarifaConceptoController::class)->middleware('role:Administrador');
 
-// ================================
-// RUTAS PARA SECRETARIA
-// ================================
-Route::middleware(['auth', 'role:Secretaria'])->group(function () {
-    Route::resource('afiliado', AfiliadoController::class)->names('secretaria.afiliado');
-    Route::resource('factura', FacturaController::class);
-    Route::resource('pago', PagoController::class);
-    Route::get('reportes', [ReporteController::class, 'index'])->name('reportes.index');
-});
+    
+    // --- RUTAS DE ACCIONES ESPECIALES (Admin y Secretaria) ---
+    Route::middleware(['role:Administrador|Secretaria'])->group(function () {
+        
+        // Facturación Manual
+        Route::get('/facturacion/generar', [FacturacionController::class, 'showGenerador'])
+             ->name('facturacion.generar.show');
+        Route::post('/facturacion/generar', [FacturacionController::class, 'storeGeneracion'])
+             ->name('facturacion.generar.store');
+             
+        // Acciones de Factura
+        Route::post('/facturas/{factura}/anular', [FacturaController::class, 'anular'])
+             ->name('facturas.anular')->where('factura', '[0-9]+');
+        Route::get('/facturas/{factura}/pdf', [FacturaController::class, 'descargarPdf']) 
+             ->name('facturas.pdf')->where('factura', '[0-9]+');
 
-// ================================
-// RUTAS PARA TÉCNICO
-// ================================
-Route::middleware(['auth', 'role:Tecnico'])->group(function () {
+             Route::post('/reclamo-tipos', [ReclamoTipoController::class, 'store'])
+     ->name('reclamoTipos.store');
+     Route::put('/reclamo-tipos/{reclamoTipo}', [ReclamoTipoController::class, 'update'])
+     ->name('reclamoTipos.update');
+     Route::delete('/reclamo-tipos/{reclamoTipo}', [ReclamoTipoController::class, 'destroy'])
+     ->name('reclamoTipos.destroy');
+     
+     });
 
-    Route::resource('lectura', LecturaController::class);
-    Route::resource('facturass', FacturaController::class);
-   
-});
+    // --- RUTAS SOLO PARA ADMIN ---
+    Route::middleware(['role:Administrador'])->group(function () {
+        // Modificar Monto de Factura
+        Route::put('/facturas/{factura}/update-monto', [FacturaController::class, 'updateMonto'])
+             ->name('facturas.updateMonto')->where('factura', '[0-9]+');
+             
+        // Borrar Factura (¡No recomendado! Usa 'anular')
+        Route::delete('/facturas/{factura}', [FacturaController::class, 'destroy'])
+             ->name('facturas.destroy')->where('factura', '[0-9]+');
+    });
+    
+    // --- RUTAS COMPARTIDAS (Admin, Secretaria Y Usuario) ---
+        Route::middleware(['role:Administrador|Secretaria|Usuario'])->group(function () {
+        // Esta ruta permite a TODOS (Admin, Sec, Usuario) VER el detalle
+        // La seguridad (si es SU factura) se maneja DENTRO del controlador
+        Route::get('/facturas/{factura}', [FacturaController::class, 'show'])
+             ->name('facturas.show')->where('factura', '[0-9]+');
 
-// ================================
-// RUTAS PARA USUARIO
-// ================================
-Route::middleware(['auth', 'role:Usuario'])->group(function () {
-    Route::get('/mi-cuenta', [FacturaController::class, 'misFacturas'])->name('mi.cuenta');
-    Route::get('/notificaciones', [NotificacionController::class, 'index'])->name('notificaciones.index');
-    Route::get('/factura/{id}/descargar', [FacturaController::class, 'descargarPdf'])->name('factura.descargar');
-});
+             Route::get('/reclamos/{reclamo}', [ReclamoController::class, 'show'])
+            ->name('reclamos.show')
+            ->whereNumber('reclamo');
+             
+     
+    });
 
+
+    // --- APIS (Para que Vue funcione) ---
+    // (Protegidas para que solo Admin, Secretaria o Tecnico puedan usarlas)
+    Route::middleware(['role:Administrador|Secretaria|Tecnico'])->group(function () {
+        Route::get('/afiliados/buscar-por-ci/{ci}', [AfiliadoController::class, 'buscarPorCI'])
+             ->name('afiliados.buscarPorCI');
+        Route::get('/api/lecturas/buscar-conexiones', [LecturaController::class, 'apiSearchConexiones'])
+             ->name('api.conexiones.search_with_reading');
+        Route::get('/api/lecturas/pendientes', [LecturaController::class, 'apiGetPendientes'])
+             ->name('api.lecturas.pendientes');
+        Route::get('/api/tarifas/activa', [LecturaController::class, 'apiGetTarifaActiva'])
+             ->name('api.tarifas.activa');
+        Route::get('/lecturas/{lectura}/aviso', [LecturaController::class, 'showAviso'])
+             ->name('lecturas.aviso')->where('lectura', '[0-9]+');
+             
+        // API para crear nueva Zona (desde Afiliados/Create o Conexiones/Create)
+        Route::post('/zonas', [ZonaController::class, 'store'])
+             ->name('zonas.store');
+
+
+             // Listado general con filtros (tu página: Reclamos/Index)
+        Route::get('/reclamos', [ReclamoController::class, 'index'])
+            ->name('reclamos.index');
+
+        // Actualizar respuesta/estado
+        Route::put('/reclamos/{reclamo}', [ReclamoController::class, 'update'])
+            ->name('reclamos.update')
+            ->whereNumber('reclamo');
+
+        // Reabrir
+        Route::put('/reclamos/{reclamo}/reabrir', [ReclamoController::class, 'reabrir'])
+            ->name('reclamos.reabrir')
+            ->whereNumber('reclamo');
+             
+    });
+
+    // ================================
+    // RUTAS PARA USUARIO (Rol 'Usuario')
+    // ================================
+    Route::middleware(['role:Usuario'])->group(function () {
+        
+        Route::get('/mi-cuenta', [FacturaController::class, 'misFacturas'])->name('mi.cuenta');
+        
+        Route::get('/mi-historial-pagos', [PagoController::class, 'miHistorial'])
+             ->name('pagos.mihistorial'); 
+             
+         Route::get('/factura/{factura}/imprimir', [FacturaController::class, 'imprimirFactura'])
+              ->name('facturas.imprimir')->where('factura', '[0-9]+');
+
+
+
+              Route::get('/mis-reclamos', [ReclamoController::class, 'usuarioIndex'])
+            ->name('reclamos.usuarioIndex');
+
+        // Crear (form) y guardar
+        Route::get('/reclamos/nuevo', [ReclamoController::class, 'create'])
+            ->name('reclamos.create');
+        Route::post('/reclamos', [ReclamoController::class, 'store'])
+            ->name('reclamos.store');
+
+});            
+});                                  
