@@ -25,17 +25,17 @@ class RolesYUsuariosSeeder extends Seeder
         // Crear usuarios y asignar roles
         $usuarios = [
         
-                ['name' => 'Admin Prueba', 'email' => 'admin@cooperativa.test', 'password' => bcrypt('password123'), 'role_id' => 1, 'ci' => '12345678'],
-                ['name' => 'Secretaria Prueba', 'email' => 'secretaria@cooperativa.test', 'password' => bcrypt('password123'), 'role_id' => 2, 'ci' => '23456789'],
-                ['name' => 'Tecnico Prueba', 'email' => 'tecnico@cooperativa.test', 'password' => bcrypt('password123'), 'role_id' => 3, 'ci' => '34567890'],
-                ['name' => 'Usuario Prueba', 'email' => 'usuario@cooperativa.test', 'password' => bcrypt('password123'), 'role_id' => 4, 'ci' => '45678901'],
+                ['name' => 'Andres Miranda', 'email' => 'andres@andres.com', 'password' => bcrypt('andres123'), 'role_id' => 1],
+                ['name' => 'Secretaria', 'email' => 'secretaria@secretaria.com', 'password' => bcrypt('password123'), 'role_id' => 2],
+                ['name' => 'Tecnico', 'email' => 'tecnico@tecnico.com', 'password' => bcrypt('password123'), 'role_id' => 3],
+                ['name' => 'Usuario', 'email' => 'usuario@usuario.com', 'password' => bcrypt('password123'), 'role_id' => 4],
             ];
           
 
         foreach ($usuarios as $data) {
             $user = User::firstOrCreate(
                 ['email' => $data['email']],
-                ['name' => $data['name'], 'password' => $data['password'], 'ci' => $data['ci']]
+                ['name' => $data['name'], 'password' => $data['password']]
             );
             
             $user->syncRoles([$data['role_id']]);
