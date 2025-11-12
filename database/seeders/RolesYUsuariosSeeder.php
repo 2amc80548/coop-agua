@@ -26,9 +26,9 @@ class RolesYUsuariosSeeder extends Seeder
         $usuarios = [
         
                 ['name' => 'Andres Miranda', 'email' => 'andres@andres.com', 'password' => bcrypt('andres123'), 'role_id' => 1],
-                ['name' => 'Secretaria', 'email' => 'secretaria@secretaria.com', 'password' => bcrypt('password123'), 'role_id' => 2],
-                ['name' => 'Tecnico', 'email' => 'tecnico@tecnico.com', 'password' => bcrypt('password123'), 'role_id' => 3],
-                ['name' => 'Usuario', 'email' => 'usuario@usuario.com', 'password' => bcrypt('password123'), 'role_id' => 4],
+                ['name' => 'Secretaria', 'email' => 'secretaria@secretaria.com', 'password' => bcrypt('secretaria123'), 'role_id' => 2],
+                ['name' => 'Tecnico', 'email' => 'tecnico@tecnico.com', 'password' => bcrypt('tecnico123'), 'role_id' => 3],
+                ['name' => 'Usuario', 'email' => 'usuario@usuario.com', 'password' => bcrypt('usuario123'), 'role_id' => 4],
             ];
           
 

@@ -19,12 +19,12 @@ class ConexionController extends Controller
      * Define los permisos para este controlador.
      * Solo Admin y Secretaria pueden gestionar conexiones.
      */
-    public function __construct()
-    {
-        $this->middleware('role:Administrador|Secretaria');
-        // Solo Admin puede borrar
-        $this->middleware('role:Administrador')->only('destroy');
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware('role:Administrador|Secretaria');
+    //     // Solo Admin puede borrar
+    //     $this->middleware('role:Administrador')->only('destroy');
+    // }
 
 
     /**

@@ -3,7 +3,6 @@ import { ref, computed, watch } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Modal from '@/Components/Modal.vue';
-import axios from 'axios'; // No es necesario si solo usamos 'zonas.store'
 
 // --- 1. PROPS ---
 const props = defineProps({
@@ -13,16 +12,16 @@ const props = defineProps({
 });
 const page = usePage();
 
-// --- 2. FORMULARIO PRINCIPAL ---
+// --- 2. FORMULARIO PRINCIPAL (¡CORREGIDO!) ---
 const form = useForm({
     nombre_completo: '',
     ci: '',
     celular: '',
-    direccion: '',
-    zona_id: '', 
+    direccion: '', // Calle
+    zona_id: '',     // Barrio
     tipo: 'socio',
     estado: 'activo',
-    estado_servicio: 'activo',
+    estado_servicio: 'Pendiente', // <-- ¡NUEVO VALOR POR DEFECTO!
     fecha_afiliacion: new Date().toISOString().split('T')[0],
     fecha_baja: null,
     codigo: '',
@@ -30,10 +29,8 @@ const form = useForm({
     adulto_mayor: false,
     profile_photo: null,
     requisitos_seleccionados: [],
-    crear_usuario: false, 
-    email: '',
-    password: '',
-    password_confirmation: '',
+    observacion: '', // <-- ¡AÑADIDO!
+    // (Campos de 'crear_usuario' eliminados)
 });
 
 // --- 3. LÓGICA DE FOTO ---
@@ -64,42 +61,32 @@ watch(() => form.tenencia, () => {
     form.requisitos_seleccionados = [];
 });
 
-// --- 5. LÓGICA DE "NUEVA ZONA" (¡CORREGIDA Y FUNCIONAL!) ---
+// --- 5. LÓGICA DE "NUEVA ZONA" (Barrio) ---
 const showNuevaZonaModal = ref(false);
 const nuevaZonaForm = useForm({ nombre: '' });
-const zonasLocales = ref([...props.zonas]); // Lista local reactiva
-
+const zonasLocales = ref([...props.zonas]);
 const guardarNuevaZona = () => {
     nuevaZonaForm.post(route('zonas.store'), {
         preserveScroll: true,
         onSuccess: () => {
-            // Leemos la 'nueva_zona' que el controlador nos envía en el flash
             const nuevaZona = page.props.flash.nueva_zona;
             if (nuevaZona) {
-                // 1. Añadimos la nueva zona a nuestra lista local 'zonasLocales'
                 zonasLocales.value.push(nuevaZona);
-                // 2. Opcional: Ordenamos la lista alfabéticamente
                 zonasLocales.value.sort((a, b) => a.nombre.localeCompare(b.nombre));
-                // 3. Seleccionamos automáticamente la zona que acabamos de crear
                 form.zona_id = nuevaZona.id; 
             }
-            // 4. Cerramos el modal y limpiamos el formulario del modal
             showNuevaZonaModal.value = false;
             nuevaZonaForm.reset();
         },
         onError: (errors) => {
             console.error("Error al guardar zona:", errors);
-            // El error (ej. 'nombre ya existe') se mostrará en el modal
         }
     });
 };
 
 // --- 6. LÓGICA DE ENVÍO (SUBMIT) ---
 const submit = () => {
-    if (form.crear_usuario && form.password !== form.password_confirmation) {
-        form.setError('password', 'Las contraseñas no coinciden.');
-        return;
-    }
+    // (Validación de contraseña eliminada)
     form.post(route('afiliados.store'), {
         onError: (errors) => {
             console.error("Errores de validación:", errors);
@@ -168,21 +155,20 @@ const submit = () => {
                             <h3 class="text-lg font-medium text-gray-900 dark:text-white">Domicilio</h3>
                              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label for="direccion" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Dirección *</label>
-                                    <input id="direccion" v-model="form.direccion" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required />
-                                    <div v-if="form.errors.direccion" class="text-red-600 text-sm mt-1">{{ form.errors.direccion }}</div>
-                                </div>
-                                
-                                <div>
-                                    <label for="zona_id" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Zona *</label>
+                                    <label for="zona_id" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Barrio *</label>
                                     <div class="mt-1 flex items-center gap-2"> 
                                         <select id="zona_id" v-model="form.zona_id" class="flex-grow border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required>
-                                            <option value="" disabled>Seleccione una zona</option>
+                                            <option value="" disabled>Seleccione un Barrio</option>
                                             <option v-for="zona in zonasLocales" :key="zona.id" :value="zona.id">{{ zona.nombre }}</option>
                                         </select>
                                         <button @click.prevent="showNuevaZonaModal = true" type="button" class="flex-shrink-0 px-3 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600">+</button>
                                     </div>
                                     <div v-if="form.errors.zona_id" class="text-red-600 text-sm mt-1">{{ form.errors.zona_id }}</div>
+                                </div>
+                                <div>
+                                    <label for="direccion" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Calle *</label>
+                                    <input id="direccion" v-model="form.direccion" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required />
+                                    <div v-if="form.errors.direccion" class="text-red-600 text-sm mt-1">{{ form.errors.direccion }}</div>
                                 </div>
                              </div>
                         </div>
@@ -225,10 +211,12 @@ const submit = () => {
                                  <div>
                                     <label for="estado_servicio" class="block font-medium text-sm ...">Estado Servicio *</label>
                                     <select id="estado_servicio" v-model="form.estado_servicio" class="mt-1 block w-full ...">
+                                        <option value="Pendiente">Pendiente </option>
                                         <option value="activo">Activo</option>
                                         <option value="en_corte">En Corte</option>
                                         <option value="cortado">Cortado</option>
                                     </select>
+                                    <div v-if="form.errors.estado_servicio" class="text-red-600 text-sm mt-1">{{ form.errors.estado_servicio }}</div>
                                 </div>
                                 <div class="md:col-span-3 flex items-center gap-2 mt-2">
                                     <input id="adulto_mayor" v-model="form.adulto_mayor" type="checkbox" class="rounded ..." />
@@ -260,32 +248,21 @@ const submit = () => {
                         </div>
 
                         <div class="border-t dark:border-gray-700 pt-6 space-y-4">
-                            <h3 class="text-lg font-medium ...">Acceso al Sistema (Opcional)</h3>
-                             <label class="flex items-center gap-2">
-                                 <input type="checkbox" v-model="form.crear_usuario" class="rounded ..." />
-                                 <span class="text-sm font-medium ...">Crear cuenta de usuario para este afiliado</span>
-                             </label>
-                             <div v-if="form.crear_usuario" class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border ...">
-                                <div>
-                                    <label for="email" class="block font-medium text-sm ...">Email (Usuario) *</label>
-                                    <input id="email" v-model="form.email" type="email" class="mt-1 block w-full ..." />
-                                    <div v-if="form.errors.email" class="text-red-600 text-sm mt-1">{{ form.errors.email }}</div>
-                                </div>
-                                <div>
-                                    <label for="password" class="block font-medium text-sm ...">Contraseña *</label>
-                                    <input id="password" v-model="form.password" type="password" class="mt-1 block w-full ..." />
-                                    <div v-if="form.errors.password" class="text-red-600 text-sm mt-1">{{ form.errors.password }}</div>
-                                </div>
-                                 <div>
-                                    <label for="password_confirmation" class="block font-medium text-sm ...">Confirmar Contraseña *</label>
-                                    <input id="password_confirmation" v-model="form.password_confirmation" type="password" class="mt-1 block w-full ..." />
-                                </div>
-                             </div>
-                         </div>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Observaciones </h3>
+                            <div>
+                                <label for="observacion" class="sr-only">Observación</label>
+                                <textarea id="observacion" v-model="form.observacion" rows="4" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" placeholder="Añadir notas internas sobre el afiliado..."></textarea>
+                                <div v-if="form.errors.observacion" class="text-red-600 text-sm mt-1">{{ form.errors.observacion }}</div>
+                            </div>
+                        </div>
 
                         <div class="flex justify-end gap-4 mt-8 pt-6 border-t dark:border-gray-700">
-                            <Link :href="route('afiliados.index')" class="bg-gray-500 ...">Cancelar</Link>
-                            <button type="submit" :disabled="form.processing" class="bg-blue-600 ...">
+                            <Link :href="route('afiliados.index')" 
+                                  class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
+                                Cancelar
+                            </Link>
+                            <button type="submit" :disabled="form.processing"
+                                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 transition duration-150 ease-in-out">
                                 {{ form.processing ? 'Guardando...' : 'Guardar Afiliado' }}
                             </button>
                         </div>
@@ -297,21 +274,25 @@ const submit = () => {
         <Modal :show="showNuevaZonaModal" @close="showNuevaZonaModal = false" max-width="md">
             <div class="p-6 dark:bg-gray-800 dark:text-gray-200">
                 <h2 class="text-lg font-medium text-gray-900 dark:text-white">
-                    Agregar Nueva Zona
+                    Agregar Nuevo Barrio
                 </h2>
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    La zona se añadirá a la lista y se seleccionará automáticamente.
+                    El barrio se añadirá a la lista y se seleccionará automáticamente.
                 </p> 
                 <form @submit.prevent="guardarNuevaZona" class="mt-4 space-y-4">
                      <div>
-                        <label for="nueva_zona_nombre" class="block font-medium text-sm ...">Nombre de la Zona *</label>
-                        <input id="nueva_zona_nombre" v-model="nuevaZonaForm.nombre" type="text" class="mt-1 block w-full ..." required />
+                        <label for="nueva_zona_nombre" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Nombre del Barrio *</label>
+                        <input id="nueva_zona_nombre" v-model="nuevaZonaForm.nombre" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required />
                         <div v-if="nuevaZonaForm.errors.nombre" class="text-red-600 text-sm mt-1">{{ nuevaZonaForm.errors.nombre }}</div>
                     </div>
                     <div class="flex justify-end gap-4">
-                        <button type="button" @click="showNuevaZonaModal = false" class="bg-gray-500 ...">Cancelar</button>
-                        <button type="submit" :disabled="nuevaZonaForm.processing" class="bg-blue-600 ...">
-                            {{ nuevaZonaForm.processing ? 'Guardando...' : 'Guardar Zona' }}
+                        <button type="button" @click="showNuevaZonaModal = false" 
+                                class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
+                            Cancelar
+                        </button>
+                        <button type="submit" :disabled="nuevaZonaForm.processing" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 transition duration-150 ease-in-out">
+                            {{ nuevaZonaForm.processing ? 'Guardando...' : 'Guardar Barrio' }}
                         </button>
                     </div>
                 </form>

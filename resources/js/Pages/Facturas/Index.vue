@@ -69,6 +69,12 @@ const anularFactura = (factura) => {
     });
 };
 
+
+const imprimirFactura = (facturaId) => {
+  const url = route('facturas.imprimir', facturaId);
+  window.open(url, '_blank');
+};
+
 </script>
 
 <template>
@@ -165,8 +171,11 @@ const anularFactura = (factura) => {
               <td class="px-4 py-2 whitespace-nowrap text-sm font-medium space-x-2">
                 <Link :href="route('facturas.show', f.id)" class="text-indigo-600 hover:text-indigo-900" title="Ver Detalles y Pagos">Ver</Link>
                 <Link v-if="f.estado === 'impaga'" :href="route('pagos.create', { factura_id: f.id })" class="text-green-600 hover:text-green-900" title="Registrar Pago">Pagar</Link>
-                <a :href="route('facturas.pdf', f.id)" target="_blank" class="text-purple-600 hover:text-purple-900" title="Descargar PDF">PDF</a>
                  <button v-if="f.estado === 'impaga'" @click="anularFactura(f)" class="text-red-600 hover:text-red-900" title="Anular Factura">Anular</button>
+                <button @click="imprimirFactura(f.id)"class="text-purple-600 hover:text-purple-900" title="Imprimir Factura">
+                  🖨️
+                </button>
+
               </td>
             </tr>
           </tbody>

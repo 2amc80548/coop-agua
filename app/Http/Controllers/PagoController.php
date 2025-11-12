@@ -16,16 +16,16 @@ class PagoController extends Controller
     /**
      * Define los permisos para cada acción del controlador.
      */
-    public function __construct()
-    {
-        // Admin y Secretaria pueden ver/registrar pagos.
-        $this->middleware('role:Administrador|Secretaria')->except([
-            'miHistorial'// <-- ¡EXCEPCIÓN!
-        ]);
+    // public function __construct()
+    // {
+    //     // Admin y Secretaria pueden ver/registrar pagos.
+    //     $this->middleware('role:Administrador|Secretaria')->except([
+    //         'miHistorial'// <-- ¡EXCEPCIÓN!
+    //     ]);
         
-        // Solo Admin puede ANULAR un pago (acción delicada).
-        $this->middleware('role:Administrador')->only(['anular']);
-    }
+    //     // Solo Admin puede ANULAR un pago (acción delicada).
+    //     $this->middleware('role:Administrador')->only(['anular']);
+    // }
 
     /**
      * Muestra el HISTORIAL de pagos, paginado y con filtros.

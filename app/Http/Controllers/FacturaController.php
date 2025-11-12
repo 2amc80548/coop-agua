@@ -23,20 +23,20 @@ class FacturaController extends Controller
      * Define los permisos para cada acción del controlador.
      * (¡Recuerda añadir esto si no lo has hecho!)
      */
-    public function __construct()
-    {
-        // Protege TODOS los métodos
-        $this->middleware('role:Administrador|Secretaria')->except([
-            'misFacturas', 'imprimirFactura', 'show'
-        ]);
+    // public function __construct()
+    // {
+    //     // Protege TODOS los métodos
+    //     $this->middleware('role:Administrador|Secretaria')->except([
+    //         'misFacturas', 'imprimirFactura', 'show'
+    //     ]);
         
-        // El Admin puede hacer todo, la Secretaria tiene excepciones
-        $this->middleware('role:Administrador')->only(['updateMonto', 'destroy']); // Solo Admin puede modificar montos o borrar (aunque destroy está deshabilitado)
+    //     // El Admin puede hacer todo, la Secretaria tiene excepciones
+    //     $this->middleware('role:Administrador')->only(['updateMonto', 'destroy']); // Solo Admin puede modificar montos o borrar (aunque destroy está deshabilitado)
 
-        $this->middleware('auth')->only(['misFacturas', 'imprimirFactura', 'show']);
-        // Permisos para las rutas que no son resource
-        //$this->middleware('role:Administrador|Secretaria')->only(['anular', 'descargarPdf', 'misFacturas']);
-    }
+    //     $this->middleware('auth')->only(['misFacturas', 'imprimirFactura', 'show']);
+    //     // Permisos para las rutas que no son resource
+    //     //$this->middleware('role:Administrador|Secretaria')->only(['anular', 'descargarPdf', 'misFacturas']);
+    // }
 
 
     /**
@@ -271,7 +271,7 @@ class FacturaController extends Controller
          $ultimoPago = $factura->pagos->sortByDesc('fecha_pago')->first();
 
          // Renderizar una vista Blade simple para imprimir
-         return View::make('impresiones.factura', [ // ¡Necesitas crear esta vista!
+         return View::make('impresiones.factura', [ 
              'factura' => $factura,
              'consumo' => $consumo,
              'totalPagado' => $totalPagado,

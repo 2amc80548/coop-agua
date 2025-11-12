@@ -28,6 +28,7 @@ class Afiliado extends Model
         'estado_servicio', 
         'adulto_mayor',
         'profile_photo_path', 
+        'observacion'
     ];
 
     /**

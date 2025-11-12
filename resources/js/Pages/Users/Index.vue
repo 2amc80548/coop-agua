@@ -14,7 +14,7 @@ const page = usePage(); // Para mensajes flash
 // --- Formulario de Filtros ---
 const filterForm = useForm({
   search: props.filters.search ?? '',
-  role: props.filters.role ?? '', // Nuevo filtro
+  role: props.filters.role ?? '',
 });
 
 // --- Lógica de Búsqueda y Filtros ---
@@ -30,17 +30,14 @@ const debouncedSearch = () => {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(submitFilters, 400); // 400ms de espera
 };
-// Observar el dropdown de rol
 watch(() => filterForm.role, submitFilters);
 
 // --- Acción Eliminar (Mejorada) ---
 const eliminarUsuario = (user) => {
   if (confirm(`¿Eliminar al usuario "${user.name}"? Esta acción no se puede deshacer.`)) {
-    // Usamos el nombre de la ruta y el ID
     router.delete(route('users.destroy', user.id), {
-      preserveScroll: true, // No saltar al inicio de la página
+      preserveScroll: true,
       onError: (errors) => {
-          // Si el controlador envía un error (ej. no borrar admin), mostrarlo
           if (page.props.errors.error_general) {
               alert(page.props.errors.error_general);
           } else {
@@ -49,6 +46,12 @@ const eliminarUsuario = (user) => {
       }
     });
   }
+};
+
+// --- Helper para Rol de Usuario ---
+const esRolUsuario = (user) => {
+    if (!user || !user.roles) return false;
+    return user.roles.some(r => r.name === 'Usuario');
 };
 </script>
 
@@ -71,7 +74,7 @@ const eliminarUsuario = (user) => {
       <div v-if="page.props.flash.success" class="bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-4 shadow-sm" role="alert">
         <p class="font-bold">Éxito</p> <p>{{ page.props.flash.success }}</p>
       </div>
-       <div v-if="page.props.flash.error || Object.keys(page.props.errors).length > 0" class="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4 shadow-sm" role="alert">
+       <div v-if="page.props.flash.error || (page.props.errors && Object.keys(page.props.errors).length > 0)" class="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4 shadow-sm" role="alert">
          <p class="font-bold">Error</p>
          <p v-if="page.props.errors.error_general">{{ page.props.errors.error_general }}</p>
          <p v-else>Ocurrió un error.</p>
@@ -131,21 +134,30 @@ const eliminarUsuario = (user) => {
                   {{ role.name }}
                 </span>
               </td>
+              
               <td class="px-4 py-3 whitespace-nowrap">
                 <template v-if="user.afiliado">
                   <div class="font-medium text-gray-900 dark:text-white">{{ user.afiliado.nombre_completo }}</div>
                   <div class="text-xs text-gray-500 dark:text-gray-400">CI: {{ user.afiliado.ci }}</div>
                 </template>
-                <span v-else class="text-gray-400 dark:text-gray-500 italic">N/A (Personal)</span>
+                <template v-else>
+                  <span v-if="esRolUsuario(user)" class="text-yellow-600 dark:text-yellow-400 italic font-medium">
+                    Pendiente de Habilitación
+                  </span>
+                  <span v-else class="text-gray-400 dark:text-gray-500 italic">
+                    N/A (Personal)
+                  </span>
+                </template>
               </td>
               <td class="px-4 py-3 whitespace-nowrap text-sm font-medium space-x-2">
-                <Link :href="route('users.edit', user.id)" class="text-yellow-600 hover:text-yellow-900" title="Editar Rol/Datos">Editar</Link>
+                <Link :href="route('users.edit', user.id)" class="text-yellow-600 hover:text-yellow-900" title="Editar Rol/Vincular Afiliado">Editar</Link>
                 <button @click="eliminarUsuario(user)" class="text-red-600 hover:text-red-900" title="Eliminar Usuario">Eliminar</button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+      
       <div class="mt-6 flex justify-between items-center text-sm" v-if="users.links.length > 3">
         <span class="text-gray-700 dark:text-gray-300">Mostrando {{ users.from }} a {{ users.to }} de {{ users.total }} usuarios</span>
         <div class="flex flex-wrap gap-1">

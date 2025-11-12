@@ -21,18 +21,18 @@ class LecturaController extends Controller
     /**
      * Define los permisos para este controlador.
      */
-    public function __construct()
-    {
-        $this->middleware('role:Administrador|Secretaria|Tecnico');
-        $this->middleware('role:Administrador|Tecnico')->except(['index', 'show']); // Secretaria solo puede ver
-        $this->middleware('role:Administrador')->only('destroy'); // Solo Admin puede borrar
-        $this->middleware('role:Administrador|Secretaria|Tecnico')->only([ // APIs
-            'apiSearchConexiones', 
-            'apiGetPendientes', 
-            'apiGetTarifaActiva', 
-            'showAviso'
-        ]);
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware('role:Administrador|Secretaria|Tecnico');
+    //     $this->middleware('role:Administrador|Tecnico')->except(['index', 'show']); // Secretaria solo puede ver
+    //     $this->middleware('role:Administrador')->only('destroy'); // Solo Admin puede borrar
+    //     $this->middleware('role:Administrador|Secretaria|Tecnico')->only([ // APIs
+    //         'apiSearchConexiones', 
+    //         'apiGetPendientes', 
+    //         'apiGetTarifaActiva', 
+    //         'showAviso'
+    //     ]);
+    // }
 
     /**
      * Muestra lista paginada y filtrable de lecturas.
@@ -412,7 +412,7 @@ class LecturaController extends Controller
      public function showAviso($id) 
      {
          $lectura = Lectura::with([
-                         'conexion.afiliado', // ¡Corregido!
+                         'conexion.afiliado', 
                          'usuarioRegistrado:id,name'
                      ])->findOrFail($id);
          
@@ -442,4 +442,4 @@ class LecturaController extends Controller
          ]); 
      }
 
-} // Fin de la clase
+} 

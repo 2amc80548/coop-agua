@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 use Laravel\Jetstream\Jetstream;
+use Spatie\Permission\Models\Role; // <-- ¡IMPORTANTE! Importa el modelo Role
 
 class CreateNewUser implements CreatesNewUsers
 {
@@ -19,19 +20,30 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
+        // 1. Validación (sin 'ci')
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => $this->passwordRules(),
-            'beneficiario_id' => ['nullable', 'exists:beneficiarios,id'],
             'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature() ? ['accepted', 'required'] : '',
         ])->validate();
 
-        return User::create([
+        // 2. Crear el Usuario (con afiliado_id nulo)
+        $user = User::create([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
-            'beneficiario_id' => $input['beneficiario_id'] ?? null,
+            'afiliado_id' => null, // <-- ¡Importante! Se crea sin afiliado
         ]);
+
+        // 3. Asignar Rol "Usuario" por Defecto (¡Tu lógica!)
+        try {
+            $user->assignRole('Usuario'); // Asigna el rol por defecto
+        } catch (\Exception $e) {
+            // Manejar error si el rol "Usuario" no existe en la BD
+            // (En un sistema en producción, esto debería registrar un log)
+        }
+
+        return $user;
     }
 }

@@ -217,24 +217,39 @@ const logout = () => {
                     </template>
 
                     <template v-else-if="$page.props.auth.user.role_names?.includes('Usuario')">
-                        <span v-if="!isSidebarHidden" class="px-4 pt-4 text-xs font-semibold uppercase text-gray-400 dark:text-gray-500">Mi Cuenta</span>
                         
-                        <Link :href="route('usuario.dashboard')" :class="{'bg-gray-100 dark:bg-gray-700': route().current('usuario.dashboard')}" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2.5 rounded-lg transition-colors duration-200">
-                            <span class="mr-3" title="Mi Resumen"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6-4a1 1 0 001-1v-1a1 1 0 10-2 0v1a1 1 0 001 1zm5-1a1 1 0 100-2 1 1 0 000 2z" /></svg></span>
-                            <span v-if="!isSidebarHidden">Dashboard</span>
-                        </Link>
-                        <Link :href="route('mi.cuenta')" :class="{'bg-gray-100 dark:bg-gray-700': route().current('mi.cuenta')}" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2.5 rounded-lg transition-colors duration-200">
-                            <span class="mr-3" title="Mis Facturas"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></span>
-                            <span v-if="!isSidebarHidden">Mis Facturas</span>
-                        </Link>
-                        <Link :href="route('pagos.mihistorial')" :class="{'bg-gray-100 dark:bg-gray-700': route().current('pagos.mihistorial')}" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2.5 rounded-lg transition-colors duration-200">
-                            <span class="mr-3" title="Historial de Pagos"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg></span>
-                            <span v-if="!isSidebarHidden">Historial de Pagos</span>
-                        </Link>
-                        <Link :href="route('reclamos.usuarioIndex')" :class="{'bg-gray-100 dark:bg-gray-700': route().current('reclamos.usuarioIndex*') || route().current('reclamos.create')}" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2.5 rounded-lg transition-colors duration-200">
-                            <span class="mr-3" title="Mis Reclamos"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" /></svg></span>
-                            <span v-if="!isSidebarHidden">Mis Reclamos</span>
-                        </Link>
+                        <template v-if="$page.props.auth.user.afiliado_id">
+                            <span v-if="!isSidebarHidden" class="px-4 pt-4 text-xs font-semibold uppercase text-gray-400 dark:text-gray-500">Mi Cuenta</span>
+                            
+                            <Link :href="route('usuario.dashboard')" :class="{'bg-gray-100 dark:bg-gray-700': route().current('usuario.dashboard')}" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2.5 rounded-lg transition-colors duration-200">
+                                <span class="mr-3" title="Mi Resumen"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6-4a1 1 0 001-1v-1a1 1 0 10-2 0v1a1 1 0 001 1zm5-1a1 1 0 100-2 1 1 0 000 2z" /></svg></span>
+                                <span v-if="!isSidebarHidden">Mi Resumen</span>
+                            </Link>
+                            <Link :href="route('mi.cuenta')" :class="{'bg-gray-100 dark:bg-gray-700': route().current('mi.cuenta')}" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2.5 rounded-lg transition-colors duration-200">
+                                <span class="mr-3" title="Mis Facturas"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg></span>
+                                <span v-if="!isSidebarHidden">Mis Facturas</span>
+                            </Link>
+                            <Link :href="route('pagos.mihistorial')" :class="{'bg-gray-100 dark:bg-gray-700': route().current('pagos.mihistorial')}" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2.5 rounded-lg transition-colors duration-200">
+                                <span class="mr-3" title="Historial de Pagos"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg></span>
+                                <span v-if="!isSidebarHidden">Historial de Pagos</span>
+                            </Link>
+                            <Link :href="route('reclamos.usuarioIndex')" :class="{'bg-gray-100 dark:bg-gray-700': route().current('reclamos.usuarioIndex*') || route().current('reclamos.create')}" class="flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2.5 rounded-lg transition-colors duration-200">
+                                <span class="mr-3" title="Mis Reclamos"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" /></svg></span>
+                                <span v-if="!isSidebarHidden">Mis Reclamos</span>
+                            </Link>
+                        </template>
+
+                        <template v-else>
+                            <span v-if="!isSidebarHidden" class="px-4 pt-4 text-xs font-semibold uppercase text-gray-400 dark:text-gray-500">Activación</span>
+                            
+                             <Link :href="route('usuario.pendiente')" 
+                                   :class="{'bg-gray-100 dark:bg-gray-700': route().current('usuario.pendiente')}" 
+                                   class="flex items-center text-yellow-600 dark:text-yellow-400 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2.5 rounded-lg transition-colors duration-200">
+                                <span class="mr-3" title="Habilitar Cuenta"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></span>
+                                <span v-if="!isSidebarHidden">Habilitar Cuenta</span>
+                            </Link>
+                        </template>
+                         
                     </template>
                 </nav>
             </aside>

@@ -13,10 +13,10 @@ use Illuminate\Support\Facades\Log;
 
 class ReclamoController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth'); 
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware('auth'); 
+    // }
 
     /**
      * Muestra la lista de reclamos (para Admin/Secretaria).

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Zona;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ZonaController extends Controller
 {
@@ -23,8 +24,8 @@ class ZonaController extends Controller
         $zona = Zona::create($validated);
 
         
-        return redirect()->back()
-            ->with('success', '¡Zona creada!')
-            ->with('nueva_zona', $zona); 
+                return redirect()->back()
+            ->with('success', '¡Barrio creado!')
+            ->with('nueva_zona', $zona);
 }
 }

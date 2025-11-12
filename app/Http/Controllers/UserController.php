@@ -8,36 +8,34 @@ use App\Models\Afiliado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
-use Illuminate\Validation\Rule; // ¡Importante para validación!
-use Illuminate\Support\Facades\Auth; // ¡Importante para permisos!
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
     /**
      * Define los permisos para este controlador.
-     * Solo 'Administrador' puede gestionar usuarios.
      */
-    public function __construct()
-    {
-        // Esto protege TODAS las funciones en este controlador
-        $this->middleware('role:Administrador');
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware('role:Administrador');
+    // }
 
     /**
      * Muestra la lista paginada y filtrable de usuarios.
-     * (Versión profesional y escalable)
      */
     public function index(Request $request)
     {
-        $query = User::with(['afiliado:id,nombre_completo,ci', 'roles:id,name']); // Carga optimizada
+        $query = User::with(['afiliado:id,nombre_completo,ci', 'roles:id,name']);
 
-        // 1. Búsqueda por Nombre o Email
+        // Búsqueda
         $query->when($request->input('search'), function ($q, $search) {
             $q->where('name', 'like', "%{$search}%")
               ->orWhere('email', 'like', "%{$search}%");
         });
 
-        // 2. Filtro por Rol
+        // Filtro por Rol
         $query->when($request->input('role'), function ($q, $roleName) {
             $q->whereHas('roles', function ($roleQuery) use ($roleName) {
                 $roleQuery->where('name', $roleName);
@@ -46,145 +44,131 @@ class UserController extends Controller
 
         return Inertia::render('Users/Index', [
             'users' => $query->orderBy('name')
-                             ->paginate(15) // ¡PAGINADO!
+                             ->paginate(15)
                              ->withQueryString(),
-            'filters' => $request->only(['search', 'role']), // Devuelve filtros
-            'roles' => Role::all()->pluck('name'), // Envía lista de roles para el dropdown
+            'filters' => $request->only(['search', 'role']),
+            'roles' => Role::all()->pluck('name'),
         ]);
     }
 
     /**
      * Muestra el formulario de creación.
-     * Pasa los roles y la URL de la API para buscar afiliados.
      */
-/**
-     * Muestra el formulario de creación.
-     */
-        public function create()
-        {
-            $rolesPersonal = Role::whereIn('name', ['Administrador', 'Secretaria', 'Tecnico'])->get(['id', 'name']);
-            $roleUsuario = Role::where('name', 'Usuario')->first(['id', 'name']);
-            
-            if (!$roleUsuario) {
-                return redirect()->route('users.index')->withErrors(['error_general' => 'Error: El rol "Usuario" no existe.']);
-            }
-
-            return Inertia::render('Users/Create', [
-                'rolesPersonal' => $rolesPersonal,
-                'roleUsuario' => $roleUsuario,
-                
-                'searchAfiliadosUrl' => route('afiliados.buscarPorCI', ['ci' => '__CI_PLACEHOLDER__']),
-            ]);
-        }
+    public function create()
+    {
+        return Inertia::render('Users/Create', [
+            'rolesPersonal' => Role::whereIn('name', ['Administrador', 'Secretaria', 'Tecnico'])->get(['id', 'name']),
+            'roleUsuario' => Role::where('name', 'Usuario')->first(['id', 'name']),
+            'searchAfiliadosUrl' => route('afiliados.buscarPorCI', ['ci' => '__CI_PLACEHOLDER__']),
+        ]);
+    }
 
     /**
      * Guarda un nuevo usuario.
-     * (Usando tu lógica de 2 usuarios por afiliado)
+     * (¡CORREGIDO! El 'name' es independiente del afiliado)
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'tipo' => 'required|in:afiliado,personal',
-            'name' => 'required_if:tipo,personal|nullable|string|max:255', 
+            'name' => 'required|string|max:255', // ¡AHORA SIEMPRE REQUERIDO!
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:8|confirmed', 
+            'password' => 'required|min:8|confirmed',
             'role_id' => 'required|exists:roles,id',
-            'afiliado_id' => 'required_if:tipo,afiliado|nullable|exists:afiliados,id',
+            'afiliado_id' => 'nullable|exists:afiliados,id', // Nullable
         ]);
 
-        $afiliado = null;
-        if ($request->tipo === 'afiliado') {
-            $afiliado = Afiliado::find($request->afiliado_id);
-            if (!$afiliado) {
-                return back()->withErrors(['afiliado_id' => 'Afiliado no encontrado.'])->withInput();
-            }
+        $afiliadoId = $validated['afiliado_id'] ?? null;
+        $role = Role::find($validated['role_id']);
 
-            // lógica de límite de usuarios 
-            $count = User::where('afiliado_id', $afiliado->id)->count();
+        // Si el rol es 'afiliado' (Usuario) y se seleccionó un afiliado...
+        if ($role->name === 'Usuario' && $afiliadoId) {
+            // Validamos el límite de 2 usuarios
+            $count = User::where('afiliado_id', $afiliadoId)->count();
             if ($count >= 2) {
-                return back()->withErrors([
-                    'afiliado_id' => 'Este afiliado ya tiene 2 usuarios (cuentas) asignados.'
-                ])->withInput();
+                return back()->withErrors(['afiliado_id' => 'Este afiliado ya tiene 2 usuarios (cuentas) asignados.'])->withInput();
             }
+        }
+        
+        // Si el rol es 'personal', nos aseguramos de desvincular
+        if ($role->name !== 'Usuario') {
+            $afiliadoId = null;
         }
 
         $user = User::create([
-            // Si es afiliado, el nombre es el del afiliado. Si es personal, es el del input.
-            'name' => ($request->tipo === 'afiliado' && $afiliado) ? $afiliado->nombre_completo : $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'afiliado_id' => ($request->tipo === 'afiliado') ? $afiliado->id : null,
+            'name' => $validated['name'], // ¡USA EL NOMBRE DEL FORMULARIO!
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'afiliado_id' => $afiliadoId,
         ]);
 
-        $role = Role::find($request->role_id);
-        $user->assignRole($role); // Asigna el rol
+        $user->assignRole($role);
 
         return redirect()->route('users.index')->with('success', '✅ Usuario creado correctamente.');
     }
 
     /**
-     * Muestra el detalle de un usuario.
-     */
-    public function show(User $user)
-    {
-        $user->load(['afiliado:id,nombre_completo,ci', 'roles:id,name']); // Carga relaciones
-        return Inertia::render('User/Show', [
-            'user' => $user,
-        ]);
-    }
-
-
-    /**
-     * Muestra el formulario para editar el rol, email y contraseña del usuario.
-     * ¡No carga Afiliado::all()!
+     * Muestra el formulario para editar.
+     * (¡ACTUALIZADO!)
      */
     public function edit(User $user)
     {
-        // Carga solo lo necesario
         $user->load('afiliado:id,nombre_completo,ci', 'roles:id,name');
         
-        // Cargar todos los roles disponibles para el dropdown de edición
-        $allRoles = Role::all(['id', 'name']);
-
         return Inertia::render('Users/Edit', [
             'user' => $user,
-            'allRoles' => $allRoles,
+            'allRoles' => Role::all(['id', 'name']),
+            // ¡AÑADIDO! Pasa la URL de la API para el buscador
+            'searchAfiliadosUrl' => route('afiliados.buscarPorCI', ['ci' => '__CI_PLACEHOLDER__']),
         ]);
     }
 
     /**
-     * Actualiza el usuario (Nombre, Email, Rol, Contraseña).
+     * Actualiza un usuario.
+     * (¡ACTUALIZADO! Permite asignar afiliado y editar nombre)
      */
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|' . Rule::unique('users')->ignore($user->id),
-            'password' => 'nullable|min:8|confirmed', // 'confirmed' para password_confirmation
+            'password' => 'nullable|min:8|confirmed',
             'role_id' => 'required|exists:roles,id',
-            // No permitimos cambiar el afiliado_id desde aquí
+            'afiliado_id' => 'nullable|exists:afiliados,id', // ¡Permite asignar/cambiar!
         ]);
         
-        // No se puede cambiar el rol del Super Admin (ID 1) o de uno mismo
-        if ($user->id === 1 || $user->id === Auth::id()) {
-             if ($validated['role_id'] != $user->roles->first()->id) {
-                 return back()->withErrors(['role_id' => 'No se puede cambiar el rol de este usuario.']);
-             }
+        $role = Role::find($validated['role_id']);
+        $afiliadoId = $validated['afiliado_id'] ?? null;
+        
+        // Si el rol es "Usuario"
+        if ($role->name === 'Usuario') {
+            if ($afiliadoId) {
+                 // Si se asignó uno, validamos el límite (excluyéndonos a nosotros mismos)
+                $count = User::where('afiliado_id', $afiliadoId)
+                             ->where('id', '!=', $user->id) // Excluirse a sí mismo
+                             ->count();
+                if ($count >= 2) {
+                    return back()->withErrors(['afiliado_id' => 'Este afiliado ya tiene 2 usuarios (cuentas) asignados.'])->withInput();
+                }
+            }
+            // Si $afiliadoId es null, no pasa nada (es un usuario "Pendiente")
+        } else {
+            // Si el rol es Admin, Sec, Tec, nos aseguramos que no esté vinculado
+            $afiliadoId = null;
         }
 
+        // Actualizar el usuario
         $user->update([
-            'name' => $validated['name'],
+            'name' => $validated['name'], // ¡USA EL NOMBRE DEL FORMULARIO!
             'email' => $validated['email'],
+            'afiliado_id' => $afiliadoId, // Guardar el ID
         ]);
 
-        // Actualizar contraseña SOLO si se envió una nueva
         if (!empty($validated['password'])) {
             $user->update(['password' => Hash::make($validated['password'])]);
         }
         
-        // Sincronizar rol (más seguro)
-        $role = Role::find($validated['role_id']);
-        $user->syncRoles([$role->name]); // syncRoles espera el nombre
+        $user->syncRoles([$role->name]); // Sincronizar el rol
 
         return redirect()->route('users.index')->with('success', 'Usuario actualizado.');
     }
@@ -201,8 +185,6 @@ class UserController extends Controller
         }
         
         $user->delete();
-        
-        return redirect()->route('users.index')
-            ->with('success', 'Usuario eliminado.');
+        return redirect()->route('users.index')->with('success', 'Usuario eliminado.');
     }
 }

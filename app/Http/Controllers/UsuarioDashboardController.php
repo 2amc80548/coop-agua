@@ -89,4 +89,20 @@ class UsuarioDashboardController extends Controller
             ]);
         }
     }
+
+
+
+    public function pendiente()
+    {
+        $user = Auth::user();
+
+        // Seguridad: Si el usuario YA está vinculado, no debe ver esta página.
+        // Lo redirigimos a su dashboard normal.
+        if ($user->afiliado_id !== null) {
+            return redirect()->route('usuario.dashboard');
+        }
+        
+        // Mostramos la vista de "Pendiente"
+        return Inertia::render('Usuario/PendienteHabilitacion');
+    }
 }

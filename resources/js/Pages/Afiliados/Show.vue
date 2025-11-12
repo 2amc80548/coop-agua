@@ -3,7 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
-    afiliado: Object, // Trae afiliado con 'zona', 'requisitos', 'conexiones.zona', 'user'
+    afiliado: Object, // Trae afiliado con 'zona', 'requisitos', 'conexiones.zona', 'user', 'observacion'
 });
 
 // Helper para la foto
@@ -26,6 +26,7 @@ const estadoServicioClass = (estado) => {
         case 'activo': return 'bg-green-100 text-green-800';
         case 'en_corte': return 'bg-yellow-100 text-yellow-800';
         case 'cortado': return 'bg-red-100 text-red-800';
+        case 'Pendiente': return 'bg-blue-100 text-blue-800';
         default: return 'bg-gray-100 text-gray-800';
     }
 };
@@ -82,8 +83,8 @@ const formatDate = (dateString) => {
                             <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">Información de Contacto</h4>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                                 <div><strong class="text-gray-500 dark:text-gray-400">Celular:</strong> <span class="text-gray-700 dark:text-gray-300">{{ afiliado.celular || 'No registrado' }}</span></div>
-                                <div><strong class="text-gray-500 dark:text-gray-400">Dirección:</strong> <span class="text-gray-700 dark:text-gray-300">{{ afiliado.direccion }}</span></div>
-                                <div><strong class="text-gray-500 dark:text-gray-400">Zona:</strong> <span class="text-gray-700 dark:text-gray-300">{{ afiliado.zona?.nombre || 'No registrada' }}</span></div>
+                                <div><strong class="text-gray-500 dark:text-gray-400">Calle:</strong> <span class="text-gray-700 dark:text-gray-300">{{ afiliado.direccion }}</span></div>
+                                <div><strong class="text-gray-500 dark:text-gray-400">Barrio:</strong> <span class="text-gray-700 dark:text-gray-300">{{ afiliado.zona?.nombre || 'No registrado' }}</span></div>
                                 <div v-if="afiliado.user"><strong class="text-gray-500 dark:text-gray-400">Email (Usuario):</strong> <span class="text-gray-700 dark:text-gray-300">{{ afiliado.user.email }}</span></div>
                             </div>
                         </div>
@@ -94,10 +95,16 @@ const formatDate = (dateString) => {
                                 <div><strong class="text-gray-500 dark:text-gray-400">Tipo:</strong> <span class="text-gray-700 dark:text-gray-300">{{ afiliado.tipo }}</span></div>
                                 <div><strong class="text-gray-500 dark:text-gray-400">Tenencia:</strong> <span class="text-gray-700 dark:text-gray-300">{{ afiliado.tenencia }}</span></div>
                                 <div><strong class="text-gray-500 dark:text-gray-400">Fecha Afiliación:</strong> <span class="text-gray-700 dark:text-gray-300">{{ formatDate(afiliado.fecha_afiliacion) }}</span></div>
-                                <div v-if="afiliado.fecha_baja"><strong class="text-gray-500 dark:text-gray-400">Fecha Baja:</strong> <span class="text-red-500">{{ formatDate(afiliado.fecha_baja) }}</span></div>
+                                <div v_if="afiliado.fecha_baja"><strong class="text-gray-500 dark:text-gray-400">Fecha Baja:</strong> <span class="text-red-500">{{ formatDate(afiliado.fecha_baja) }}</span></div>
                             </div>
                         </div>
 
+                        <div v-if="afiliado.observacion" class="mb-8">
+                            <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">Observaciones (Uso Interno)</h4>
+                            <p class="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-4 rounded-md whitespace-pre-wrap">
+                                {{ afiliado.observacion }}
+                            </p>
+                        </div>
                         <div class="mb-8">
                             <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">Requisitos Entregados</h4>
                             <ul v-if="afiliado.requisitos && afiliado.requisitos.length > 0" class="list-disc list-inside space-y-1 text-sm">

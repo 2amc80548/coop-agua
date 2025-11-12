@@ -140,8 +140,16 @@ const abrirImpresionFactura = () => {
                     </div>
 
                     <div class="flex flex-wrap justify-between items-center mt-8 pt-4 border-t gap-3">
-                        <Link :href="route('facturas.index')" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition">
+                        
+                        <Link v-if="$page.props.auth.user.role_names.includes('Administrador') || $page.props.auth.user.role_names.includes('Secretaria')"
+                              :href="route('facturas.index')" 
+                              class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition">
                             Volver al Listado
+                        </Link>
+
+                        <Link v-else-if="$page.props.auth.user.role_names.includes('Usuario')"
+                              :href="route('mi.cuenta')" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition">
+                            Volver a Mis Facturas
                         </Link>
                         
                         <div class="flex gap-3">
@@ -149,17 +157,19 @@ const abrirImpresionFactura = () => {
                                 🖨️ Imprimir Factura
                             </button>
                             
-                            <button v-if="factura.estado === 'impaga'" 
-                                    @click="anularFactura"
-                                    class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition">
-                                Anular Factura
-                            </button>
-                            
-                            <Link v-if="factura.estado === 'impaga'"
-                                  :href="route('pagos.create', { factura_id: factura.id })"
-                                  class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition">
-                                Registrar Pago
-                            </Link>
+                        <button v-if="factura.estado === 'impaga' && ($page.props.auth.user.role_names.includes('Administrador') || $page.props.auth.user.role_names.includes('Secretaria'))" 
+                                @click="anularFactura"
+                                class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition">
+                            Anular Factura
+                        </button>
+
+                        <Link v-if="factura.estado === 'impaga' && ($page.props.auth.user.role_names.includes('Administrador') || $page.props.auth.user.role_names.includes('Secretaria'))"
+                            :href="route('pagos.create', { factura_id: factura.id })"
+                            class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition">
+                            Registrar Pago
+                        </Link>
+
+
                         </div>
                     </div>
                 </div>
