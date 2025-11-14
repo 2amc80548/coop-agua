@@ -41,21 +41,12 @@ const filtroZonaPendientes = ref(''); // ¡Esto será un zona_id!
 const periodoPendientes = ref(props.ultimoPeriodoRegistrado);
 
 // --- 4. Carga de Datos Inicial (Tarifa y Pendientes) ---
+// --- 4. Carga de Datos Inicial (solo Pendientes) ---
 onMounted(async () => {
-    // 1. Cargar Tarifa Activa
-    try {
-        const response = await axios.get(props.apiUrlTarifaActiva);
-        tarifaActiva.value = response.data;
-    } catch (error) {
-        console.error("Error cargando tarifa activa:", error);
-        alert("Error CRÍTICO: No se pudo cargar la tarifa activa. Los cálculos de monto no funcionarán.");
-    } finally {
-        isLoadingTarifa.value = false;
-    }
-    // 2. Cargar Pendientes
+    // Ya NO cargamos tarifa aquí, solo pendientes
+    isLoadingTarifa.value = false;
     await cargarPendientes(); 
 });
-
 // --- 5. Lógica para Lista de Pendientes (¡CORREGIDA!) ---
 const cargarPendientes = async () => {
     isLoadingPendientes.value = true;
@@ -97,27 +88,56 @@ const onSearchInput = () => {
 };
 
 // --- 7. Lógica de Selección y Reset ---
-const selectConexion = (conexion) => {
+// --- 7. Lógica de Selección y Reset ---
+const selectConexion = async (conexion) => {
+    // 1) Lo que ya tenías
     form.conexion_id = conexion.id;
     form.lectura_anterior = conexion.lectura_anterior ?? 0;
     form._afiliado_adulto_mayor = conexion.afiliado_adulto_mayor ?? false;
     form._conexion_info = conexion;
-    // Corregido a 'afiliado_nombre'
     searchTerm.value = `${conexion.afiliado_nombre} (Med: ${conexion.codigo_medidor})`;
     showSearchDropdown.value = false;
     searchResults.value = [];
+
+    // 2) NUEVO: cargar la tarifa según el tipo de esta conexión
+    try {
+        isLoadingTarifa.value = true;
+
+        const response = await axios.get(props.apiUrlTarifaActiva, {
+            params: {
+                tipo_conexion: conexion.tipo_conexion, // 👈 viene de la API de conexiones
+            },
+        });
+
+        tarifaActiva.value = response.data;
+    } catch (error) {
+        console.error("Error cargando tarifa por tipo:", error);
+        tarifaActiva.value = null;
+        alert("Error: No se pudo cargar la tarifa para este tipo de conexión.");
+    } finally {
+        isLoadingTarifa.value = false;
+    }
+
+    // 3) Enfocar el campo de lectura
     document.getElementById('lectura_actual')?.focus(); 
 };
 
+
 const resetSeleccion = () => {
-     form.reset();
-     form.fecha_lectura = new Date().toISOString().split('T')[0];
-     form._afiliado_adulto_mayor = false;
-     form._conexion_info = null;
-     searchTerm.value = '';
-     searchResults.value = [];
-     showSearchDropdown.value = false;
+    form.reset();
+    form.fecha_lectura = new Date().toISOString().split('T')[0];
+    form._afiliado_adulto_mayor = false;
+    form._conexion_info = null;
+
+    searchTerm.value = '';
+    searchResults.value = [];
+    showSearchDropdown.value = false;
+
+   
+    tarifaActiva.value = null;
+    isLoadingTarifa.value = false;
 };
+
 
 const handleBlur = () => { setTimeout(() => { showSearchDropdown.value = false; }, 300); };
 

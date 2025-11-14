@@ -138,21 +138,36 @@ class ConexionController extends Controller
      */
     public function store(Request $request)
     {
-        // --- MODIFICADO ---
+        
         // Cambiamos la validación de 'zona' a 'zona_id'
         $validated = $request->validate([
             'codigo_medidor'  => 'required|string|unique:conexiones,codigo_medidor|max:50',
             'afiliado_id'     => 'required|exists:afiliados,id',
             'estado'          => 'required|in:activo,suspendido,eliminado',
             'direccion'       => 'required|string|max:255',
-            'zona_id'         => 'required|exists:zonas,id', // <-- CORREGIDO
+            'zona_id'         => 'required|exists:zonas,id', 
             'fecha_instalacion' => 'required|date',
             'tipo_conexion'   => 'required|in:domiciliaria,comercial,institucional,otro',
         ]);
-        // --- FIN MODIFICADO ---
+        
 
-        try {
-             Conexion::create($validated); // Guardará los datos validados (incluyendo zona_id)
+       try {
+        DB::transaction(function () use ($validated) {
+
+            // 1) Crear la conexión
+            $conexion = Conexion::create($validated);
+
+            // 2) Buscar el afiliado
+            $afiliado = Afiliado::find($validated['afiliado_id']);
+
+            // 3) Si existe y está pendiente, pasarlo a activo
+            if ($afiliado && $afiliado->estado_servicio === 'Pendiente') {
+                $afiliado->update([
+                    'estado_servicio' => 'activo',
+                ]);
+            }
+
+        });
         } catch (\Exception $e) {
              Log::error('Error al guardar conexión:', ['error' => $e->getMessage(), 'request' => $request->all()]);
              return redirect()->back()->withInput()->withErrors(['error_general' => 'Error al guardar la conexión.']);

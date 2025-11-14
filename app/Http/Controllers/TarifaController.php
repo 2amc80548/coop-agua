@@ -26,6 +26,7 @@ class TarifaController extends Controller
             'vigente_desde' => ['required','date'],
             'vigente_hasta' => ['nullable','date','after_or_equal:vigente_desde'],
             'activo'        => ['required','boolean'],
+            'tipo_conexion' => ['required','in:domiciliaria,comercial,institucional,otro'],
 
             'min_m3'        => ['required','integer','min:0'],
             'min_monto'     => ['required','numeric','min:0'],
@@ -42,7 +43,9 @@ class TarifaController extends Controller
         ]);
 
         if (!empty($data['activo'])) {
-            Tarifa::where('activo', 1)->update(['activo' => 0]);
+            Tarifa::where('activo', 1)
+            ->where('tipo_conexion', $data['tipo_conexion'])
+            ->update(['activo' => 0]);
         }
 
         Tarifa::create($data);
@@ -64,6 +67,7 @@ class TarifaController extends Controller
             'vigente_desde' => ['required','date'],
             'vigente_hasta' => ['nullable','date','after_or_equal:vigente_desde'],
             'activo'        => ['required','boolean'],
+            'tipo_conexion' => ['required','in:domiciliaria,comercial,institucional,otro'],
 
             'min_m3'        => ['required','integer','min:0'],
             'min_monto'     => ['required','numeric','min:0'],
@@ -80,7 +84,10 @@ class TarifaController extends Controller
         ]);
 
         if (!empty($data['activo'])) {
-            Tarifa::where('id', '!=', $tarifa->id)->where('activo', 1)->update(['activo' => 0]);
+            Tarifa::where('id', '!=', $tarifa->id)
+            ->where('activo', 1)
+            ->where('tipo_conexion', $data['tipo_conexion'])
+            ->update(['activo' => 0]);
         }
 
         $tarifa->update($data);

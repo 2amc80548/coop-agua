@@ -14,6 +14,8 @@ use Carbon\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log; // Para registrar errores
 use Illuminate\Support\Facades\View;
+use App\Models\Tarifa;
+
 // Importa tu paquete de PDF aquí cuando lo instales
 // use Barryvdh\DomPDF\Facade\Pdf; 
 
@@ -265,20 +267,65 @@ class FacturaController extends Controller
              abort(403, 'No tiene permiso para ver esta factura.');
          }
 
-         $consumo = $factura->lectura ? ($factura->lectura->lectura_actual - $factura->lectura->lectura_anterior) : $factura->consumo_m3;
-         $totalPagado = $factura->pagos->sum('monto_pagado');
-         $saldo = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado);
-         $ultimoPago = $factura->pagos->sortByDesc('fecha_pago')->first();
+$consumo = $factura->lectura
+    ? ($factura->lectura->lectura_actual - $factura->lectura->lectura_anterior)
+    : $factura->consumo_m3;
 
-         // Renderizar una vista Blade simple para imprimir
-         return View::make('impresiones.factura', [ 
-             'factura' => $factura,
-             'consumo' => $consumo,
-             'totalPagado' => $totalPagado,
-             'saldo' => $saldo,
-             'ultimoPago' => $ultimoPago,
-             'fechaImpresion' => Carbon::now('America/La_Paz')->format('d/m/Y H:i')
-         ]);
+$totalPagado = $factura->pagos->sum('monto_pagado');
+$saldo = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado);
+$ultimoPago = $factura->pagos->sortByDesc('fecha_pago')->first();
+
+// --- NUEVO: cálculo estimado de subtotal y descuento (solo para mostrar) ---
+$montoBase = null;
+$descuentoEstimado = 0;
+$porcentajeDescuento = 0;
+
+try {
+    $tipoConexion = $factura->conexion->tipo_conexion ?? null;
+
+    if ($factura->lectura && $tipoConexion) {
+        $tarifa = Tarifa::where('activo', 1)
+            ->where('tipo_conexion', $tipoConexion)
+            ->orderBy('vigente_desde', 'desc')
+            ->first();
+
+        if ($tarifa) {
+            $calculoDirecto = $consumo * $tarifa->precio_m3;
+
+            if ($consumo <= $tarifa->min_m3 && $tarifa->min_monto > $calculoDirecto) {
+                $montoBase = $tarifa->min_monto;
+            } else {
+                $montoBase = $calculoDirecto;
+            }
+
+            $porcentajeDescuento = $tarifa->descuento_adulto_mayor_pct;
+
+            if ($factura->conexion->afiliado?->adulto_mayor && $tarifa->descuento_adulto_mayor_pct > 0) {
+                $descuentoEstimado = ($montoBase * $tarifa->descuento_adulto_mayor_pct) / 100;
+            }
+        }
+    }
+                    } catch (\Exception $e) {
+                        // Si algo falla, no rompemos la vista, solo dejamos los campos en null
+                        $montoBase = null;
+                        $descuentoEstimado = 0;
+                        $porcentajeDescuento = 0;
+                    }
+
+                    // Renderizar la vista
+                    return View::make('impresiones.factura', [ 
+                        'factura' => $factura,
+                        'consumo' => $consumo,
+                        'totalPagado' => $totalPagado,
+                        'saldo' => $saldo,
+                        'ultimoPago' => $ultimoPago,
+                        'fechaImpresion' => Carbon::now('America/La_Paz')->format('d/m/Y H:i'),
+                        // nuevos datos para el detalle
+                        'montoBase' => $montoBase,
+                        'descuentoEstimado' => $descuentoEstimado,
+                        'porcentajeDescuento' => $porcentajeDescuento,
+                    ]);
+
     }
 
     // --- Métodos Deshabilitados (No se usan en este flujo) ---

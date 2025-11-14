@@ -14,7 +14,7 @@ use Carbon\Carbon;
 class FacturacionController extends Controller
 {
     /**
-     * Muestra la página para generar facturas.
+     * Muestra la página para generar   facturas.
      * Carga las lecturas pendientes de un período específico.
      */
     public function showGenerador(Request $request)

@@ -79,21 +79,31 @@
             </table>
 
             <div class="total-section">
+                <p>
+                    <span>Subtotal por consumo:</span>
+                    <span>
+                        Bs {{ number_format($montoEstimado + $descuentoAplicado, 2) }}
+                    </span>
+                </p>
+
                 @if($descuentoAplicado > 0)
-                    <p>
-                        <span>Monto Cálculo:</span>
-                        <span>Bs {{ number_format($montoEstimado + $descuentoAplicado, 2) }}</span>
-                    </p>
                     <p style="color: green;">
                         <span>Descuento Adulto Mayor ({{ $tarifa->descuento_adulto_mayor_pct }}%):</span>
                         <span>- Bs {{ number_format($descuentoAplicado, 2) }}</span>
                     </p>
+                @else
+                    <p>
+                        <span>Descuento:</span>
+                        <span>Bs 0.00</span>
+                    </p>
                 @endif
+
                 <p class="total">
-                    <span>Monto Estimado a Pagar:</span>
+                    <span>Total Estimado a Pagar:</span>
                     <span>Bs {{ number_format($montoEstimado, 2) }}</span>
                 </p>
             </div>
+
             
             @if($lectura->observacion)
                 <div style="margin-top: 10px; font-size: 10px;">

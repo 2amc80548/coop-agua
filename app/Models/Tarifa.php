@@ -21,6 +21,7 @@ class Tarifa extends Model
         'multa_corte_monto',
         'cisterna_10k_monto',
         'notas',
+        'tipo_conexion',
     ];
 
     protected $casts = [

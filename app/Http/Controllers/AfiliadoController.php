@@ -83,7 +83,6 @@ class AfiliadoController extends Controller
             'codigo'           => ['required','string','max:50', Rule::unique('afiliados')],
             'tenencia'         => ['required', Rule::in(['propietario','compra_venta','posesion'])],
             'estado'           => ['required', Rule::in(['activo','suspendido','baja'])],
-            // ¡ACTUALIZADO! Se añade 'Pendiente'
             'estado_servicio'  => ['required', Rule::in(['activo','en_corte','cortado','Pendiente'])],
             'adulto_mayor'     => ['boolean'],
             'profile_photo'    => ['nullable', 'image', 'max:2048'],
@@ -99,7 +98,7 @@ class AfiliadoController extends Controller
             $afiliado = DB::transaction(function () use ($request, $validated) {
                 
                 $photoPath = null;
-                if ($request->hasFile('profile_photo')) {
+                if ($request->hasFile('profile_photo')) {       
                     $file = $request->file('profile_photo');
                     $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                     $extension = $file->getClientOriginalExtension();

@@ -24,7 +24,7 @@ return new class extends Migration {
             $table->timestamp("updated_at")->nullable();
             $table->boolean("adulto_mayor")->default(false);
             $table->string("profile_photo_path", 2048)->nullable();
-            $table->string("observacion", 255)->nullable(); 
+            //$table->string("observacion", 255)->nullable(); 
 
         });
     }

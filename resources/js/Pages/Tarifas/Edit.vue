@@ -10,6 +10,7 @@ const form = useForm({
   vigente_desde: props.tarifa.vigente_desde,
   vigente_hasta: props.tarifa.vigente_hasta,
   activo: props.tarifa.activo,
+   tipo_conexion: props.tarifa.tipo_conexion,
 
   min_m3: props.tarifa.min_m3,
   min_monto: props.tarifa.min_monto,
@@ -27,7 +28,6 @@ const form = useForm({
 
 const submit = () => form.put(`/tarifas/${props.tarifa.id}`);
 
-// ---- Conceptos ----
 const newConcept = useForm({
   codigo: '',
   nombre: '',
@@ -77,6 +77,19 @@ const deleteConcept = (c) => {
       </div>
 
       <form @submit.prevent="submit" class="space-y-4 bg-white p-4 rounded shadow">
+        
+        <label class="block text-sm font-medium">Tipo de conexión</label>
+        <select v-model="form.tipo_conexion"
+                class="border-gray-300 rounded-md shadow-sm mt-1 w-full">
+                <option value="domiciliaria">Domiciliaria</option>
+                <option value="comercial">Comercial</option>
+                <option value="institucional">Institucional</option>
+                <option value="otro">Otro</option>
+        </select>
+        <div v-if="form.errors.tipo_conexion" class="text-red-600 text-sm">
+            {{ form.errors.tipo_conexion }}
+        </div>
+
         <div class="grid md:grid-cols-3 gap-4">
           <div>
             <label class="block text-sm font-medium">Vigente desde</label>

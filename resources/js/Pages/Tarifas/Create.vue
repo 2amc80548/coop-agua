@@ -6,6 +6,7 @@ const form = useForm({
   vigente_desde: new Date().toISOString().slice(0,10),
   vigente_hasta: '',
   activo: true,
+  tipo_conexion: 'domiciliaria',
 
   min_m3: 7,
   min_monto: 24.50,
@@ -30,6 +31,19 @@ const submit = () => form.post('/tarifas');
       <h1 class="text-2xl font-bold mb-4">Nueva Tarifa</h1>
 
       <form @submit.prevent="submit" class="space-y-4 bg-white p-4 rounded shadow">
+       
+        <label class="block text-sm font-medium">Tipo de conexión</label>
+              <select v-model="form.tipo_conexion"
+                    class="border-gray-300 rounded-md shadow-sm mt-1 w-full">
+                    <option value="domiciliaria">Domiciliaria</option>
+                    <option value="comercial">Comercial</option>
+                    <option value="institucional">Institucional</option>
+                    <option value="otro">Otro</option>
+                </select>
+            <div v-if="form.errors.tipo_conexion" class="text-red-600 text-sm">
+                {{ form.errors.tipo_conexion }}
+            </div>
+
         <div class="grid md:grid-cols-3 gap-4">
           <div>
             <label class="block text-sm font-medium">Vigente desde</label>

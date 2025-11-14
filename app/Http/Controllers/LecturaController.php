@@ -40,9 +40,8 @@ class LecturaController extends Controller
     public function index(Request $request)
     {
         $query = Lectura::with([
-            // Corregido a 'afiliado' y 'zona'
             'conexion.afiliado:id,nombre_completo,ci', 
-            'conexion.zona:id,nombre', // Cargar la zona de la conexión
+            'conexion.zona:id,nombre',
             'usuarioRegistrado:id,name'
         ]);
 
@@ -283,23 +282,23 @@ class LecturaController extends Controller
     /**
      * API: Busca conexiones (¡Corregido para 'afiliado' y 'zona_nombre')
      */
-    public function apiSearchConexiones(Request $request) // (Tu apiSearchConexiones se ve bien, solo cambia 'beneficiario' a 'afiliado')
+    public function apiSearchConexiones(Request $request) 
     {
         $term = $request->input('term', '');
         if (strlen($term) < 2) return response()->json([]);
 
         $conexiones = Conexion::with([
                 'afiliado:id,nombre_completo,ci,adulto_mayor', 
-                'zona:id,nombre' // ¡Añadido!
+                'zona:id,nombre' 
             ]) 
             ->where(function ($query) use ($term) {
                 $query->where('codigo_medidor', 'like', "%{$term}%")
-                      ->orWhereHas('afiliado', function ($q) use ($term) { // ¡'afiliado'!
+                      ->orWhereHas('afiliado', function ($q) use ($term) { 
                           $q->where('nombre_completo', 'like', "%{$term}%")
                             ->orWhere('ci', 'like', "%{$term}%");
                       });
             })
-            ->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id') // ¡'zona_id'!
+            ->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion')
             ->limit(10)
             ->get();
 
@@ -318,6 +317,7 @@ class LecturaController extends Controller
                  'afiliado_ci' => $conexion->afiliado?->ci ?? 'N/A',
                  'afiliado_adulto_mayor' => $conexion->afiliado?->adulto_mayor ?? false, 
                  'lectura_anterior' => $ultimaLectura ?? 0, 
+                  'tipo_conexion' => $conexion->tipo_conexion,
              ];
         });
 
@@ -354,7 +354,7 @@ class LecturaController extends Controller
             });
             // --- FIN CORRECCIÓN ---
 
-            $pendientes = $query->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id')
+            $pendientes = $query->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion')
                                 ->orderBy('zona_id')->orderBy('direccion')->get();
                             
             $results = $pendientes->map(function ($conexion) {
@@ -370,6 +370,7 @@ class LecturaController extends Controller
                      'afiliado_ci' => $conexion->afiliado?->ci ?? 'N/A',
                      'afiliado_adulto_mayor' => $conexion->afiliado?->adulto_mayor ?? false,
                      'lectura_anterior' => $ultimaLectura ?? 0,
+                     'tipo_conexion' => $conexion->tipo_conexion, 
                  ];
             });
 
@@ -385,14 +386,25 @@ class LecturaController extends Controller
      * API: Devuelve los detalles de la tarifa activa.
      * (Tu código original está perfecto)
      */
-    public function apiGetTarifaActiva()
+    public function apiGetTarifaActiva(Request $request)
     {
+        $tipo = $request->input('tipo_conexion');
+
+        if (!$tipo) {
+            return response()->json(['error' => 'tipo_conexion es requerido'], 400);
+        }
+
         try {
-            $tarifa = Tarifa::where('activo', 1)->orderBy('vigente_desde', 'desc')->first();
+            $tarifa = Tarifa::where('activo', 1)
+                            ->where('tipo_conexion', $tipo)
+                            ->orderBy('vigente_desde', 'desc')
+                            ->first();
+
             if (!$tarifa) {
-                Log::error("¡CRÍTICO! No se encontró ninguna tarifa activa en la base de datos.");
-                return response()->json(['error' => 'No hay tarifa activa configurada.'], 500);
+                Log::error("No se encontró tarifa activa para el tipo: {$tipo}");
+                return response()->json(['error' => 'No hay tarifa activa para este tipo de conexión.'], 500);
             }
+
             return response()->json([
                 'min_m3' => (float) $tarifa->min_m3,
                 'min_monto' => (float) $tarifa->min_monto,
@@ -404,42 +416,61 @@ class LecturaController extends Controller
             return response()->json(['error' => 'Error de servidor al buscar tarifa.'], 500);
         }
     }
+
     
     /**
      * Muestra la vista simple para el Aviso de Cobranza (para imprimir).
      * (Tu código original está perfecto, solo aseguramos 'afiliado')
      */
-     public function showAviso($id) 
-     {
-         $lectura = Lectura::with([
-                         'conexion.afiliado', 
-                         'usuarioRegistrado:id,name'
-                     ])->findOrFail($id);
-         
-         $tarifa = Tarifa::where('activo', 1)->orderBy('vigente_desde', 'desc')->first();
-         if (!$tarifa) { abort(500, 'No hay tarifa activa.'); }
+    public function showAviso($id) 
+    {
+        $lectura = Lectura::with([
+                        'conexion.afiliado', 
+                        'conexion',                 // aseguramos tener la conexión completa
+                        'usuarioRegistrado:id,name'
+                    ])->findOrFail($id);
+        
+        // 1) Tomar el tipo de conexión de la lectura
+        $tipo = $lectura->conexion->tipo_conexion; // domiciliaria / comercial / institucional / etc.
 
-         $consumo = $lectura->lectura_actual - $lectura->lectura_anterior;
-         $montoCalculado = 0;
-         
-         // REGLA DE CÁLCULO
-         if ($consumo <= $tarifa->min_m3 && $tarifa->min_monto > ($consumo * $tarifa->precio_m3) ) {
-             $montoCalculado = $tarifa->min_monto;
-         } else {
-             $montoCalculado = $consumo * $tarifa->precio_m3;
-         }
-         
-         $descuento = 0;
-         if ($lectura->conexion->afiliado?->adulto_mayor && $tarifa->descuento_adulto_mayor_pct > 0) {
-             $descuento = ($montoCalculado * $tarifa->descuento_adulto_mayor_pct) / 100;
-         }
-         $montoEstimado = $montoCalculado - $descuento;
+        // 2) Buscar la tarifa ACTIVA para ese tipo
+        $tarifa = Tarifa::where('activo', 1)
+                        ->where('tipo_conexion', $tipo)
+                        ->orderBy('vigente_desde', 'desc')
+                        ->first();
 
-         return View::make('avisos.cobranza', [ 
-             'lectura' => $lectura, 'tarifa' => $tarifa, 'consumo' => $consumo,
-             'montoEstimado' => $montoEstimado, 'descuentoAplicado' => $descuento,
-             'fechaImpresion' => Carbon::now('America/La_Paz')->format('d/m/Y H:i')
-         ]); 
-     }
+        if (!$tarifa) {
+            abort(500, 'No hay tarifa activa para el tipo de conexión: ' . $tipo);
+        }
+
+        // 3) Cálculo de consumo
+        $consumo = $lectura->lectura_actual - $lectura->lectura_anterior;
+        $montoCalculado = 0;
+
+        // 4) Regla de cálculo (igual que antes)
+        if ($consumo <= $tarifa->min_m3 && $tarifa->min_monto > ($consumo * $tarifa->precio_m3) ) {
+            $montoCalculado = $tarifa->min_monto;
+        } else {
+            $montoCalculado = $consumo * $tarifa->precio_m3;
+        }
+
+        // 5) Descuento adulto mayor (igual que antes)
+        $descuento = 0;
+        if ($lectura->conexion->afiliado?->adulto_mayor && $tarifa->descuento_adulto_mayor_pct > 0) {
+            $descuento = ($montoCalculado * $tarifa->descuento_adulto_mayor_pct) / 100;
+        }
+        $montoEstimado = $montoCalculado - $descuento;
+
+        // 6) Mandar todo al Blade (tus nombres siguen igual)
+        return View::make('avisos.cobranza', [ 
+            'lectura' => $lectura,
+            'tarifa' => $tarifa,
+            'consumo' => $consumo,
+            'montoEstimado' => $montoEstimado,
+            'descuentoAplicado' => $descuento,
+            'fechaImpresion' => Carbon::now('America/La_Paz')->format('d/m/Y H:i')
+        ]); 
+    }
+
 
 } 
