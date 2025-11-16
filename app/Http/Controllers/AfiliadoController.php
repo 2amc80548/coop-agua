@@ -76,8 +76,8 @@ class AfiliadoController extends Controller
             'nombre_completo'  => ['required','string','max:255'],
             'ci'               => ['required','string','max:50', Rule::unique('afiliados')],
             'celular'          => ['nullable','string','max:20'],
-            'direccion'        => ['required','string','max:255'], // 'Calle' en tu vista
-            'zona_id'          => ['required','integer', Rule::exists('zonas', 'id')], // 'Barrio'
+            'direccion'        => ['required','string','max:255'], 
+            'zona_id'          => ['required','integer', Rule::exists('zonas', 'id')], 
             'tipo'             => ['required', Rule::in(['socio','usuario'])],
             'fecha_afiliacion' => ['nullable','date'],
             'codigo'           => ['required','string','max:50', Rule::unique('afiliados')],
@@ -86,12 +86,12 @@ class AfiliadoController extends Controller
             'estado_servicio'  => ['required', Rule::in(['activo','en_corte','cortado','Pendiente'])],
             'adulto_mayor'     => ['boolean'],
             'profile_photo'    => ['nullable', 'image', 'max:2048'],
-            'observacion'      => ['nullable', 'string', 'max:2000'], // ¡AÑADIDO!
+            'observacion'      => ['nullable', 'string', 'max:2000'], 
             
             'requisitos_seleccionados' => ['nullable', 'array'],
             'requisitos_seleccionados.*' => ['integer', Rule::exists('requisitos', 'id')],
             
-            // (Se eliminó 'crear_usuario', 'email', 'password')
+          
         ]);
 
         try {
