@@ -2,7 +2,8 @@
 import { ref, computed, watch } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import Modal from '@/Components/Modal.vue'; // Para los modales
+import Modal from '@/Components/Modal.vue'; 
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 // --- 1. PROPS ---
 const props = defineProps({
@@ -392,6 +393,7 @@ const submitForzandoBaja = () => {
 
                 </div>
             </div>
+            <ViewCounter />
         </div>
     </AppLayout>
 </template>

@@ -1,6 +1,7 @@
 <script setup>
 import { Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const props = defineProps({
     reclamoTipos: Array,
@@ -88,6 +89,7 @@ const submit = () => {
                     </form>
                 </div>
             </div>
+             <ViewCounter />
         </div>
     </AppLayout>
 </template>

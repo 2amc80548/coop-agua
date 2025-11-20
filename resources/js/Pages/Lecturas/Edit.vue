@@ -2,6 +2,7 @@
 import { useForm, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { computed } from 'vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const props = defineProps({
     lectura: Object, // Trae lectura con 'conexion.afiliado' y 'conexion.zona'
@@ -123,6 +124,7 @@ const submit = () => {
                     </form>
                 </div>
             </div>
+            <ViewCounter />
         </div>
     </AppLayout>
 </template>

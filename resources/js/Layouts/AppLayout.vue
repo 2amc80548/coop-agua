@@ -1,139 +1,205 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
-import ApplicationMark from '@/Components/ApplicationMark.vue';
-import Banner from '@/Components/Banner.vue';
-import Dropdown from '@/Components/Dropdown.vue';
-import DropdownLink from '@/Components/DropdownLink.vue';
-import NavLink from '@/Components/NavLink.vue';
+import { ref, onMounted } from 'vue'
+import { Head, Link, router } from '@inertiajs/vue3'
+import ApplicationMark from '@/Components/ApplicationMark.vue'
+import Banner from '@/Components/Banner.vue'
+import Dropdown from '@/Components/Dropdown.vue'
+import DropdownLink from '@/Components/DropdownLink.vue'
+import NavLink from '@/Components/NavLink.vue'
 
-defineProps({ title: String });
+defineProps({ title: String })
 
-/* ========================================
-   ESTADO REACTIVO
-   ======================================== */
-const isMobileMenuOpen = ref(false);
-const isSidebarHidden = ref(false);
-const darkMode = ref(false);
-const currentTime = ref('');
-const isMobile = ref(false);
+const isMobileMenuOpen = ref(false)
+const isSidebarHidden = ref(false)
+const darkMode = ref(false)
+const temaActual = ref('tema-jovenes')
+const currentTime = ref('')
+const isMobile = ref(false)
 
-/* ========================================
-   FUNCIONES
-   ======================================== */
-const toggleSidebar = () => {
-    isSidebarHidden.value = !isSidebarHidden.value;
-};
+/* =======================
+ * BUSCADOR
+ * ======================= */
+const textoBusqueda = ref('')
+const resultados = ref([])
+const buscadorCargando = ref(false)
+const buscadorError = ref('')
+
+let searchTimeout = null
+
+const buscar = () => {
+    const query = textoBusqueda.value.trim()
+
+    if (searchTimeout) {
+        clearTimeout(searchTimeout)
+    }
+
+    searchTimeout = setTimeout(async () => {
+        const q = textoBusqueda.value.trim()
+
+        if (q.length < 2) {
+            resultados.value = []
+            buscadorError.value = ''
+            return
+        }
+
+        buscadorCargando.value = true
+        buscadorError.value = ''
+
+        try {
+            const res = await fetch(`/buscar?q=${encodeURIComponent(q)}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+            })
+
+            if (!res.ok) {
+                buscadorError.value = `Error del servidor (${res.status})`
+                resultados.value = []
+                return
+            }
+
+            const data = await res.json()
+
+            resultados.value = data
+
+            if (!data.length) {
+                buscadorError.value = 'Sin resultados'
+            }
+        } catch (error) {
+            buscadorError.value = 'Error de conexión'
+            resultados.value = []
+        } finally {
+            buscadorCargando.value = false
+        }
+    }, 300)
+}
+
+const irAlPrimero = () => {
+    if (resultados.value.length > 0) {
+        const url = resultados.value[0].url
+        router.visit(url)
+        textoBusqueda.value = ''
+        resultados.value = []
+        buscadorError.value = ''
+    }
+}
+
+const irA = (url) => {
+    if (!url) return
+    router.visit(url)
+    textoBusqueda.value = ''
+    resultados.value = []
+    buscadorError.value = ''
+}
+
+/* =======================
+ * TEMAS, TIEMPO, ETC
+ * ======================= */
+const aplicarTema = () => {
+    const tema = localStorage.getItem('tema') || 'tema-jovenes'
+    const oscuro = localStorage.getItem('dark') === 'true'
+    temaActual.value = tema
+    darkMode.value = oscuro
+    document.documentElement.className = oscuro ? `dark ${tema}` : tema
+}
+
+const cambiarTema = (nuevo) => {
+    localStorage.setItem('tema', nuevo)
+    aplicarTema()
+}
 
 const toggleDarkMode = () => {
-    darkMode.value = !darkMode.value;
-    document.documentElement.classList.toggle('dark', darkMode.value);
-    localStorage.setItem('theme', darkMode.value ? 'dark' : 'light');
-};
+    localStorage.setItem('dark', !darkMode.value)
+    aplicarTema()
+}
 
 const updateTime = () => {
-    const now = new Date();
-    currentTime.value = now.toLocaleDateString('es-ES', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    }) + ' | ' + now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-};
+    const now = new Date()
+    currentTime.value =
+        now.toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        }) +
+        ' | ' +
+        now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+}
+
+const checkMobile = () => {
+    if (typeof window !== 'undefined') {
+        isMobile.value = window.innerWidth < 768
+    }
+}
 
 const closeMobileMenu = () => {
-    isMobileMenuOpen.value = false;
-};
+    isMobileMenuOpen.value = false
+}
+
+onMounted(() => {
+    aplicarTema()
+    updateTime()
+    setInterval(updateTime, 1000)
+    checkMobile()
+    window.addEventListener('resize', () => {
+        checkMobile()
+        if (window.innerWidth >= 768) closeMobileMenu()
+    })
+})
 
 const logout = () => {
-    router.post(route('logout'));
-};
-
-/* ========================================
-   CICLO DE VIDA
-   ======================================== */
-onMounted(() => {
-    const saved = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    darkMode.value = saved === 'dark' || (!saved && prefersDark);
-    document.documentElement.classList.toggle('dark', darkMode.value);
-
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
-
-    const checkMobile = () => {
-        isMobile.value = window.innerWidth < 768;
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    const handleResize = () => {
-        if (window.innerWidth >= 768) closeMobileMenu();
-    };
-    window.addEventListener('resize', handleResize);
-
-    onUnmounted(() => {
-        clearInterval(timer);
-        window.removeEventListener('resize', checkMobile);
-        window.removeEventListener('resize', handleResize);
-    });
-});
+    router.post(route('logout'))
+}
 </script>
 
 <template>
-    <div :class="{ 'dark': darkMode }" class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800 min-h-screen transition-colors duration-500 text-base">
-        <Head :title="title" />
-        <Banner />
+<!-- CLAVE: clases correctas en el div raíz -->
+<div :class="[darkMode ? 'dark' : '', temaActual]" class="min-h-screen bg-gray-50 dark:bg-gray-900">
 
-        <!-- ========================================
-             CONTENEDOR PRINCIPAL
-             ======================================== -->
-        <div class="flex h-screen overflow-hidden">
+    <Head :title="title" />
+    <Banner />
 
-            <!-- OVERLAY MÓVIL -->
-            <div
-                v-if="isMobileMenuOpen"
-                @click="closeMobileMenu"
-                class="fixed inset-0 bg-black bg-opacity-60 z-40 md:hidden transition-opacity duration-200"
-                aria-hidden="true"
-            ></div>
+    <!-- CONTENEDOR PRINCIPAL -->
+    <div class="flex h-screen overflow-hidden">
 
-            <!-- ========================================
-                 SIDEBAR – FIJO, 100% ALTO, SCROLL INTERNO
-                 ======================================== -->
-            <aside
-                :class="{
-                    'translate-x-0 w-full max-w-xs shadow-2xl': isMobileMenuOpen && isMobile,
-                    '-translate-x-full': !isMobileMenuOpen && isMobile,
-                    'w-64': !isSidebarHidden && !isMobile,
-                    'w-20': isSidebarHidden && !isMobile
-                }"
-                class="bg-white dark:bg-gray-800 border-r border-cyan-200 dark:border-gray-700 
-                       flex flex-col fixed inset-y-0 left-0 z-50 md:relative md:z-30 md:translate-x-0
-                       transition-all duration-300 ease-in-out"
-            >
-                <!-- Header Sidebar (Fijo arriba) -->
-                <div class="flex items-center justify-between p-4 md:p-5 h-16 border-b border-cyan-100 dark:border-gray-700 bg-gradient-to-r from-cyan-500 to-blue-600 flex-shrink-0">
-                    <Link v-if="!isSidebarHidden" :href="route('dashboard')" class="flex items-center gap-3 text-white">
-                        <ApplicationMark class="h-10 w-10 md:h-12 md:w-12 fill-white" />
-                        <span class="font-bold text-lg md:text-xl">AGUA CABEZAS</span>
-                    </Link>
-                    <button
-                        @click="toggleSidebar"
-                        class="p-2 rounded-full text-white hover:bg-white/20 transition-colors"
-                        :class="!isSidebarHidden ? 'ml-auto' : 'mx-auto'"
-                        aria-label="Colapsar menú"
-                    >
-                        <svg v-if="!isSidebarHidden" class="h-6 w-6 md:h-7 md:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                        <svg v-else class="h-6 w-6 md:h-7 md:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
-                </div>
+        <!-- OVERLAY MÓVIL -->
+        <div
+            v-if="isMobileMenuOpen"
+            @click="closeMobileMenu"
+            class="fixed inset-0 bg-black bg-opacity-60 z-40 md:hidden"
+        ></div>
 
-                <!-- Navegación – SCROLL INTERNO -->
-                <nav class="flex-1 overflow-y-auto p-4 md:p-5 space-y-3 md:space-y-4 scrollbar-thin scrollbar-thumb-cyan-400">
-                    <!-- ====================== ADMINISTRADOR ====================== -->
-                    <template v-if="$page.props.auth.user.role_names?.includes('Administrador')">
+        <!-- SIDEBAR -->
+        <aside :class="{
+                'translate-x-0 w-full max-w-xs shadow-2xl': isMobileMenuOpen && isMobile,
+                '-translate-x-full': !isMobileMenuOpen && isMobile,
+                'w-64': !isSidebarHidden && !isMobile,
+                'w-20': isSidebarHidden && !isMobile
+            }"
+            class="bg-white dark:bg-gray-800 border-r border-cyan-200 dark:border-gray-700 
+                   flex flex-col fixed inset-y-0 left-0 z-50 md:relative md:z-30 md:translate-x-0
+                   transition-all duration-300 ease-in-out"
+        >
+            <!-- Header Sidebar -->
+            <div class="flex items-center justify-between p-4 md:p-5 h-16 border-b border-cyan-100 dark:border-gray-700 bg-gradient-to-r from-cyan-500 to-blue-600 flex-shrink-0">
+                <Link v-if="!isSidebarHidden" :href="route('dashboard')" class="flex items-center gap-3 text-white">
+                    <ApplicationMark class="h-10 w-10 md:h-12 md:w-12 fill-white" />
+                    <span class="font-bold text-lg md:text-xl">AGUA CABEZAS</span>
+                </Link>
+                <button @click="isSidebarHidden = !isSidebarHidden" class="p-2 rounded-full text-white hover:bg-white/20 transition-colors" :class="!isSidebarHidden ? 'ml-auto' : 'mx-auto'">
+                    <svg v-if="!isSidebarHidden" class="h-6 w-6 md:h-7 md:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    <svg v-else class="h-6 w-6 md:h-7 md:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- NAVEGACIÓN  -->
+             <nav class="flex-1 overflow-y-auto p-4 md:p-5 space-y-3 md:space-y-4 scrollbar-thin scrollbar-thumb-cyan-400">
+                <template v-if="$page.props.auth.user.role_names?.includes('Administrador')">
                         <span v-if="!isSidebarHidden" class="px-3 text-xs md:text-sm font-bold uppercase text-cyan-600 dark:text-cyan-400">Administración</span>
 
                         <NavLink :href="route('dashboard')" :active="route().current('dashboard')" class="group flex items-center text-gray-700 dark:text-gray-300 hover:bg-cyan-50 dark:hover:bg-gray-700 px-3 md:px-4 py-3 md:py-3.5 rounded-xl transition-all duration-200 text-sm md:text-base">
@@ -316,35 +382,20 @@ onMounted(() => {
                                 </span>
                                 <span v-if="!isSidebarHidden" class="font-medium">Mis Reclamos</span>
                             </NavLink>
-                        </template>
+                        </template>    
+                    </template>          
+            </nav>
+        </aside>
 
-                        <template v-else>
-                            <span v-if="!isSidebarHidden" class="px-3 text-xs md:text-sm font-bold uppercase text-yellow-600 dark:text-yellow-400">Activación</span>
-
-                            <NavLink :href="route('usuario.pendiente')" :active="route().current('usuario.pendiente')" class="group flex items-center text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 px-3 md:px-4 py-3 md:py-3.5 rounded-xl transition-all duration-200 text-sm md:text-base">
-                                <span class="mr-3 md:mr-4 group-hover:scale-110 transition-transform" title="Habilitar Cuenta">
-                                    <svg class="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                                </span>
-                                <span v-if="!isSidebarHidden" class="font-medium">Habilitar Cuenta</span>
-                            </NavLink>
-                        </template>
-                    </template>
-                </nav>
-            </aside>
-
-            <!-- ========================================
-                 CONTENIDO PRINCIPAL – SOLO ÉL TIENE SCROLL
-                 ======================================== -->
+        <!-- CONTENIDO PRINCIPAL -->
             <div class="flex-1 flex flex-col overflow-hidden">
 
-                <!-- NAVBAR SUPERIOR – FIJA -->
-                <nav class="bg-white dark:bg-gray-800 border-b border-cyan-100 dark:border-gray-700 shadow-lg fixed top-0 inset-x-0 z-20 h-16 md:h-18 backdrop-blur-sm bg-opacity-90">
+                <!-- NAVBAR SUPERIOR -->
+                <nav class="bg-white dark:bg-gray-800 border-b border-cyan-100 dark:border-gray-700 shadow-lg fixed top-0 inset-x-0 z-20 h-16 backdrop-blur-sm bg-opacity-90">
                     <div class="px-4 md:px-6 h-full flex items-center justify-between text-sm md:text-base">
-                        <button
-                            @click="isMobileMenuOpen = !isMobileMenuOpen"
-                            class="p-2 md:p-3 rounded-xl text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-gray-700 transition-all md:hidden"
-                            aria-label="Abrir menú"
-                        >
+
+                        <!-- BOTÓN MENÚ MÓVIL -->
+                        <button @click="isMobileMenuOpen = !isMobileMenuOpen" class="p-2 md:p-3 rounded-xl text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-gray-700 transition-all md:hidden">
                             <svg v-if="!isMobileMenuOpen" class="h-6 w-6 md:h-7 md:w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
@@ -353,78 +404,156 @@ onMounted(() => {
                             </svg>
                         </button>
 
-                        <div class="flex-1 text-center">
-                            <div class="hidden sm:block font-bold text-cyan-700 dark:text-cyan-300 text-sm md:text-base">
-                                Asociación de Beneficiarios de Agua Cabezas
-                            </div>
-                            <div class="sm:hidden font-bold text-cyan-700 dark:text-cyan-300 text-sm md:text-base">ABC</div>
-                            <div class="text-xs md:text-sm text-cyan-600 dark:text-cyan-400 mt-0.5">{{ currentTime }}</div>
-                        </div>
 
-                        <Dropdown align="right" width="64">
-                            <template #trigger>
-                                <button class="flex items-center text-sm md:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400 transition">
-                                    <img class="h-9 w-9 md:h-10 md:w-10 rounded-full object-cover ring-2 ring-cyan-500 ring-offset-2" :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.name" />
-                                    <span class="ml-2 hidden md:inline">{{ $page.props.auth.user.name }}</span>
-                                    <svg class="ml-1 h-4 w-4 md:h-5 md:w-5 hidden md:inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                </button>
-                            </template>
+<div class="flex-1 flex items-center justify-between px-4 md:px-6 relative z-50">
 
-                            <template #content>
-                                <div class="px-4 py-2 text-xs md:text-sm font-semibold text-cyan-600 dark:text-cyan-400">Mi Cuenta</div>
-                                <DropdownLink :href="route('profile.show')" class="hover:bg-cyan-50 dark:hover:bg-gray-700 text-sm md:text-base">Mi Perfil</DropdownLink>
-                                <div class="border-t border-cyan-100 dark:border-gray-700"></div>
+    <div
+        class="relative max-w-sm w-full transition-all duration-300"
+        :class="{
+            'ml-20 md:ml-64': !isSidebarHidden,
+            'ml-20': isSidebarHidden
+        }"
+    >
+        <input
+            v-model="textoBusqueda"
+            @input="buscar"
+            @keydown.enter.prevent="irAlPrimero"
+            type="text"
+            placeholder="Buscar afiliado, medidor, factura..."
+            class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-shadow shadow-sm backdrop-blur-sm"
+        />
 
-                                <div class="flex items-center justify-between px-4 py-2 text-sm md:text-base">
-                                    <div class="flex items-center text-gray-700 dark:text-gray-300">
-                                        <svg v-if="!darkMode" class="h-5 w-5 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                                        </svg>
-                                        <svg v-else class="h-5 w-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
-                                        </svg>
-                                        <span>Modo Oscuro</span>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" :checked="darkMode" @change="toggleDarkMode" class="sr-only peer">
-                                        <div class="w-11 h-6 bg-gray-300 peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
-                                    </label>
-                                </div>
+        <svg
+            class="absolute left-3 top-2.5 h-5 w-5 text-gray-500 pointer-events-none"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+        >
+            <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+        </svg>
 
-                                <div class="border-t border-cyan-100 dark:border-gray-700"></div>
-                                <form @submit.prevent="logout">
-                                    <DropdownLink as="button" class="w-full text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm md:text-base">
-                                        Cerrar Sesión
-                                    </DropdownLink>
-                                </form>
-                            </template>
-                        </Dropdown>
-                    </div>
-                </nav>
-
-                <!-- Espacio para navbar -->
-                <div class="h-16 md:h-18"></div>
-
-                <!-- Header opcional -->
-                <header v-if="$slots.header" class="bg-white dark:bg-gray-800 shadow-sm border-b border-cyan-100 dark:border-gray-700">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        <slot name="header" />
-                    </div>
-                </header>
-
-                <!-- Main – SCROLL AQUÍ -->
-                <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-gradient-to-b from-transparent to-white dark:to-gray-900 text-sm md:text-base">
-                    <slot />
-                </main>
+        <!-- Dropdown -->
+        <div
+            v-if="textoBusqueda.length >= 2"
+            class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50 max-h-64 overflow-y-auto"
+        >
+            <!-- Estados -->
+            <div v-if="buscadorCargando" class="px-4 py-2 text-xs text-gray-500">
+                Buscando...
             </div>
+
+            <div
+                v-else-if="buscadorError && !resultados.length"
+                class="px-4 py-2 text-xs text-red-500"
+            >
+                {{ buscadorError }}
+            </div>
+
+            <!-- Resultados -->
+            <template v-else>
+                <button
+                    v-for="(r, i) in resultados"
+                    :key="i"
+                    @click="irA(r.url)"
+                    class="w-full text-left px-4 py-2.5 hover:bg-cyan-50 dark:hover:bg-gray-700 text-sm flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                >
+                    <span class="text-xl">{{ r.icon }}</span>
+                    <div>
+                        <div class="font-medium">{{ r.title }}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ r.subtitle }}
+                        </div>
+                    </div>
+                </button>
+            </template>
         </div>
     </div>
+
+    <div class="hidden md:block text-right pr-4">
+        <div class="font-bold text-cyan-700 dark:text-cyan-300 text-sm">
+            Asociación de Beneficiarios de Agua Cabezas
+        </div>
+        <div class="text-xs text-cyan-600 dark:text-cyan-400 mt-1">
+            {{ currentTime }}
+        </div>
+    </div>
+</div>
+
+
+
+                                    <!-- DROPDOWN USUARIO -->
+                    <Dropdown align="right" width="64">
+                        <template #trigger>
+                            <button class="flex items-center text-sm md:text-base font-medium text-gray-700 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400 transition">
+                                <img class="h-9 w-9 md:h-10 md:w-10 rounded-full object-cover ring-2 ring-cyan-500 ring-offset-2" :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.name" />
+                                <span class="ml-2 hidden md:inline">{{ $page.props.auth.user.name }}</span>
+                                <svg class="ml-1 h-4 w-4 md:h-5 md:w-5 hidden md:inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                        </template>
+
+                        <template #content>
+                            <div class="px-4 py-2 text-xs md:text-sm font-semibold text-cyan-600 dark:text-cyan-400">Mi Cuenta</div>
+                            <DropdownLink :href="route('profile.show')">Mi Perfil</DropdownLink>
+                            <div class="border-t border-cyan-100 dark:border-gray-700"></div>
+
+                            <!-- MODO OSCURO -->
+                            <div class="flex items-center justify-between px-4 py-2 text-sm md:text-base">
+                                <span class="text-gray-700 dark:text-gray-300">Modo Oscuro</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" :checked="darkMode" @change="toggleDarkMode" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-300 peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                                </label>
+                            </div>
+
+                            <!-- BOTONES DE TEMA (CHICOS Y SIMPLES) -->
+                            <div class="border-t border-cyan-100 dark:border-gray-700 py-2">
+                                <div class="px-4 text-xs font-bold text-cyan-600 dark:text-cyan-400">Estilo visual</div>
+                                <div class="flex justify-center gap-4 px-4 py-3">
+                                    <button @click="cambiarTema('tema-jovenes')" :class="temaActual === 'tema-jovenes' ? 'ring-4 ring-cyan-500' : ''" class="w-10 h-10 rounded-xl bg-cyan-500 hover:shadow-lg transition"></button>
+                                    <button @click="cambiarTema('tema-ninos')" :class="temaActual === 'tema-ninos' ? 'ring-4 ring-orange-500' : ''" class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-orange-400 hover:shadow-lg transition"></button>
+                                    <button @click="cambiarTema('tema-adultos')" :class="temaActual === 'tema-adultos' ? 'ring-4 ring-indigo-600' : ''" class="w-10 h-10 rounded-xl bg-indigo-700 hover:shadow-lg transition"></button>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-cyan-100 dark:border-gray-700"></div>
+                            <form @submit.prevent="logout">
+                                <DropdownLink as="button" class="w-full text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                                    Cerrar Sesión
+                                </DropdownLink>
+                            </form>
+                        </template>
+                    </Dropdown>
+                </div>
+            </nav>
+
+            <!-- Espacio para navbar fija -->
+            <div class="h-16 md:h-18"></div>
+
+            <!-- Header opcional -->
+            <header v-if="$slots.header" class="bg-white dark:bg-gray-800 shadow-sm border-b border-cyan-100 dark:border-gray-700">
+                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                    <slot name="header" />
+                </div>
+            </header>
+
+            <!-- Main content -->
+            <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-gradient-to-b from-transparent to-white dark:to-gray-900">
+                <slot />
+            </main>
+        </div>
+    </div>
+</div>
 </template>
 
 <style scoped>
 .scrollbar-thin::-webkit-scrollbar { width: 6px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgb(103 232 249); border-radius: 3px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background-color: hsl(184, 100%, 50%, 0.6); border-radius: 3px; }
 </style>

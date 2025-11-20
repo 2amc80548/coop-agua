@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Conexion; // Asegúrate que esté Conexion
-use App\Models\Factura; // Asegúrate que esté Factura
-use App\Models\User; // Asegúrate que esté User
+use App\Models\Conexion; 
+use App\Models\Factura; 
+use App\Models\User;
 
 class Lectura extends Model
 {
@@ -14,25 +14,25 @@ class Lectura extends Model
     protected $fillable = [
         'conexion_id',
         'fecha_lectura',
-        'periodo', // <-- ¡¡ASEGÚRATE QUE ESTA LÍNEA EXISTA!!
+        'periodo', 
         'lectura_anterior',
         'lectura_actual',
         'observacion',
         'registrado_por',
-        'estado', // <-- ¡AÑADE 'estado' TAMBIÉN! Lo usamos en store()
+        'estado',
     ];
 
-    // --- CASTS (Mejora) ---
+    // --- CASTS  ---
     // Ayuda a Laravel a tratar estos campos correctamente
     protected $casts = [
-        'fecha_lectura' => 'date:Y-m-d', // Formato al leer/escribir
-        'lectura_anterior' => 'decimal:2', // Tratar como decimal con 2 precisiones
+        'fecha_lectura' => 'date:Y-m-d', 
+        'lectura_anterior' => 'decimal:2', 
         'lectura_actual' => 'decimal:2',
     ];
-    // --- FIN CASTS ---
+   
 
 
-    // --- RELACIONES (Tu código aquí está bien) ---
+ 
     public function conexion()
     {
         return $this->belongsTo(Conexion::class, 'conexion_id');
@@ -47,5 +47,5 @@ class Lectura extends Model
     {
         return $this->hasOne(Factura::class, 'lectura_id');
     }
-    // --- FIN RELACIONES ---
+   
 }

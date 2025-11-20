@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-// de qui importe
 use App\Models\Conexion;
 use App\Models\Afiliado;
 use App\Models\User;
@@ -26,14 +25,13 @@ class Reclamo extends Model
      */
     protected $fillable = [
         'afiliado_id',
-        'user_id', // El ID del usuario que lo creó
+        'user_id', 
         'reclamo_tipo_id',
-      //  'conexion_id', // El ID de la conexión (medidor) asociada, si aplica
         'asunto',
         'mensaje_usuario',
         'estado',
         'respuesta_admin',
-        'resuelto_por_user_id', // El ID del admin/secretaria que respondió
+        'resuelto_por_user_id',
     ];
 
     /**
@@ -43,8 +41,6 @@ class Reclamo extends Model
         'created_at' => 'datetime:Y-m-d H:i',
         'updated_at' => 'datetime:Y-m-d H:i',
     ];
-
-    // --- RELACIONES (Así conectamos todo) ---
 
     /**
      * El Reclamo pertenece a un Afiliado.

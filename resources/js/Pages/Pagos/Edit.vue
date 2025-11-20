@@ -3,6 +3,7 @@
 import { useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const props = defineProps({
     factura: Object,
@@ -105,6 +106,7 @@ const submit = () => {
                     </form>
                 </div>
             </div>
+            <ViewCounter />
         </div>
     </AppLayout>
 </template>

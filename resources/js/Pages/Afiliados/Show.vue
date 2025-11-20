@@ -1,6 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const props = defineProps({
     afiliado: Object, // Trae afiliado con 'zona', 'requisitos', 'conexiones.zona', 'user', 'observacion'
@@ -139,6 +140,7 @@ const formatDate = (dateString) => {
                     </div>
                 </div>
             </div>
+                <ViewCounter />
         </div>
     </AppLayout>
 </template>

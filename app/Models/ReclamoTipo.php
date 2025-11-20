@@ -20,9 +20,6 @@ class ReclamoTipo extends Model
      */
     public $timestamps = false;
 
-    /**
-     * Los atributos que se pueden asignar masivamente (solo 'nombre').
-     */
     protected $fillable = [
         'nombre',
     ];

@@ -2,6 +2,7 @@
 import { Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, watch } from 'vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 // --- Props (Datos del Controlador) ---
 const props = defineProps({
@@ -82,7 +83,7 @@ const esRolUsuario = (user) => {
 
       <div class="mb-4 p-4 bg-white dark:bg-gray-800 rounded shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
         <div class="md:col-span-2">
-          <label for="search" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Buscar (Nombre, Email)</label>
+          <label for="search" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Buscar (Nombre, Email, Ci)</label>
           <input id="search" type="text" v-model="filterForm.search" @input="debouncedSearch" placeholder="Escriba..." 
                  class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm ..."/>
         </div>
@@ -158,7 +159,7 @@ const esRolUsuario = (user) => {
         </table>
       </div>
       
-      <div class="mt-6 flex justify-between items-center text-sm" v-if="users.links.length > 3">
+      <div class="mt-6 flex justify-between items-center text-sm" >
         <span class="text-gray-700 dark:text-gray-300">Mostrando {{ users.from }} a {{ users.to }} de {{ users.total }} usuarios</span>
         <div class="flex flex-wrap gap-1">
           <Link v-for="(link, index) in users.links" :key="index" :href="link.url ?? '#'" v-html="link.label"
@@ -171,6 +172,7 @@ const esRolUsuario = (user) => {
                 preserve-scroll preserve-state :disabled="!link.url"/>
         </div>
       </div>
+      <ViewCounter />
     </div>
   </AppLayout>
 </template>

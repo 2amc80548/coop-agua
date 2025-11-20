@@ -8,22 +8,19 @@ class Factura extends Model
 {
     protected $table = 'facturas';
 
-    /**
-     * Campos que se pueden llenar masivamente (fillable).
-     * Ajustados a nuestro nuevo flujo profesional.
-     */
+
     protected $fillable = [
         'conexion_id',
         'lectura_id',
-        'periodo', // ¡Nuevo!
+        'periodo', 
         'consumo_m3',
         'monto_total',
-        'deuda_pendiente', // ¡Nuevo y recomendado!
-        'estado', // 'impaga', 'pagado', 'anulada'
+        'deuda_pendiente', 
+        'estado',
         'fecha_emision',
-        'fecha_vencimiento', // ¡Nuevo!
+        'fecha_vencimiento', 
         'fecha_pago',
-        'justificacion_modificacion', // ¡Nuevo!
+        'justificacion_modificacion',
     ];
 
     /**
@@ -59,7 +56,6 @@ class Factura extends Model
 
     /**
      * Una factura tiene un historial de pagos.
-     * (Incluso si solo hay 1 pago, es bueno tenerlo como 'hasMany' por historial)
      */
     public function pagos()
     {

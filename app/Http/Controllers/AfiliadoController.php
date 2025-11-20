@@ -20,16 +20,6 @@ use Carbon\Carbon;
 class AfiliadoController extends Controller
 {
     /**
-     * Define los permisos para cada acción del controlador.
-     */
-    // public function __construct()
-    // {
-    //     // $this->middleware('role:Administrador|Secretaria'); // Comentado como lo tenías
-    //     $this->middleware('role:Administrador')->only('destroy');
-    //     $this->middleware('role:Administrador|Secretaria|Tecnico')->only('buscarPorCI');
-    // }
-
-    /**
      * Muestra la lista de afiliados con filtros.
      */
     public function index(Request $request)
@@ -43,11 +33,15 @@ class AfiliadoController extends Controller
         });
         $query->when($request->input('tipo'), fn($q, $v) => $q->where('tipo', $v));
         
-        // ¡ACTUALIZADO! Incluir 'Pendiente' en el filtro
         $query->when($request->input('estado_servicio'), fn($q, $v) => $q->where('estado_servicio', $v)); 
+
+$query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
+    $q->where('adulto_mayor', $request->input('adulto_mayor') === '1');
+});
         
         $query->when($request->input('zona_id'), fn($q, $v) => $q->where('zona_id', $v));
 
+        
         return Inertia::render('Afiliados/Index', [
             'afiliados' => $query->orderBy('nombre_completo')->paginate(15)->withQueryString(),
             'filters' => $request->only(['search', 'tipo', 'estado_servicio', 'zona_id']),
@@ -118,10 +112,10 @@ class AfiliadoController extends Controller
                     'codigo' => $validated['codigo'],
                     'tenencia' => $validated['tenencia'],
                     'estado' => $validated['estado'],
-                    'estado_servicio' => $validated['estado_servicio'], // Se guarda el estado del form (ej. 'Pendiente')
+                    'estado_servicio' => $validated['estado_servicio'], 
                     'adulto_mayor' => $validated['adulto_mayor'] ?? false,
                     'profile_photo_path' => $photoPath,
-                    'observacion' => $validated['observacion'], // ¡AÑADIDO!
+                    'observacion' => $validated['observacion'], 
                 ]);
 
                 // 4. Guardar Requisitos
@@ -213,7 +207,7 @@ class AfiliadoController extends Controller
             'codigo'           => ['required','string','max:50', Rule::unique('afiliados')->ignore($afiliado->id)],
             'tenencia'         => ['required', Rule::in(['propietario','compra_venta','posesion'])],
             'estado'           => ['required', Rule::in(['activo','suspendido','baja'])],
-            'estado_servicio'  => ['required', Rule::in(['activo','en_corte','cortado','Pendiente'])], // ¡Actualizado!
+            'estado_servicio'  => ['required', Rule::in(['activo','en_corte','cortado','Pendiente'])],
             'adulto_mayor'     => ['boolean'],
             'profile_photo'    => ['nullable', 'image', 'max:2048'],
             'clear_photo'      => ['boolean'],

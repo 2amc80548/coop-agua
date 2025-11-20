@@ -1,6 +1,7 @@
 <script setup>
 import { Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const props = defineProps({
     reclamos: Object, // Paginado (solo los del usuario)
@@ -81,6 +82,7 @@ const estadoClass = (estado) => {
             
             <div class="mt-6 flex justify-between items-center text-sm" v-if="reclamos.links.length > 3">
                 </div>
+             <ViewCounter />
         </div>
     </AppLayout>
 </template>

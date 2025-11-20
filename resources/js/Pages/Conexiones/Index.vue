@@ -2,10 +2,11 @@
 import { Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, watch } from 'vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const props = defineProps({
     conexiones: Object, // Objeto Paginado (viene de ->paginate())
-    filters: Object,    // Filtros actuales
+    filters: Object,    
     zonas: Array,       // Lista de zonas para el dropdown
 });
 const page = usePage(); // Para mensajes flash
@@ -15,6 +16,7 @@ const filterForm = useForm({
   search: props.filters.search ?? '',
   zona_id: props.filters.zona_id ?? '',
   estado: props.filters.estado ?? '',
+  tipo_conexion: props.filters.tipo_conexion ?? '',
 });
 
 // --- Lógica de Filtros (Rápida y Profesional) ---
@@ -33,7 +35,8 @@ const debouncedSearch = () => {
     searchTimeout = setTimeout(submitFilters, 400); // Espera 400ms
 };
 // Observa los dropdowns para filtrar al instante
-watch(() => [filterForm.zona_id, filterForm.estado], submitFilters);
+watch(() => [filterForm.zona_id, filterForm.estado, filterForm.tipo_conexion], submitFilters);
+
 
 // --- Acciones ---
 const confirmDelete = (conexion) => {
@@ -94,29 +97,42 @@ const formatDate = (dateString) => {
            </ul>
         </div>
 
-        <div class="mb-4 p-4 bg-white dark:bg-gray-800 rounded shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div>
-            <label for="search" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Buscar (Medidor, CI/Nombre)</label>
-            <input id="search" type="text" v-model="filterForm.search" @input="debouncedSearch" placeholder="Escriba..." 
-                   class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"/>
-          </div>
-          <div>
-            <label for="zona_id" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Zona</label>
-            <select id="zona_id" v-model="filterForm.zona_id" class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm ...">
-              <option value="">Todas</option>
-              <option v-for="zona in zonas" :key="zona.id" :value="zona.id">{{ zona.nombre }}</option>
-            </select>
-          </div>
-          <div>
-            <label for="estado" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Estado</label>
-            <select id="estado" v-model="filterForm.estado" class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm ...">
-              <option value="">Todos</option>
-              <option value="activo">Activo</option>
-              <option value="suspendido">Suspendido</option>
-              <option value="eliminado">Eliminado</option>
-            </select>
-          </div>
+        <div class="mb-4 p-4 bg-white dark:bg-gray-800 rounded shadow-sm 
+                    grid grid-cols-1 md:grid-cols-5 lg:grid-cols-5 gap-4 text-sm">
+            <div class="md:col-span-2">
+                <label for="search" class="block font-medium mb-1 text-gray-700 dark:text-gray-300"> Buscar (Medidor, CI/Nombre)</label>
+                <input id="search" type="text" v-model="filterForm.search" @input="debouncedSearch" placeholder="Escriba..."
+                      class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200  rounded-md shadow-sm block w-full text-sm 
+                              focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"/>
+            </div>
+            <div>
+                <label for="zona_id" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Zona</label>
+                <select id="zona_id" v-model="filterForm.zona_id" class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm">
+                    <option value="">Todas</option>
+                    <option v-for="zona in zonas" :key="zona.id" :value="zona.id">{{ zona.nombre }}</option>
+                </select>
+            </div>
+            <div>
+                <label for="estado" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Estado</label>
+                <select id="estado" v-model="filterForm.estado" class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm">
+                    <option value="">Todos</option>
+                    <option value="activo">Activo</option>
+                    <option value="suspendido">Suspendido</option>
+                    <option value="eliminado">Eliminado</option>
+                </select>
+            </div>
+            <div>
+                <label for="tipo_conexion" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Tipo de conexión</label>
+                <select id="tipo_conexion" v-model="filterForm.tipo_conexion" class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm">
+                    <option value="">Todos</option>
+                    <option value="domiciliaria">Domiciliaria</option>
+                    <option value="comercial">Comercial</option>
+                    <option value="institucional">Institucional</option>
+                </select>
+            </div>
+
         </div>
+
 
         <div class="overflow-x-auto bg-white dark:bg-gray-800 rounded shadow-md">
           <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -162,15 +178,16 @@ const formatDate = (dateString) => {
             </tbody>
           </table>
         </div>
-        <div class="mt-6 flex justify-between items-center text-sm" v-if="conexiones.links.length > 3">
+        <div class="mt-6 flex justify-between items-center text-sm">
             <span class="text-gray-700 dark:text-gray-300">Mostrando {{ conexiones.from }} a {{ conexiones.to }} de {{ conexiones.total }} conexiones</span>
             <div class="flex flex-wrap gap-1">
               <Link v-for="(link, index) in conexiones.links" :key="index" :href="link.url ?? '#'" v-html="link.label"
                     class="px-3 py-1 border rounded dark:border-gray-600 dark:text-gray-300"
                     :class="{ 'bg-blue-600 text-white ...': link.active, 'text-gray-400 ...': !link.url, 'hover:bg-gray-100 ...': link.url }"
                     preserve-scroll preserve-state :disabled="!link.url"/>
-            </div>
-        </div>
+            </div>          
+        </div>  
+        <ViewCounter />    
       </div>
     </AppLayout>
 </template>

@@ -12,13 +12,25 @@ export default {
         './resources/js/**/*.vue',
     ],
 
+    darkMode: 'class', 
+
     theme: {
         extend: {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
             },
+            colors: {
+
+                primary: "hsl(var(--primary))",
+                "primary-hover": "hsl(var(--primary-hover))",
+                background: "hsl(var(--background))",
+                "background-secondary": "hsl(var(--background-secondary))",
+                surface: "hsl(var(--surface))",
+                text: "hsl(var(--text))",
+                "text-secondary": "hsl(var(--text-secondary))",
+                border: "hsl(var(--border))",
+            },
         },
     },
-    darkMode: 'class',
     plugins: [forms, typography],
 };

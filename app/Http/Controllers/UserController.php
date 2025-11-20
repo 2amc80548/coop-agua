@@ -31,8 +31,14 @@ class UserController extends Controller
 
         // Búsqueda
         $query->when($request->input('search'), function ($q, $search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('email', 'like', "%{$search}%");
+            $q->where(function ($sub) use ($search) {
+                $sub->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhereHas('afiliado', function ($afil) use ($search) {
+                        $afil->where('ci', 'like', "%{$search}%")
+                            ->orWhere('nombre_completo', 'like', "%{$search}%");
+                    });
+            });
         });
 
         // Filtro por Rol

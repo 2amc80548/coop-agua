@@ -3,7 +3,8 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch, onMounted } from 'vue';
 import axios from 'axios';
-import Modal from '@/Components/Modal.vue'; // (Importado por si lo necesitas)
+import Modal from '@/Components/Modal.vue'; 
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 // --- 1. PROPS ---
 const props = defineProps({
@@ -13,7 +14,7 @@ const props = defineProps({
     apiUrlTarifaActiva: String,
     periodoActual: String,
     ultimoPeriodoRegistrado: String,
-    zonas: Array, // ¡Importante para el filtro de pendientes!
+    zonas: Array, 
 });
 const page = usePage();
 
@@ -355,8 +356,8 @@ const submit = () => {
                         </div>
                     </div>
                 </div>
-
             </div>
+            <ViewCounter />
         </div>
     </AppLayout>
 </template>

@@ -17,7 +17,7 @@ class Pago extends Model
         'registrado_por',
     ];
 
-    // El pago pertenece a una factura
+ 
     public function factura()
     {
         return $this->belongsTo(Factura::class, 'factura_id');

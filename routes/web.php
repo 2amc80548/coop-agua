@@ -24,6 +24,7 @@ use App\Http\Controllers\ZonaController;
 use App\Http\Controllers\ReclamoController;
 use App\Http\Controllers\ReclamoTipoController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\BuscadorController;
 
 // ================================
 // Página de bienvenida
@@ -159,9 +160,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         Route::delete('/reclamo-tipos/{reclamoTipo}', [ReclamoTipoController::class, 'destroy'])
              ->name('reclamoTipos.destroy');
 
-        // Reportes
-        Route::get('/reportes', [ReporteController::class, 'index'])
-             ->name('index');
+          Route::get('/reportes', [ReporteController::class, 'index'])
+               ->name('reportes.index');    
+
     });
 
 
@@ -254,4 +255,22 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         Route::get('/pendiente-habilitacion', [UsuarioDashboardController::class, 'pendiente'])
              ->name('usuario.pendiente');
     });            
+
+
+Route::get('/buscar', [BuscadorController::class, 'buscar'])
+    ->name('buscar.global');
+
+
+
+
 });
+Route::get('/hit-view', function () {
+    $file = storage_path('app/views.json');
+    $url  = request('url') ?: request()->path() ?: '/';
+
+    $data = file_exists($file) ? json_decode(file_get_contents($file), true) : [];
+    $data[$url] = ($data[$url] ?? 0) + 1;
+    file_put_contents($file, json_encode($data));
+
+    return ['views' => $data[$url]];
+})->name('hit-view');

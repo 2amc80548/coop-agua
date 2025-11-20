@@ -20,7 +20,6 @@ class Conexion extends Model
         'tipo_conexion',
     ];
 
-    // La conexión pertenece a un afiliado
     public function afiliado()
     {
         return $this->belongsTo(Afiliado::class, 'afiliado_id');

@@ -4,6 +4,7 @@ import { Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Modal from '@/Components/Modal.vue';
 import axios from 'axios';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const props = defineProps({
     conexion: Object, // Trae conexión con 'afiliado'
@@ -197,7 +198,9 @@ const submit = () => {
                         </button>
                     </div>
                 </form>
+               
             </div>
         </Modal>
+         <ViewCounter />
     </AppLayout>
 </template>

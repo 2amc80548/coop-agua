@@ -14,7 +14,7 @@ class TarifaConcepto extends Model
         'nombre',
         'tipo',          // FIJO | PORCENTAJE
         'valor',
-        'aplica_sobre',  // consumo | subtotal | n/a
+        'aplica_sobre',  
         'activo',
     ];
 

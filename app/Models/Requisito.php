@@ -40,7 +40,7 @@ class Requisito extends Model
     public function afiliados()
     {
         return $this->belongsToMany(Afiliado::class, 'afiliado_requisito')
-                    ->withPivot('fecha_entrega', 'observacion') // Carga también los datos extra de la tabla pivot
-                    ->withTimestamps(); // Habilita created_at/updated_at en la tabla pivot
+                    ->withPivot('fecha_entrega', 'observacion') 
+                    ->withTimestamps(); 
     }
 }

@@ -1,9 +1,10 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const props = defineProps({
-    pago: Object, // El pago, con factura.conexion.afiliado y usuarioRegistrado
+    pago: Object, 
 });
 
 const formatDate = (dateString) => {
@@ -76,6 +77,7 @@ const formatCurrency = (amount) => { return (parseFloat(amount) || 0).toFixed(2)
                     </div>
                 </div>
             </div>
+            <ViewCounter />
         </div>
     </AppLayout>
 </template>

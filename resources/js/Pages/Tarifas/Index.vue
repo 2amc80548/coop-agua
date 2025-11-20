@@ -1,6 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const props = defineProps({
   tarifas: { type: Array, default: () => [] },
@@ -137,6 +138,7 @@ const page = usePage();
           </table>
         </div>
       </div>
+      <ViewCounter />
     </div>
   </AppLayout>
 </template>

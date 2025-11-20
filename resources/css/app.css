@@ -2,6 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
-[x-cloak] {
-    display: none;
+[x-cloak] { display: none; }
+
+/* ============================================================= */
+/* TEMAS VISUALES + MODO OSCURO (AHORA CON AMARILLO MÁS FUERTE Y BONITO) */
+/* ============================================================= */
+
+/* TEMA JÓVENES → tu estilo original */
+.tema-jovenes {}
+
+/* TEMA NIÑOS → colores más vivos y alegres (amarillo fuerte, celeste y verde agua) */
+.tema-ninos,
+.tema-ninos.dark {
+    background: linear-gradient(135deg, #bae6fd, #fef08a, #bbf7d0) !important; /* ← AMARILLO MÁS FUERTE Y LINDO */
+}
+.tema-ninos * {
+    font-family: "Comic Sans MS", cursive, sans-serif !important;
+}
+.tema-ninos .text-cyan-600,
+.tema-ninos .text-cyan-700 {
+    color: #ea580c !important; /* naranja fuerte */
+}
+.tema-ninos .bg-white,
+.tema-ninos .bg-gray-50 {
+    background-color: #fffbeb !important; /* fondo crema claro que combina perfecto con el amarillo fuerte */
+}
+.tema-ninos .border-cyan-100,
+.tema-ninos .border-gray-200 {
+    border-color: #fde68a !important; /* borde amarillo suave */
+}
+
+/* TEMA ADULTOS → elegante y profesional */
+.tema-adultos,
+.tema-adultos.dark {
+    background-color: #f8fafc !important;
+}
+.tema-adultos * {
+    font-family: Georgia, serif !important;
+}
+.tema-adultos .text-cyan-600,
+.tema-adultos .text-cyan-700 {
+    color: #1e40af !important;
+}
+.tema-adultos.dark .text-cyan-600,
+.tema-adultos.dark .text-cyan-700 {
+    color: #93c5fd !important;
+}
+
+/* MODO OSCURO GLOBAL (todo oscuro de verdad en los 3 temas) */
+.dark {
+    background-color: #0f172a !important;
+    color: #e2e8f0 ! important;
+}
+.dark .bg-white,
+.dark .bg-gray-50,
+.dark .bg-gray-100 {
+    background-color: #1e293b !important;
+}
+.dark .bg-gradient-to-b {
+    background-color: #0f172a !important;
+}
+.dark .text-gray-700,
+.dark .text-gray-600 {
+    color: #cbd5e1 !important;
+}
+.dark .text-gray-900 {
+    color: #f1f5f9 !important;
+}
+.dark .border-gray-200,
+.dark .border-cyan-100 {
+    border-color: #334155 !important;
+}
+
+/* Scrollbar bonita */
+.scrollbar-thin::-webkit-scrollbar { width: 6px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { 
+    background-color: #06b6d4; 
+    border-radius: 3px; 
+}
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #22d3ee;
 }

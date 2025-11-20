@@ -19,7 +19,7 @@ Route::get('/afiliados/buscar', function (Request $request) {
 
     $afiliados = Afiliado::where('ci', 'like', "%{$query}%")
         ->orWhere('nombre_completo', 'like', "%{$query}%")
-        ->withCount('users') // ✅ Añade users_count directamente
+        ->withCount('users') 
         ->limit(10)
         ->get()
         ->map(function ($b) {
@@ -27,7 +27,7 @@ Route::get('/afiliados/buscar', function (Request $request) {
                 'id' => $b->id,
                 'nombre_completo' => $b->nombre_completo,
                 'ci' => $b->ci,
-                'usuarios_count' => $b->users_count, // ✅ Viene de withCount
+                'usuarios_count' => $b->users_count, // ✅ 
                 'puede_tener_mas' => $b->users_count < 2
             ];
         });

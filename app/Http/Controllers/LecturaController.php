@@ -184,8 +184,8 @@ class LecturaController extends Controller
      public function show($id)
      {
          $lectura = Lectura::with([
-                            'conexion.afiliado', // ¡Corregido!
-                            'conexion.zona',     // ¡Añadido!
+                            'conexion.afiliado', 
+                            'conexion.zona', 
                             'usuarioRegistrado:id,name',
                             'factura:id,lectura_id,estado,monto_total' 
                         ])->findOrFail($id);

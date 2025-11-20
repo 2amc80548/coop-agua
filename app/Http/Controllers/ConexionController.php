@@ -4,52 +4,41 @@ namespace App\Http\Controllers;
 
 use App\Models\Conexion;
 use App\Models\Afiliado;
-use App\Models\Zona; // <-- ¡AÑADIDO! Importar el modelo Zona
+use App\Models\Zona; 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule; // <-- ¡AÑADIDO! Para validación avanzada
-use Illuminate\Support\Facades\Auth; // <-- ¡AÑADIDO! Para permisos
-use Illuminate\Support\Facades\Log; // <-- ¡AÑADIDO! Para registrar errores
+use Illuminate\Validation\Rule; 
+use Illuminate\Support\Facades\Auth; 
+use Illuminate\Support\Facades\Log; 
 
 class ConexionController extends Controller
 {
-    /**
-     * ¡AÑADIDO!
-     * Define los permisos para este controlador.
-     * Solo Admin y Secretaria pueden gestionar conexiones.
-     */
-    // public function __construct()
-    // {
-    //     $this->middleware('role:Administrador|Secretaria');
-    //     // Solo Admin puede borrar
-    //     $this->middleware('role:Administrador')->only('destroy');
-    // }
-
-
     /**
      * Muestra la lista paginada y filtrable de conexiones.
      */
     public function index(Request $request)
     {
-        // --- MODIFICADO ---
         // Cargar 'afiliado' y la nueva relación 'zona'
         $query = Conexion::with(['afiliado:id,nombre_completo,ci', 'zona:id,nombre']); 
-
-        // 1. Buscador (Código Medidor, CI o Nombre del Afiliado)
+       // 1. Buscador (Código Medidor, CI o Nombre del Afiliado)
         $query->when($request->input('search'), function ($q, $search) {
-            $q->where('codigo_medidor', 'like', "%{$search}%")
-              ->orWhereHas('afiliado', function ($afiliadoQuery) use ($search) {
-                  $afiliadoQuery->where('ci', 'like', "%{$search}%")
-                                ->orWhere('nombre_completo', 'like', "%{$search}%");
-              });
+            $q->where(function ($w) use ($search) {
+
+                $w->where('codigo_medidor', 'like', "%{$search}%")
+                ->orWhereHas('afiliado', function ($afiliadoQuery) use ($search) {
+                    $afiliadoQuery->where('ci', 'like', "%{$search}%")
+                                    ->orWhere('nombre_completo', 'like', "%{$search}%");
+                });
+
+            });
         });
+
+
         
-        // --- ¡AÑADIDO! Filtro por Zona ---
         $query->when($request->input('zona_id'), function ($q, $zonaId) {
             $q->where('zona_id', $zonaId);
         });
-        // ------------------------------
 
         // 2. Filtro por Estado
         $query->when($request->input('estado'), function ($q, $estado) {
@@ -61,16 +50,13 @@ class ConexionController extends Controller
             $q->where('tipo_conexion', $tipo);
         });
 
+
+
         return Inertia::render('Conexiones/Index', [
             'conexiones' => $query->orderBy('codigo_medidor')
                                  ->paginate(15)
                                  ->withQueryString(),
-            
-            // --- MODIFICADO ---
-            // Añadir 'zona_id' a los filtros que se devuelven
             'filters' => $request->only(['search', 'estado', 'tipo_conexion', 'zona_id']), 
-            // --- ¡AÑADIDO! ---
-            // Enviar la lista de Zonas para el dropdown de filtros
             'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']), 
         ]);
     }
@@ -80,13 +66,10 @@ class ConexionController extends Controller
      */
     public function create()
     {
-        // --- MODIFICADO ---
+ 
         return Inertia::render('Conexiones/Create', [
-            // ¡AÑADIDO! Enviar zonas para el dropdown
             'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']), 
-            // ¡AÑADIDO! URL para el modal "+ Nueva Zona"
             'zonaStoreUrl' => route('zonas.store'), 
-            // Mantener las URLs de la API de Afiliados (con placeholder)
             'searchAfiliadosUrl' => route('afiliados.buscarPorCI', ['ci' => '__CI_PLACEHOLDER__']),
         ]);
     }
@@ -97,11 +80,10 @@ class ConexionController extends Controller
      */
     public function show($id) 
     {
-        // --- MODIFICADO ---
         // Cargar las relaciones 'afiliado' y la nueva 'zona'
         $conexion = Conexion::with([
                             'afiliado', 
-                            'zona', // <-- ¡AÑADIDO!
+                            'zona', 
                             'lecturas' => fn($q) => $q->orderBy('periodo', 'desc')->limit(12)
                         ])->findOrFail($id); 
 
@@ -118,17 +100,11 @@ class ConexionController extends Controller
     public function edit($id) 
     {
         $conexion = Conexion::with('afiliado')->findOrFail($id); 
-        
-        // --- MODIFICADO ---
+
         return Inertia::render('Conexiones/Edit', [
             'conexion'  => $conexion, 
-            
-            // ¡AÑADIDO! Enviar zonas para el dropdown
             'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']), 
-            // ¡AÑADIDO! URL para el modal "+ Nueva Zona"
             'zonaStoreUrl' => route('zonas.store'), 
-            
-            // Mantener las URLs de la API de Afiliados (con placeholder)
             'searchAfiliadosUrl' => route('afiliados.buscarPorCI', ['ci' => '__CI_PLACEHOLDER__']), 
         ]);
     }
@@ -213,8 +189,7 @@ class ConexionController extends Controller
      */
     public function destroy($id)
     {
-        // --- MODIFICADO ---
-        $conexion = Conexion::findOrFail($id); // Buscar manualmente
+        $conexion = Conexion::findOrFail($id); 
 
         // Regla: No borrar si tiene lecturas o facturas
         if ($conexion->lecturas()->exists() || $conexion->facturas()->exists()) {

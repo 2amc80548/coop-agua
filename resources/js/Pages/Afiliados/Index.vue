@@ -1,13 +1,15 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { Link, useForm, router, usePage } from '@inertiajs/vue3';
-import AppLayout from '@/Layouts/AppLayout.vue'; // Asegúrate que la ruta sea correcta
+import AppLayout from '@/Layouts/AppLayout.vue'; 
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 // --- Props (Datos del Controlador) ---
 const props = defineProps({
     afiliados: Object, // Paginado
     filters: Object,
-    zonas: Array, // Lista de zonas para el filtro
+    zonas: Array, 
+  
 });
 const page = usePage();
 
@@ -17,6 +19,7 @@ const filterForm = useForm({
   tipo: props.filters.tipo ?? '',
   estado_servicio: props.filters.estado_servicio ?? '',
   zona_id: props.filters.zona_id ?? '',
+  adulto_mayor: props.filters.adulto_mayor ?? '',
 });
 
 // --- Lógica de Filtros ---
@@ -94,36 +97,72 @@ const estadoServicioClass = (estado) => {
          </ul>
        </div>
 
-      <div class="mb-4 p-4 bg-white dark:bg-gray-800 rounded shadow-sm grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div>
-          <label for="search" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Buscar (Nombre, CI, Código)</label>
-          <input id="search" type="text" v-model="filterForm.search" placeholder="Escriba..." 
-                 class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"/>
+      <div class="mb-4 p-4 bg-white dark:bg-gray-800 rounded shadow-sm 
+                  flex flex-wrap items-end gap-4">
+
+        <!-- Buscar -->
+        <div class="flex flex-col w-64">
+          <label for="search" class="font-medium mb-1 text-gray-700 dark:text-gray-300">
+            Buscar (Nombre, CI, Código)
+          </label>
+          <input id="search" type="text" v-model="filterForm.search"
+                class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 
+                        rounded-md shadow-sm text-sm"/>
         </div>
-        <div>
-          <label for="tipo" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Tipo</label>
-          <select id="tipo" v-model="filterForm.tipo" class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm ...">
+
+        <!-- Tipo -->
+        <div class="flex flex-col w-40">
+          <label for="tipo" class="font-medium mb-1 text-gray-700 dark:text-gray-300">Tipo</label>
+          <select id="tipo" v-model="filterForm.tipo"
+                  class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 
+                        rounded-md shadow-sm text-sm">
             <option value="">Todos</option>
             <option value="socio">Socio</option>
             <option value="usuario">Usuario</option>
           </select>
         </div>
-        <div>
-          <label for="estado_servicio" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Estado Servicio</label>
-          <select id="estado_servicio" v-model="filterForm.estado_servicio" class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm ...">
+
+        <!-- Estado Servicio -->
+        <div class="flex flex-col w-40">
+          <label for="estado_servicio" class="font-medium mb-1 text-gray-700 dark:text-gray-300">
+            Estado Servicio
+          </label>
+          <select id="estado_servicio" v-model="filterForm.estado_servicio"
+                  class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 
+                        rounded-md shadow-sm text-sm">
             <option value="">Todos</option>
+            <option value="Pendiente">Pendiente</option>
             <option value="activo">Activo</option>
             <option value="en_corte">En Corte</option>
             <option value="cortado">Cortado</option>
           </select>
         </div>
-        <div>
-          <label for="zona_id" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Zona</label>
-          <select id="zona_id" v-model="filterForm.zona_id" class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm ...">
+
+        <!-- Zona -->
+        <div class="flex flex-col w-40">
+          <label for="zona_id" class="font-medium mb-1 text-gray-700 dark:text-gray-300">Zona</label>
+          <select id="zona_id" v-model="filterForm.zona_id"
+                  class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 
+                        rounded-md shadow-sm text-sm">
             <option value="">Todas</option>
             <option v-for="zona in zonas" :key="zona.id" :value="zona.id">{{ zona.nombre }}</option>
           </select>
         </div>
+
+        <!-- Adulto Mayor -->
+        <div class="flex flex-col w-24">
+          <label for="adulto_mayor" class="font-medium mb-1 text-gray-700 dark:text-gray-300">
+            A_Mayor
+          </label>
+          <select id="adulto_mayor" v-model="filterForm.adulto_mayor"
+                  class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 
+                        rounded-md shadow-sm text-sm">
+            <option value="">Todos</option>
+            <option value="1">SI</option>
+            <option value="0">NO</option>
+          </select>
+        </div>
+
       </div>
 
       <div class="overflow-x-auto bg-white dark:bg-gray-800 rounded shadow-md">
@@ -181,7 +220,7 @@ const estadoServicioClass = (estado) => {
           </tbody>
         </table>
       </div>
-      <div class="mt-6 flex justify-between items-center text-sm" v-if="afiliados.links.length > 3">
+      <div class="mt-6 flex justify-between items-center text-sm">
         <span class="text-gray-700 dark:text-gray-300">Mostrando {{ afiliados.from }} a {{ afiliados.to }} de {{ afiliados.total }} afiliados</span>
         <div class="flex flex-wrap gap-1">
           <Link v-for="(link, index) in afiliados.links" :key="index" :href="link.url ?? '#'" v-html="link.label"
@@ -194,7 +233,7 @@ const estadoServicioClass = (estado) => {
                 preserve-scroll preserve-state :disabled="!link.url"/>
         </div>
       </div>
-
+      <ViewCounter />
     </div>
   </AppLayout>
 </template>

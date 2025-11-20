@@ -41,12 +41,4 @@ class Zona extends Model
         return $this->hasMany(Afiliado::class, 'zona_id');
     }
 
-    /**
-     * Define la relación: Una Zona puede tener muchas Conexiones.
-     * (Añadiremos esto para cuando normalicemos la tabla 'conexiones' también)
-     */
-    // public function conexiones()
-    // {
-    //     return $this->hasMany(Conexion::class, 'zona_id');
-    // }
 }

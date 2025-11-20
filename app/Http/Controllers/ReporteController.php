@@ -9,97 +9,341 @@ use App\Models\Factura;
 use App\Models\Afiliado;
 use App\Models\Reclamo;
 use App\Models\Lectura;
-use Carbon\Carbon; // ¡Importante para fechas!
+use App\Models\Conexion;
+use App\Models\User;
+use App\Models\Zona;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class ReporteController extends Controller
 {
-    /**
-     * Define los permisos para este controlador.
-     * Solo Admin y Secretaria pueden ver reportes.
-     */
-    // public function __construct()
-    // {
-    //     $this->middleware('role:Administrador|Secretaria');
-    // }
+    public function __construct()
+    {
+        $this->middleware('role:Administrador|Secretaria');
+    }
 
-    /**
-     * Muestra el Dashboard de Reportes y Estadísticas.
-     * Calcula todos los KPIs basados en un rango de fechas.
-     */
     public function index(Request $request)
     {
-        // 1. Validar los filtros de fecha
+        // ========================
+        // 1. VALIDAR FILTROS
+        // ========================
         $validated = $request->validate([
-            // Por defecto, muestra el mes actual
-            'fecha_inicio' => 'nullable|date',
-            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
+            'fecha_inicio'     => ['nullable', 'date'],
+            'fecha_fin'        => ['nullable', 'date', 'after_or_equal:fecha_inicio'],
+            'zona_id'          => ['nullable', 'integer'],
+            'estado_servicio'  => ['nullable', 'string'],
         ]);
 
-        // 2. Definir el rango de fechas (si no hay, usa el mes actual)
-        $fechaInicio = Carbon::parse($request->input('fecha_inicio', Carbon::now()->startOfMonth()));
-        $fechaFin = Carbon::parse($request->input('fecha_fin', Carbon::now()->endOfDay()));
+        // Rango de fechas por defecto: últimos 30 días
+        $fechaInicio = !empty($validated['fecha_inicio'])
+            ? Carbon::parse($validated['fecha_inicio'])->startOfDay()
+            : Carbon::now()->subDays(30)->startOfDay();
 
-        // --- 3. CÁLCULO DE KPIs (Consultas rápidas y eficientes) ---
+        $fechaFin = !empty($validated['fecha_fin'])
+            ? Carbon::parse($validated['fecha_fin'])->endOfDay()
+            : Carbon::now()->endOfDay();
 
-        // A. KPI de Pagos (Total Recaudado en el rango)
-        $totalRecaudado = Pago::whereBetween('fecha_pago', [$fechaInicio, $fechaFin])
-                              ->sum('monto_pagado');
-                              
-        $conteoPagos = Pago::whereBetween('fecha_pago', [$fechaInicio, $fechaFin])
-                             ->count();
+        $zonaId         = $validated['zona_id']         ?? null;
+        $estadoServicio = $validated['estado_servicio'] ?? null;
 
-        // B. KPI de Facturación (Total Facturado en el rango)
-        $totalFacturado = Factura::whereBetween('fecha_emision', [$fechaInicio, $fechaFin])
-                                 ->where('estado', '!=', 'anulada') // No contar anuladas
-                                 ->sum('monto_total');
-        $conteoFacturas = Factura::whereBetween('fecha_emision', [$fechaInicio, $fechaFin])
-                                   ->where('estado', '!=', 'anulada')
-                                   ->count();
-                                   
-        // C. KPI de Deudas (Valores GLOBALES, no por fecha)
-        $deudaTotalGlobal = Factura::where('estado', 'impaga')->sum('deuda_pendiente');
-        $conteoDeudores = Factura::where('estado', 'impaga')
-                                 ->distinct('conexion_id') // Contar conexiones únicas con deuda
-                                 ->count('conexion_id');
-        
-        // D. KPI de Crecimiento (Nuevos Afiliados en el rango)
-        $nuevosAfiliados = Afiliado::whereBetween('fecha_afiliacion', [$fechaInicio, $fechaFin])
-                                   ->count();
-                                   
-        // E. KPI de Reclamos (Reclamos recibidos en el rango)
-        $reclamosRecibidos = Reclamo::whereBetween('created_at', [$fechaInicio, $fechaFin])
-                                    ->count();
-        $reclamosResueltos = Reclamo::whereBetween('updated_at', [$fechaInicio, $fechaFin])
-                                    ->whereIn('estado', ['Resuelto', 'Cerrado'])
-                                    ->count();
-        
-        // F. KPI de Operaciones (Lecturas registradas en el rango)
-        $lecturasRegistradas = Lectura::whereBetween('fecha_lectura', [$fechaInicio, $fechaFin])
-                                      ->count();
+        // =========================================
+        // 2. QUERIES BASE CON FILTROS COMPARTIDOS
+        // =========================================
 
+        // ---- Afiliados base ----
+        $afiliadosBase = Afiliado::query();
 
-        // 4. Enviar todos los datos a UNA SOLA VISTA
+        if ($zonaId) {
+            $afiliadosBase->where('zona_id', $zonaId);
+        }
+
+        if ($estadoServicio) {
+            $afiliadosBase->where('estado_servicio', $estadoServicio);
+        }
+
+        $afiliadosTotalesQuery     = (clone $afiliadosBase);
+        $afiliadosPorEstadoQuery   = (clone $afiliadosBase);
+        $adultosMayoresQuery       = (clone $afiliadosBase);
+        $nuevosAfiliadosQuery      = (clone $afiliadosBase);
+
+        // ---- Conexiones base ----
+        $conexionesBase = Conexion::query();
+
+        if ($zonaId || $estadoServicio) {
+            $conexionesBase->whereHas('afiliado', function ($q) use ($zonaId, $estadoServicio) {
+                if ($zonaId) {
+                    $q->where('zona_id', $zonaId);
+                }
+                if ($estadoServicio) {
+                    $q->where('estado_servicio', $estadoServicio);
+                }
+            });
+        }
+
+        $conexionesTotalesQuery   = (clone $conexionesBase);
+        $conexionesPorEstadoQuery = (clone $conexionesBase);
+        $conexionesPorTipoQuery   = (clone $conexionesBase);
+        $conexionesPorZonaQuery   = (clone $conexionesBase);
+
+        // ---- Facturas base (por fecha de emisión) ----
+        $facturasBase = Factura::query()
+            ->whereBetween('fecha_emision', [$fechaInicio, $fechaFin]);
+
+        if ($zonaId || $estadoServicio) {
+            $facturasBase->whereHas('conexion.afiliado', function ($q) use ($zonaId, $estadoServicio) {
+                if ($zonaId) {
+                    $q->where('zona_id', $zonaId);
+                }
+                if ($estadoServicio) {
+                    $q->where('estado_servicio', $estadoServicio);
+                }
+            });
+        }
+
+        $facturasTotalesQuery   = (clone $facturasBase);
+        $facturasPorEstadoQuery = (clone $facturasBase);
+        $morosidadQuery         = (clone $facturasBase);
+
+        // ---- Pagos base (por fecha de pago) ----
+        $pagosBase = Pago::query()
+            ->whereBetween('fecha_pago', [$fechaInicio, $fechaFin]);
+
+        if ($zonaId || $estadoServicio) {
+            $pagosBase->whereHas('factura.conexion.afiliado', function ($q) use ($zonaId, $estadoServicio) {
+                if ($zonaId) {
+                    $q->where('zona_id', $zonaId);
+                }
+                if ($estadoServicio) {
+                    $q->where('estado_servicio', $estadoServicio);
+                }
+            });
+        }
+
+        $pagosTotalesQuery   = (clone $pagosBase);
+        $pagosPorMetodoQuery = (clone $pagosBase);
+
+        // ---- Reclamos base (usamos created_at) ----
+        $reclamosBase = Reclamo::query()
+            ->whereBetween('created_at', [$fechaInicio, $fechaFin]);
+
+        // ⚠️ IMPORTANTE: tu tabla reclamos NO tiene conexion_id,
+        // así que SOLO filtramos por afiliado (no por conexión)
+        if ($zonaId || $estadoServicio) {
+            $reclamosBase->whereHas('afiliado', function ($qa) use ($zonaId, $estadoServicio) {
+                if ($zonaId) {
+                    $qa->where('zona_id', $zonaId);
+                }
+                if ($estadoServicio) {
+                    $qa->where('estado_servicio', $estadoServicio);
+                }
+            });
+        }
+
+        $reclamosPorEstadoQuery   = (clone $reclamosBase);
+        $reclamosResueltosQuery   = (clone $reclamosBase);
+
+        // ---- Lecturas base (fecha_lectura) ----
+        $lecturasBase = Lectura::query()
+            ->whereBetween('fecha_lectura', [$fechaInicio, $fechaFin]);
+
+        if ($zonaId || $estadoServicio) {
+            $lecturasBase->whereHas('conexion.afiliado', function ($q) use ($zonaId, $estadoServicio) {
+                if ($zonaId) {
+                    $q->where('zona_id', $zonaId);
+                }
+                if ($estadoServicio) {
+                    $q->where('estado_servicio', $estadoServicio);
+                }
+            });
+        }
+
+        $lecturasTotalesQuery = (clone $lecturasBase);
+        $lecturasConsumoQuery = (clone $lecturasBase);
+
+        // ---- Usuarios base (para nuevos usuarios) ----
+        $usuariosBase = User::query();
+
+        if ($zonaId || $estadoServicio) {
+            $usuariosBase->whereHas('afiliado', function ($q) use ($zonaId, $estadoServicio) {
+                if ($zonaId) {
+                    $q->where('zona_id', $zonaId);
+                }
+                if ($estadoServicio) {
+                    $q->where('estado_servicio', $estadoServicio);
+                }
+            });
+        }
+
+        $nuevosUsuariosQuery = (clone $usuariosBase);
+
+        // =====================================
+        // 3. CALCULAMOS LAS MÉTRICAS PRINCIPALES
+        // =====================================
+
+        // --- PAGOS ---
+        $totalRecaudado = (float) $pagosTotalesQuery->sum('monto_pagado');
+        $cantidadPagos  = (int)   $pagosBase->count();
+
+        $pagosPorMetodo = $pagosPorMetodoQuery
+            ->select('forma_pago', DB::raw('COUNT(*) as cantidad'), DB::raw('SUM(monto_pagado) as total_monto'))
+            ->groupBy('forma_pago')
+            ->orderByDesc('total_monto')
+            ->get();
+
+        // --- FACTURAS ---
+        $totalFacturas = (int) $facturasTotalesQuery->count();
+
+        $facturasPorEstado = $facturasPorEstadoQuery
+            ->select('estado', DB::raw('COUNT(*) as cantidad'), DB::raw('SUM(monto_total) as total_monto'))
+            ->groupBy('estado')
+            ->get();
+
+        $totalDeudaPendiente = (float) $morosidadQuery
+            ->where('estado', 'impaga')
+            ->sum('deuda_pendiente');
+
+        // --- AFILIADOS ---
+        $totalAfiliados = (int) $afiliadosTotalesQuery->count();
+
+        $afiliadosPorEstado = $afiliadosPorEstadoQuery
+            ->select('estado_servicio', DB::raw('COUNT(*) as cantidad'))
+            ->groupBy('estado_servicio')
+            ->get();
+
+        $totalAdultosMayores = (int) $adultosMayoresQuery
+            ->where('adulto_mayor', true)
+            ->count();
+
+        // NUEVOS AFILIADOS EN EL RANGO
+        $nuevosAfiliados = (int) $nuevosAfiliadosQuery
+            ->whereBetween('created_at', [$fechaInicio, $fechaFin])
+            ->count();
+
+        // --- CONEXIONES ---
+        $totalConexiones = (int) $conexionesTotalesQuery->count();
+
+        $conexionesPorEstado = $conexionesPorEstadoQuery
+            ->select('estado', DB::raw('COUNT(*) as cantidad'))
+            ->groupBy('estado')
+            ->get();
+
+        $conexionesPorTipo = $conexionesPorTipoQuery
+            ->select('tipo_conexion', DB::raw('COUNT(*) as cantidad'))
+            ->groupBy('tipo_conexion')
+            ->get();
+
+        $conexionesPorZona = $conexionesPorZonaQuery
+            ->join('zonas', 'zonas.id', '=', 'conexiones.zona_id')
+            ->select('zonas.nombre as zona', DB::raw('COUNT(conexiones.id) as cantidad'))
+            ->groupBy('zonas.nombre')
+            ->orderByDesc('cantidad')
+            ->get();
+
+        // --- RECLAMOS ---
+        $reclamosRecibidos = (int) $reclamosBase->count();
+
+        $reclamosPorEstado = $reclamosPorEstadoQuery
+            ->select('estado', DB::raw('COUNT(*) as cantidad'))
+            ->groupBy('estado')
+            ->get();
+
+        $reclamosResueltos = (int) $reclamosResueltosQuery
+            ->whereIn('estado', ['Resuelto', 'Cerrado'])
+            ->count();
+
+        // --- LECTURAS ---
+        $lecturasRegistradas = (int) $lecturasTotalesQuery->count();
+
+        $consumoPromedioM3 = (float) $lecturasConsumoQuery
+            ->select(DB::raw('AVG(lectura_actual - lectura_anterior) as consumo_promedio'))
+            ->value('consumo_promedio') ?? 0;
+
+        // --- USUARIOS ---
+        $totalUsuarios = (int) User::count();
+
+        $nuevosUsuarios = (int) $nuevosUsuariosQuery
+            ->whereBetween('created_at', [$fechaInicio, $fechaFin])
+            ->count();
+
+        // ============================
+        // 4. RESPUESTA A VUE
+        // ============================
+
         return Inertia::render('Reportes/Index', [
-            'stats' => [ // Un solo objeto con todos los resúmenes
-                'recaudado' => (float) $totalRecaudado,
-                'conteoPagos' => $conteoPagos,
-                'facturado' => (float) $totalFacturado,
-                'conteoFacturas' => $conteoFacturas,
-                'deudaGlobal' => (float) $deudaTotalGlobal,
-                'conteoDeudores' => $conteoDeudores,
-                'nuevosAfiliados' => $nuevosAfiliados,
-                'reclamosRecibidos' => $reclamosRecibidos,
-                'reclamosResueltos' => $reclamosResueltos,
+            'resumen' => [
+                'rango' => [
+                    'inicio' => $fechaInicio->format('Y-m-d'),
+                    'fin'    => $fechaFin->format('Y-m-d'),
+                ],
+
+                // PAGOS
+                'totalRecaudado'      => $totalRecaudado,
+                'cantidadPagos'       => $cantidadPagos,
+
+                // FACTURAS
+                'totalFacturas'       => $totalFacturas,
+                'totalDeudaPendiente' => $totalDeudaPendiente,
+
+                // AFILIADOS
+                'totalAfiliados'      => $totalAfiliados,
+                'nuevosAfiliados'     => $nuevosAfiliados,
+                'totalAdultosMayores' => $totalAdultosMayores,
+
+                // CONEXIONES
+                'totalConexiones'     => $totalConexiones,
+                'consumoPromedioM3'   => round($consumoPromedioM3, 2),
+
+                // RECLAMOS
+                'reclamosRecibidos'   => $reclamosRecibidos,
+                'reclamosResueltos'   => $reclamosResueltos,
+
+                // LECTURAS
                 'lecturasRegistradas' => $lecturasRegistradas,
+
+                // USUARIOS
+                'totalUsuarios'       => $totalUsuarios,
+                'nuevosUsuarios'      => $nuevosUsuarios,
             ],
-            'filters' => [ // Enviar los filtros de vuelta
-                'fecha_inicio' => $fechaInicio->format('Y-m-d'),
-                'fecha_fin' => $fechaFin->format('Y-m-d'),
+
+            // DETALLES PARA TABLAS / GRÁFICOS (los mismos props que tu Vue ya espera)
+            'detallePagos' => [
+                'porMetodo' => $pagosPorMetodo,
             ],
-            // (Opcional) Enviar datos para PDFs (esto lo vemos luego)
-            // 'exportUrl' => route('reportes.exportar', $validated)
+            'detalleFacturas' => [
+                'porEstado' => $facturasPorEstado,
+            ],
+            'detalleAfiliados' => [
+                'porEstadoServicio' => $afiliadosPorEstado,
+            ],
+            'detalleReclamos' => [
+                'porEstado' => $reclamosPorEstado,
+            ],
+            // ESTE NO lo estás usando aún en Vue, pero queda listo:
+            'detalleConexiones' => [
+                'porEstado' => $conexionesPorEstado,
+                'porTipo'   => $conexionesPorTipo,
+                'porZona'   => $conexionesPorZona,
+            ],
+
+            // Filtros devueltos
+            'filters' => [
+                'fecha_inicio'    => $fechaInicio->format('Y-m-d'),
+                'fecha_fin'       => $fechaFin->format('Y-m-d'),
+                'zona_id'         => $zonaId,
+                'estado_servicio' => $estadoServicio,
+            ],
         ]);
     }
 
-    // (Aquí irán las funciones de EXPORTAR, ej. exportarPagosPDF)
+    // EJEMPLO ESQUELETO PARA PDF (cuando lo quieras usar):
+    /*
+    public function exportPdf(Request $request)
+    {
+        // Podrías reutilizar la lógica de index() (mismo rango de fechas, filtros)
+        // y luego hacer algo como:
+        // $data = [...]; // mismo array que envías a Inertia
+        // $pdf = \PDF::loadView('reportes.general-pdf', $data);
+        // return $pdf->download('reporte_general.pdf');
+    }
+    */
 }

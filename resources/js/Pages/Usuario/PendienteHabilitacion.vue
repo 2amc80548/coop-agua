@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import DangerButton from '@/Components/DangerButton.vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const logout = () => {
     router.post(route('logout'));
@@ -45,6 +46,7 @@ const logout = () => {
                     </div>
                 </div>
             </div>
+             <ViewCounter />
         </div>
     </AppLayout>
 </template>

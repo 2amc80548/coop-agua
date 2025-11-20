@@ -13,19 +13,6 @@ use Illuminate\Support\Facades\Log;
 
 class PagoController extends Controller
 {
-    /**
-     * Define los permisos para cada acción del controlador.
-     */
-    // public function __construct()
-    // {
-    //     // Admin y Secretaria pueden ver/registrar pagos.
-    //     $this->middleware('role:Administrador|Secretaria')->except([
-    //         'miHistorial'// <-- ¡EXCEPCIÓN!
-    //     ]);
-        
-    //     // Solo Admin puede ANULAR un pago (acción delicada).
-    //     $this->middleware('role:Administrador')->only(['anular']);
-    // }
 
     /**
      * Muestra el HISTORIAL de pagos, paginado y con filtros.
@@ -109,7 +96,7 @@ class PagoController extends Controller
         $validated = $request->validate([
             'factura_id' => 'required|exists:facturas,id',
             'fecha_pago' => 'required|date|before_or_equal:today',
-            'forma_pago' => 'required|string|in:Efectivo,QR,Tarjeta,Transferencia,Cheque,Otro',
+            'forma_pago' => 'required|string|in:Efectivo,QR',
             'referencia' => 'nullable|string|max:255',
         ]);
 

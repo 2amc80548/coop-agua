@@ -2,6 +2,7 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { computed } from 'vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 // Recibe la 'lectura' con sus relaciones cargadas desde el controlador show()
 const props = defineProps({
@@ -177,6 +178,7 @@ const abrirAviso = (id) => {
 
                 </div>
             </div>
+            <ViewCounter />
         </div>
     </AppLayout>
 </template>

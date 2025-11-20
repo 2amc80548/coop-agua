@@ -3,6 +3,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 defineProps(['email', 'token']);
 const showPassword = ref(false);
@@ -104,6 +105,7 @@ const submit = () => {
                 <Link :href="route('login')" class="text-teal-600 hover:underline">Volver al inicio de sesión</Link>
             </div>
         </div>
+        <ViewCounter />
     </div>
 </template>
 

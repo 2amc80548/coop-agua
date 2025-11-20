@@ -22,7 +22,7 @@ class AfiliadoRequisito extends Pivot
      *
      * @var bool
      */
-    public $timestamps = true; // Ya que definimos created_at/updated_at
+    public $timestamps = true; 
 
     /**
      * Conversión de tipos (casts) para la fecha.

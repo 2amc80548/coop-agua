@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-// ¡Añadimos estos dos!
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -41,7 +40,6 @@ class Afiliado extends Model
         'adulto_mayor'     => 'boolean',
     ];
 
-    // --- NUEVAS RELACIONES PROFESIONALES ---
 
     /**
      * Define la relación "pertenece a":

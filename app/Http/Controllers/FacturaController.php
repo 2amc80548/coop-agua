@@ -5,40 +5,20 @@ namespace App\Http\Controllers;
 // --- Imports ---
 use App\Models\Factura;
 use App\Models\Pago;
-use App\Models\Conexion; // Asegúrate que tu modelo Conexion esté en App\Models\Conexion
+use App\Models\Conexion; 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Log; // Para registrar errores
+use Illuminate\Support\Facades\Log; 
 use Illuminate\Support\Facades\View;
 use App\Models\Tarifa;
-
-// Importa tu paquete de PDF aquí cuando lo instales
-// use Barryvdh\DomPDF\Facade\Pdf; 
+; 
 
 class FacturaController extends Controller
 {
-    /**
-     * Define los permisos para cada acción del controlador.
-     * (¡Recuerda añadir esto si no lo has hecho!)
-     */
-    // public function __construct()
-    // {
-    //     // Protege TODOS los métodos
-    //     $this->middleware('role:Administrador|Secretaria')->except([
-    //         'misFacturas', 'imprimirFactura', 'show'
-    //     ]);
-        
-    //     // El Admin puede hacer todo, la Secretaria tiene excepciones
-    //     $this->middleware('role:Administrador')->only(['updateMonto', 'destroy']); // Solo Admin puede modificar montos o borrar (aunque destroy está deshabilitado)
-
-    //     $this->middleware('auth')->only(['misFacturas', 'imprimirFactura', 'show']);
-    //     // Permisos para las rutas que no son resource
-    //     //$this->middleware('role:Administrador|Secretaria')->only(['anular', 'descargarPdf', 'misFacturas']);
-    // }
 
 
     /**

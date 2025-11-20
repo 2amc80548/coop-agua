@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import axios from 'axios';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 // --- Props (del controlador 'create') --- 
 const props = defineProps({
@@ -118,24 +119,24 @@ const submit = () => {
                             <label class="block font-medium text-sm text-gray-700 dark:text-gray-300">Tipo de Usuario</label>
                             <div class="mt-2 flex gap-6">
                                 <label class="flex items-center">
-                                    <input type="radio" v-model="form.tipo" value="personal" class="text-blue-600 focus:ring-blue-500">
+                                    <input type="radio" v-model="form.tipo" value="personal" class="text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
                                     <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Personal (Admin, Sec, Tec)</span>
                                 </label>
                                 <label class="flex items-center">
-                                    <input type="radio" v-model="form.tipo" value="afiliado" class="text-blue-600 focus:ring-blue-500">
+                                    <input type="radio" v-model="form.tipo" value="afiliado" class="text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600">
                                     <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Afiliado (Cliente)</span>
                                 </label>
                             </div>
                         </div>
 
-                        <div class="space-y-4 p-4 border dark:border-gray-700 rounded-md">
+                        <div class="space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md">
                             <h3 class="font-medium text-gray-700 dark:text-gray-300">Datos Principales</h3>
                             
                             <div>
                                 <label for="name_personal" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Nombre Completo del Usuario *</label>
                                 <input id="name_personal" v-model="form.name" type="text" 
-                                       class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required />
-                                <p v-if="form.tipo === 'afiliado'" class="text-xs text-gray-500 mt-1">
+                                       class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required />
+                                <p v-if="form.tipo === 'afiliado'" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     Este es el nombre de la persona que usará la cuenta (ej. Juan Perez).
                                 </p>
                                 <div v-if="form.errors.name" class="text-red-600 text-sm mt-1">{{ form.errors.name }}</div>
@@ -145,60 +146,65 @@ const submit = () => {
                                 <label for="role_personal" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Rol de Usuario *</label>
                                 <select id="role_personal" v-model="form.role_id" 
                                         :disabled="form.tipo === 'afiliado'"
-                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm"
-                                        :class="{'bg-gray-100 dark:bg-gray-900': form.tipo === 'afiliado'}"
+                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm dark:text-gray-200"
+                                        :class="form.tipo === 'afiliado' ? 'bg-gray-100 dark:bg-gray-900 text-gray-500' : 'bg-white dark:bg-gray-700'"
                                         required>
                                     <option value="" disabled>Seleccione un rol...</option>
                                     <option v-for="role in roleOptions" :key="role.id" :value="role.id">{{ role.name }}</option>
                                 </select>
-                                 <div v-if="form.errors.role_id" class="text-red-600 text-sm mt-1">{{ form.errors.role_id }}</div>
+                                <div v-if="form.errors.role_id" class="text-red-600 text-sm mt-1">{{ form.errors.role_id }}</div>
                             </div>
                         </div>
 
-                        <div v-if="form.tipo === 'afiliado'" class="space-y-4 p-4 border dark:border-gray-700 rounded-md">
+                        <div v-if="form.tipo === 'afiliado'" class="space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md">
                             <h3 class="font-medium text-gray-700 dark:text-gray-300">Vincular Afiliado</h3>
                             <label class="block font-medium text-sm text-gray-700 dark:text-gray-300">Buscar Afiliado por CI (Opcional)</label>
-                            <p class="text-xs text-gray-500">Vincule esta cuenta a un afiliado (ej. Maria Rodriguez) para que pueda ver sus facturas.</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Vincule esta cuenta a un afiliado (ej. Maria Rodriguez) para que pueda ver sus facturas.</p>
                             <div class="flex gap-2">
-                                <input v-model="searchCi" @keydown.enter.prevent="buscarAfiliado" type="text" placeholder="Ingrese CI del afiliado..." class="flex-grow ..." />
-                                <button @click.prevent="buscarAfiliado" :disabled="isSearching" class="bg-indigo-600 text-white px-4 py-2 rounded disabled:opacity-50">
+                                <input v-model="searchCi" @keydown.enter.prevent="buscarAfiliado" type="text" placeholder="Ingrese CI del afiliado..." 
+                                       class="flex-grow border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
+                                <button @click.prevent="buscarAfiliado" :disabled="isSearching" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 disabled:opacity-50 transition duration-150">
                                     {{ isSearching ? 'Buscando...' : 'Buscar' }}
                                 </button>
                             </div>
-                            <div v-if="searchMessage" :class="{'text-green-600': form.afiliado_id, 'text-red-600': !form.afiliado_id}" class="text-sm mt-1">{{ searchMessage }}</div>
+                            <div v-if="searchMessage" :class="{'text-green-600 dark:text-green-400': form.afiliado_id, 'text-red-600 dark:text-red-400': !form.afiliado_id}" class="text-sm mt-1">{{ searchMessage }}</div>
                             <div v-if="form.errors.afiliado_id" class="text-red-600 text-sm mt-1">{{ form.errors.afiliado_id }}</div>
                         </div>
 
-                        <div class="border-t dark:border-gray-700 pt-6 space-y-4">
+                        <div class="border-t border-gray-200 dark:border-gray-700 pt-6 space-y-4">
                              <div>
-                                <label for="email" class="block font-medium text-sm ...">Email (para inicio de sesión) *</label>
-                                <input id="email" v-model="form.email" type="email" class="mt-1 block w-full ..." required />
+                                <label for="email" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Email (para inicio de sesión) *</label>
+                                <input id="email" v-model="form.email" type="email" 
+                                       class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required />
                                 <div v-if="form.errors.email" class="text-red-600 text-sm mt-1">{{ form.errors.email }}</div>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label for="password" class="block font-medium text-sm ...">Contraseña *</label>
-                                    <input id="password" v-model="form.password" type="password" class="mt-1 block w-full ..." required />
+                                    <label for="password" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Contraseña *</label>
+                                    <input id="password" v-model="form.password" type="password" 
+                                           class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required />
                                     <div v-if="form.errors.password" class="text-red-600 text-sm mt-1">{{ form.errors.password }}</div>
                                 </div>
                                 <div>
-                                    <label for="password_confirmation" class="block font-medium text-sm ...">Confirmar Contraseña *</label>
-                                    <input id="password_confirmation" v-model="form.password_confirmation" type="password" class="mt-1 block w-full ..." required />
+                                    <label for="password_confirmation" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Confirmar Contraseña *</label>
+                                    <input id="password_confirmation" v-model="form.password_confirmation" type="password" 
+                                           class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required />
                                 </div>
                             </div>
                         </div>
 
-                        <div class="flex justify-end gap-4 mt-8 pt-6 border-t dark:border-gray-700">
-                            <Link :href="route('users.index')" class="bg-gray-500 ...">Cancelar</Link>
+                        <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                            <Link :href="route('users.index')" class="bg-gray-500 text-white px-4 py-2 rounded shadow hover:bg-gray-600 transition duration-150">Cancelar</Link>
                             <button type="submit" 
                                     :disabled="form.processing"
-                                    class="bg-blue-600 ... disabled:opacity-50">
+                                    class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 disabled:opacity-50 transition duration-150">
                                 {{ form.processing ? 'Guardando...' : 'Crear Usuario' }}
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
+            <ViewCounter />
         </div>
     </AppLayout>
 </template>

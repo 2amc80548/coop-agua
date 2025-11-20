@@ -2,6 +2,7 @@
 import { Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { watch } from 'vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 const props = defineProps({
   reclamos: Object,   // Paginado
@@ -72,14 +73,14 @@ const estadoClass = (estado) => {
       </h2>
     </template>
 
-    <!-- Tipos de Reclamo -->
     <div class="p-4 md:p-6 pt-0">
       <div class="mb-4 p-4 bg-white dark:bg-gray-800 rounded shadow-sm">
         <h3 class="font-semibold mb-2 text-gray-800 dark:text-gray-200">Tipos de Reclamo</h3>
         <form @submit.prevent="crearTipo" class="flex gap-2">
-          <input v-model="formTipo.nombre" type="text" class="border rounded px-3 py-2 w-full"
+          <input v-model="formTipo.nombre" type="text" 
+                 class="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md px-3 py-2 w-full focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                  placeholder="Nuevo tipo (ej. 'Corte de servicio')" />
-          <button class="bg-blue-600 text-white px-3 py-2 rounded" :disabled="formTipo.processing">
+          <button class="bg-blue-600 text-white px-3 py-2 rounded shadow hover:bg-blue-700 transition duration-150" :disabled="formTipo.processing">
             {{ formTipo.processing ? 'Guardando...' : 'Agregar' }}
           </button>
         </form>
@@ -89,20 +90,19 @@ const estadoClass = (estado) => {
       </div>
     </div>
 
-    <div class="p-4 md:p-6">
+    <div class="p-4 md:p-6 pt-0">
       <div v-if="page.props.flash?.success"
-           class="bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-4 shadow-sm"
+           class="bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-4 shadow-sm dark:bg-green-900 dark:border-green-700 dark:text-green-100"
            role="alert">
         <p class="font-bold">Éxito</p>
         <p>{{ page.props.flash.success }}</p>
       </div>
 
-      <!-- Filtros -->
       <div class="mb-4 p-4 bg-white dark:bg-gray-800 rounded shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
         <div>
           <label for="estado" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Estado</label>
           <select id="estado" v-model="filterForm.estado"
-                  class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm">
+                  class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
             <option value="Abierto">Abiertos (Por defecto)</option>
             <option value="En Revisión">En Revisión</option>
             <option value="Resuelto">Resueltos</option>
@@ -113,28 +113,27 @@ const estadoClass = (estado) => {
         <div>
           <label for="reclamo_tipo_id" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Tipo de Reclamo</label>
           <select id="reclamo_tipo_id" v-model="filterForm.reclamo_tipo_id"
-                  class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm">
+                  class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
             <option value="">Todos</option>
             <option v-for="tipo in reclamoTipos" :key="tipo.id" :value="tipo.id">{{ tipo.nombre }}</option>
           </select>
         </div>
       </div>
 
-      <!-- Tabla -->
       <div class="overflow-x-auto bg-white dark:bg-gray-800 rounded shadow-md">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead class="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th class="px-4 py-3 text-left">Afiliado</th>
-              <th class="px-4 py-3 text-left">Asunto / Tipo</th>
-              <th class="px-4 py-3 text-left">Estado</th>
-              <th class="px-4 py-3 text-left">Fecha Recibido</th>
-              <th class="px-4 py-3 text-left">Acciones</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Afiliado</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Asunto / Tipo</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fecha Recibido</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
           <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             <tr v-if="!reclamos.data?.length">
-              <td colspan="5" class="py-4 px-4 text-center text-sm text-gray-500 dark:text-gray-300">
+              <td colspan="5" class="py-4 px-4 text-center text-sm text-gray-500 dark:text-gray-400">
                 No se encontraron reclamos con esos filtros.
               </td>
             </tr>
@@ -156,7 +155,7 @@ const estadoClass = (estado) => {
                 {{ formatDate(rec.created_at) }}
               </td>
               <td class="px-4 py-2 whitespace-nowrap text-sm font-medium space-x-2">
-                <Link :href="route('reclamos.show', rec.id)" class="text-indigo-600 hover:text-indigo-900" title="Ver / Responder">
+                <Link :href="route('reclamos.show', rec.id)" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200" title="Ver / Responder">
                   Ver / Responder
                 </Link>
               </td>
@@ -165,7 +164,6 @@ const estadoClass = (estado) => {
         </table>
       </div>
 
-      <!-- Paginación -->
       <div class="mt-6 flex justify-between items-center text-sm" v-if="(reclamos.links?.length || 0) > 3">
         <span class="text-gray-700 dark:text-gray-300">
           Mostrando {{ reclamos.from }} a {{ reclamos.to }} de {{ reclamos.total }} reclamos
@@ -173,15 +171,16 @@ const estadoClass = (estado) => {
         <div class="flex flex-wrap gap-1">
           <Link v-for="(link, index) in reclamos.links" :key="index"
                 :href="link.url ?? '#'" v-html="link.label"
-                class="px-3 py-1 border rounded"
+                class="px-3 py-1 border rounded dark:border-gray-600 dark:text-gray-300"
                 :class="{
-                  'bg-blue-600 text-white': link.active,
-                  'text-gray-400 pointer-events-none': !link.url,
-                  'hover:bg-gray-100 dark:hover:bg-gray-700': link.url
+                  'bg-blue-600 text-white dark:bg-blue-700 dark:text-white': link.active,
+                  'text-gray-400 dark:text-gray-500 pointer-events-none border-gray-200 dark:border-gray-700': !link.url,
+                  'hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-300': link.url
                 }"
                 preserve-scroll preserve-state />
         </div>
       </div>
+      <ViewCounter />
     </div>
   </AppLayout>
 </template>

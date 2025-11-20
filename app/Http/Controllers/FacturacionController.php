@@ -14,26 +14,17 @@ use Carbon\Carbon;
 class FacturacionController extends Controller
 {
     /**
-     * Muestra la página para generar   facturas.
+     * Muestra la página para generar facturas.
      * Carga las lecturas pendientes de un período específico.
      */
     public function showGenerador(Request $request)
     {
-        // 1. Obtener la tarifa activa. Si no hay, no podemos facturar.
-        $tarifaActiva = $this->getTarifaActiva();
-        if (!$tarifaActiva) {
-            // Redirigir al dashboard con un error grave
-            return redirect()->route('admin.dashboard') // O a donde prefieras
-                ->withErrors(['error_general' => '¡Error Crítico! No hay ninguna tarifa activa. Configure una antes de facturar.']);
-        }
-
-        // 2. Determinar el período a mostrar
-        // Si el usuario filtra por un período, usar ese. Si no, usar el último período con lecturas pendientes.
+        // 1. Determinar el período a mostrar (Se eliminó la verificación de tarifa global)
         $filtroPeriodo = $request->input('periodo');
         
         $queryPeriodos = Lectura::where('estado', 'pendiente')
-                                ->select(DB::raw('DISTINCT periodo'))
-                                ->orderBy('periodo', 'desc');
+            ->select(DB::raw('DISTINCT periodo'))
+            ->orderBy('periodo', 'desc');
 
         if (!$filtroPeriodo) {
             $filtroPeriodo = $queryPeriodos->first()?->periodo; // Tomar el más reciente pendiente
@@ -42,35 +33,45 @@ class FacturacionController extends Controller
         // Obtener todos los períodos que tienen lecturas pendientes para el dropdown
         $periodosDisponibles = $queryPeriodos->pluck('periodo');
 
-        // 3. Obtener las lecturas pendientes para ese período
+        // 2. Obtener las lecturas pendientes para ese período
         $lecturasPendientes = [];
         if ($filtroPeriodo) {
             $lecturasPendientes = Lectura::with([
-                'conexion:id,codigo_medidor,afiliado_id,direccion',
+                'conexion:id,codigo_medidor,afiliado_id,direccion,tipo_conexion', // Se agrega tipo_conexion para la tarifa
                 'conexion.afiliado:id,nombre_completo,ci,adulto_mayor' // Cargar afiliado y estado de adulto_mayor
             ])
             ->where('estado', 'pendiente')
             ->where('periodo', $filtroPeriodo)
             ->get()
-            ->map(function ($lectura) use ($tarifaActiva) {
-                // 4. Calcular el monto estimado para cada lectura y añadirlo
-                $calculo = $this->calcularMontoFactura($lectura, $tarifaActiva);
+            ->map(function ($lectura) {
+                
+                // 3. OBTENER LA TARIFA ESPECÍFICA (CORRECCIÓN CLAVE)
+                $tarifa = $this->getTarifaForLectura($lectura);
+
+                // Manejo de error si no se encuentra la tarifa
+                if (!$tarifa) {
+                    $lectura->consumo_calculado = $lectura->lectura_actual - $lectura->lectura_anterior;
+                    $lectura->monto_estimado = 0;
+                    $lectura->descuento_aplicado = 0;
+                    $lectura->error_tarifa = 'No hay tarifa activa para el tipo: ' . ($lectura->conexion->tipo_conexion ?? 'DESCONOCIDO');
+                    return $lectura;
+                }
+
+                // 4. Calcular el monto estimado para cada lectura y añadirlo (usando $tarifa)
+                $calculo = $this->calcularMontoFactura($lectura, $tarifa);
                 $lectura->consumo_calculado = $calculo['consumo'];
                 $lectura->monto_estimado = $calculo['total'];
                 $lectura->descuento_aplicado = $calculo['descuento'];
+                $lectura->error_tarifa = null;
                 return $lectura;
             });
         }
 
-        // 5. Enviar los datos a la vista Vue
+        // 5. Enviar los datos a la vista Vue (Se eliminó la info de tarifa global)
         return Inertia::render('Facturacion/Generar', [
             'lecturasPendientes' => $lecturasPendientes,
             'periodosDisponibles' => $periodosDisponibles,
             'filters' => ['periodo' => $filtroPeriodo],
-            'tarifaInfo' => [ // Enviar info de la tarifa por si Vue la necesita
-                'precio_m3' => $tarifaActiva->precio_m3,
-                'min_monto' => $tarifaActiva->min_monto,
-            ],
         ]);
     }
 
@@ -85,37 +86,42 @@ class FacturacionController extends Controller
             'lectura_ids.*' => 'integer|exists:lecturas,id', // Asegurar que cada ID exista
         ]);
 
-        // 2. Obtener la tarifa activa (fallar si no existe)
-        $tarifaActiva = $this->getTarifaActiva();
-        if (!$tarifaActiva) {
-            return redirect()->back()->withErrors(['error_general' => '¡Error Crítico! No hay tarifa activa. No se generó ninguna factura.']);
-        }
+        // 2. [SE ELIMINÓ la llamada a getTarifaForLectura($lectura) y la verificación fallida de $tarifaActiva]
 
         $lecturaIds = $validated['lectura_ids'];
         $generadasCount = 0;
         $erroresCount = 0;
+        $erroresDetalle = []; // Usamos este array para mejor log
 
         // 3. Usar una transacción de Base de Datos
-        //    Si una factura falla, NINGUNA se crea y NINGUNA lectura se actualiza.
         try {
-            DB::transaction(function () use ($lecturaIds, $tarifaActiva, &$generadasCount, &$erroresCount) {
+            // Se elimina $tarifaActiva de la cláusula 'use' ya que es variable por lectura
+            DB::transaction(function () use ($lecturaIds, &$generadasCount, &$erroresCount, &$erroresDetalle) {
                 
                 // 4. Obtener todas las lecturas seleccionadas que AÚN estén pendientes
-                $lecturasParaProcesar = Lectura::with('conexion.afiliado') // Cargar afiliado para descuento
+                $lecturasParaProcesar = Lectura::with('conexion.afiliado') 
                     ->whereIn('id', $lecturaIds)
-                    ->where('estado', 'pendiente') // ¡Muy importante! Evita facturar doble
+                    ->where('estado', 'pendiente') 
                     ->get();
 
                 foreach ($lecturasParaProcesar as $lectura) {
                     try {
-                        // 5. Calcular el monto final
-                        $calculo = $this->calcularMontoFactura($lectura, $tarifaActiva);
-                        
-                        // 6. Calcular fecha de vencimiento (ej. 30 días después de la fecha de emisión)
-                        $fechaEmision = Carbon::now();
-                        $fechaVencimiento = $fechaEmision->copy()->addDays(30); // Ajusta tus días de vencimiento
+                        // 5. OBTENER LA TARIFA ESPECÍFICA (CORRECCIÓN CLAVE)
+                        $tarifa = $this->getTarifaForLectura($lectura);
 
-                        // 7. Crear la Factura
+                        if (!$tarifa) {
+                             // Lanza una excepción si no hay tarifa para forzar el rollback
+                             throw new \Exception("No se encontró tarifa activa para el tipo de conexión: " . ($lectura->conexion->tipo_conexion ?? 'DESCONOCIDO'));
+                        }
+
+                        // 6. Calcular el monto final (usando $tarifa, que está correctamente definida)
+                        $calculo = $this->calcularMontoFactura($lectura, $tarifa);
+                        
+                        // 7. Calcular fecha de vencimiento (ej. 30 días después de la fecha de emisión)
+                        $fechaEmision = Carbon::now();
+                        $fechaVencimiento = $fechaEmision->copy()->addDays(30); 
+
+                        // 8. Crear la Factura
                         Factura::create([
                             'conexion_id' => $lectura->conexion_id,
                             'lectura_id' => $lectura->id,
@@ -123,55 +129,75 @@ class FacturacionController extends Controller
                             'fecha_emision' => $fechaEmision,
                             'fecha_vencimiento' => $fechaVencimiento,
                             'consumo_m3' => $calculo['consumo'],
-                            'monto_total' => $calculo['total'], // Monto final sin redondeo
-                            'deuda_pendiente' => $calculo['total'], // Deuda inicial es el total
-                            'estado' => 'impaga', // Estado inicial 'impaga'
-                            'justificacion_modificacion' => null, // Sin modificación manual
+                            'monto_total' => $calculo['total'], 
+                            'deuda_pendiente' => $calculo['total'], 
+                            'estado' => 'impaga', 
+                            'justificacion_modificacion' => null, 
                         ]);
 
-                        // 8. Actualizar la Lectura
+                        // 9. Actualizar la Lectura
                         $lectura->estado = 'facturado';
                         $lectura->save();
 
                         $generadasCount++;
                     } catch (\Exception $e) {
-                        // Registrar error de una lectura individual pero continuar con las demás
                         Log::error("Error al facturar lectura ID: {$lectura->id}", ['error' => $e->getMessage()]);
                         $erroresCount++;
-                        // Como estamos en una transacción, si una falla, todas fallarán.
-                        // Para permitir fallos parciales, habría que quitar la transacción
-                        // o manejarlo de forma más compleja.
-                        // Por seguridad, mantenemos la transacción: si una falla, todo se revierte.
-                        
-                        // Lanzar el error de nuevo para forzar el Rollback de la transacción
-                        throw new \Exception("Error procesando lectura {$lectura->id}: " . $e->getMessage());
+                        // Lanzar el error para forzar el Rollback de TODA la transacción
+                        throw $e; 
                     }
                 }
             }); // Fin de la transacción
 
         } catch (\Exception $e) {
             // Capturar el error que forzó el Rollback
-            Log::error('Fallo la transacción de facturación masiva', ['error' => $e->getMessage()]);
-            return redirect()->back()->withErrors(['error_general' => 'Error durante la generación. No se creó ninguna factura. Detalles: ' . $e->getMessage()]);
+            $mensajeError = count($erroresDetalle) > 0 ? $erroresDetalle[0] : $e->getMessage();
+            Log::error('Fallo la transacción de facturación masiva', ['error' => $mensajeError]);
+            return redirect()->back()->withErrors(['error_general' => 'Error durante la generación. No se creó ninguna factura. Detalles: ' . $mensajeError]);
         }
 
-        // 9. Redirigir con mensaje de éxito
+        // 10. Redirigir con mensaje de éxito
         $mensaje = "¡Éxito! Se generaron {$generadasCount} facturas nuevas.";
         if ($erroresCount > 0) {
-             $mensaje = "Proceso completado con {$erroresCount} errores. Ninguna factura fue creada debido a un error en la transacción.";
+            // Este caso solo se daría si la transacción no logra revertir correctamente el mensaje, pero
+            // por la naturaleza de la transacción, si hay un error, el count debe ser 0.
+             $mensaje = "Proceso fallido. Revise los logs para ver el error que causó la reversión de la transacción.";
         }
 
-        return redirect()->route('facturacion.generar.show') // Redirigir a la misma página
-                       ->with('success', $mensaje);
+        return redirect()->route('facturacion.generar.show') 
+            ->with('success', $mensaje);
     }
 
     /**
-     * Obtiene la tarifa activa de la base de datos.
+     * Obtiene la tarifa activa de la base de datos de forma genérica.
      * @return Tarifa|null
      */
-    private function getTarifaActiva()
+    private function getTarifaActiva(string $tipoConexion = null)
     {
-        return Tarifa::where('activo', 1)->orderBy('vigente_desde', 'desc')->first();
+        $query = Tarifa::where('activo', 1);
+
+        if ($tipoConexion) {
+            $query->where('tipo_conexion', $tipoConexion);
+        }
+        
+        return $query->orderBy('vigente_desde', 'desc')->first();
+    }
+
+
+    /**
+     * Obtiene la tarifa activa de la base de datos específica para una conexión.
+     * ESTA ES LA FUNCIÓN CORRECTA PARA FACTURAR POR TIPO DE CONEXIÓN.
+     * @param Lectura $lectura
+     * @return Tarifa|null
+     */
+    private function getTarifaForLectura(Lectura $lectura)
+    {
+        $tipo = $lectura->conexion->tipo_conexion;
+        
+        return Tarifa::where('activo', 1)
+            ->where('tipo_conexion', $tipo) // Filtra por el tipo de conexión.
+            ->orderBy('vigente_desde', 'desc')
+            ->first();
     }
 
     /**
@@ -212,7 +238,7 @@ class FacturacionController extends Controller
             'consumo' => $consumo,
             'monto_base' => $montoCalculado,
             'descuento' => $descuento,
-            'total' => ($totalFinal >= 0) ? $totalFinal : 0, // Asegurar que no sea negativo
+            'total' => round(($totalFinal >= 0) ? $totalFinal : 0, 2), // Asegurar no negativo y redondear
         ];
     }
 

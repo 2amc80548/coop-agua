@@ -2,6 +2,8 @@
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue'; 
 import { computed } from 'vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
+
 
 const props = defineProps({
     conexion: Object, // Recibe la conexión (con afiliado, zona y lecturas cargadas)
@@ -104,6 +106,7 @@ const estadoClass = (estado) => {
                     </div>
                 </div>
             </div>
+            <ViewCounter />
         </div>
     </AppLayout>
 </template>

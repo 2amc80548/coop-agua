@@ -6,6 +6,7 @@ import SectionBorder from '@/Components/SectionBorder.vue';
 import TwoFactorAuthenticationForm from '@/Pages/Profile/Partials/TwoFactorAuthenticationForm.vue';
 import UpdatePasswordForm from '@/Pages/Profile/Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from '@/Pages/Profile/Partials/UpdateProfileInformationForm.vue';
+import ViewCounter from '@/Components/ViewCounter.vue';
 
 defineProps({
     confirmsTwoFactorAuthentication: Boolean,
@@ -17,7 +18,7 @@ defineProps({
     <AppLayout title="Profile">
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Profile
+                PERFIL DE USUARIO
             </h2>
         </template>
 
@@ -52,6 +53,7 @@ defineProps({
                     <DeleteUserForm class="mt-10 sm:mt-0" />
                 </template>
             </div>
+            <ViewCounter />
         </div>
     </AppLayout>
 </template>
