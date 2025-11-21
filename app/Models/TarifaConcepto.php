@@ -12,7 +12,7 @@ class TarifaConcepto extends Model
         'tarifa_id',
         'codigo',
         'nombre',
-        'tipo',          // FIJO | PORCENTAJE
+        'tipo',        
         'valor',
         'aplica_sobre',  
         'activo',

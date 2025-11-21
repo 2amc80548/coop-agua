@@ -15,14 +15,6 @@ use Illuminate\Support\Facades\Log;
 class UserController extends Controller
 {
     /**
-     * Define los permisos para este controlador.
-     */
-    // public function __construct()
-    // {
-    //     $this->middleware('role:Administrador');
-    // }
-
-    /**
      * Muestra la lista paginada y filtrable de usuarios.
      */
     public function index(Request $request)
@@ -50,7 +42,7 @@ class UserController extends Controller
 
         return Inertia::render('Users/Index', [
             'users' => $query->orderBy('name')
-                             ->paginate(15)
+                             ->paginate(10)
                              ->withQueryString(),
             'filters' => $request->only(['search', 'role']),
             'roles' => Role::all()->pluck('name'),
@@ -71,17 +63,16 @@ class UserController extends Controller
 
     /**
      * Guarda un nuevo usuario.
-     * (¡CORREGIDO! El 'name' es independiente del afiliado)
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'tipo' => 'required|in:afiliado,personal',
-            'name' => 'required|string|max:255', // ¡AHORA SIEMPRE REQUERIDO!
+            'name' => 'required|string|max:255', 
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:8|confirmed',
             'role_id' => 'required|exists:roles,id',
-            'afiliado_id' => 'nullable|exists:afiliados,id', // Nullable
+            'afiliado_id' => 'nullable|exists:afiliados,id', 
         ]);
 
         $afiliadoId = $validated['afiliado_id'] ?? null;
@@ -102,7 +93,7 @@ class UserController extends Controller
         }
 
         $user = User::create([
-            'name' => $validated['name'], // ¡USA EL NOMBRE DEL FORMULARIO!
+            'name' => $validated['name'], 
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'afiliado_id' => $afiliadoId,
@@ -115,7 +106,6 @@ class UserController extends Controller
 
     /**
      * Muestra el formulario para editar.
-     * (¡ACTUALIZADO!)
      */
     public function edit(User $user)
     {
@@ -124,14 +114,13 @@ class UserController extends Controller
         return Inertia::render('Users/Edit', [
             'user' => $user,
             'allRoles' => Role::all(['id', 'name']),
-            // ¡AÑADIDO! Pasa la URL de la API para el buscador
+            // Pasa la URL de la API para el buscador
             'searchAfiliadosUrl' => route('afiliados.buscarPorCI', ['ci' => '__CI_PLACEHOLDER__']),
         ]);
     }
 
     /**
      * Actualiza un usuario.
-     * (¡ACTUALIZADO! Permite asignar afiliado y editar nombre)
      */
     public function update(Request $request, User $user)
     {
@@ -140,7 +129,7 @@ class UserController extends Controller
             'email' => 'required|email|' . Rule::unique('users')->ignore($user->id),
             'password' => 'nullable|min:8|confirmed',
             'role_id' => 'required|exists:roles,id',
-            'afiliado_id' => 'nullable|exists:afiliados,id', // ¡Permite asignar/cambiar!
+            'afiliado_id' => 'nullable|exists:afiliados,id', 
         ]);
         
         $role = Role::find($validated['role_id']);
@@ -151,7 +140,7 @@ class UserController extends Controller
             if ($afiliadoId) {
                  // Si se asignó uno, validamos el límite (excluyéndonos a nosotros mismos)
                 $count = User::where('afiliado_id', $afiliadoId)
-                             ->where('id', '!=', $user->id) // Excluirse a sí mismo
+                             ->where('id', '!=', $user->id) 
                              ->count();
                 if ($count >= 2) {
                     return back()->withErrors(['afiliado_id' => 'Este afiliado ya tiene 2 usuarios (cuentas) asignados.'])->withInput();
@@ -165,16 +154,16 @@ class UserController extends Controller
 
         // Actualizar el usuario
         $user->update([
-            'name' => $validated['name'], // ¡USA EL NOMBRE DEL FORMULARIO!
+            'name' => $validated['name'], 
             'email' => $validated['email'],
-            'afiliado_id' => $afiliadoId, // Guardar el ID
+            'afiliado_id' => $afiliadoId, 
         ]);
 
         if (!empty($validated['password'])) {
             $user->update(['password' => Hash::make($validated['password'])]);
         }
         
-        $user->syncRoles([$role->name]); // Sincronizar el rol
+        $user->syncRoles([$role->name]); 
 
         return redirect()->route('users.index')->with('success', 'Usuario actualizado.');
     }

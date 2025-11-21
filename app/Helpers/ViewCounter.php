@@ -6,9 +6,9 @@ if (!function_exists('hit_and_get_views')) {
         // Ruta completa del archivo
         $file = storage_path('app/views.json');
         
-        // La URL actual (ej: /login, /dashboard, /admin/users/create)
+        // La URL actual 
         $url = request()->path();
-        if ($url === '') $url = '/';  // para la página de inicio
+        if ($url === '') $url = '/';  
 
         // Si el archivo no existe, lo crea vacío
         if (!file_exists($file)) {

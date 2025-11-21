@@ -12,9 +12,11 @@ class Pago extends Model
     protected $fillable = [
         'factura_id',
         'monto_pagado',
-        'metodo_pago',
+        'forma_pago',
         'fecha_pago',
+        'referencia',
         'registrado_por',
+        
     ];
 
  

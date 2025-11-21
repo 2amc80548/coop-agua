@@ -191,6 +191,11 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         Route::get('/factura/{factura}/imprimir', [FacturaController::class, 'imprimirFactura'])
              ->name('facturas.imprimir')
              ->where('factura', '[0-9]+');
+
+
+             // Rutas para el QR
+Route::post('/pagos/generar-qr', [PagoController::class, 'generarQr'])->name('pagos.generarQr');
+Route::post('/pagos/verificar-qr', [PagoController::class, 'verificarQr'])->name('pagos.verificarQr');
     });
 
 
@@ -257,6 +262,24 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     });            
 
 
+    Route::get('/probar-configuracion', function () {
+    // 1. Autenticarse
+    $login = Http::withHeaders([
+        'tcTokenService' => env('PAGO_FACIL_SERVICE'),
+        'tcTokenSecret'  => env('PAGO_FACIL_SECRET')
+    ])->post(env('PAGO_FACIL_BASE_URL') . '/login');
+
+    if ($login->failed()) return "Falló el login: " . $login->body();
+    
+    $token = $login->json()['values']['accessToken'];
+
+    // 2. Preguntar qué servicios tengo habilitados
+    $servicios = Http::withHeaders([
+        'Authorization' => 'Bearer ' . $token
+    ])->post(env('PAGO_FACIL_BASE_URL') . '/list-enabled-services');
+
+    return $servicios->json();
+});
 Route::get('/buscar', [BuscadorController::class, 'buscar'])
     ->name('buscar.global');
 
@@ -274,3 +297,7 @@ Route::get('/hit-view', function () {
 
     return ['views' => $data[$url]];
 })->name('hit-view');
+
+
+
+

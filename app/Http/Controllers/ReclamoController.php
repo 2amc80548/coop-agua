@@ -13,11 +13,6 @@ use Illuminate\Support\Facades\Log;
 
 class ReclamoController extends Controller
 {
-    // public function __construct()
-    // {
-    //     $this->middleware('auth'); 
-    // }
-
     /**
      * Muestra la lista de reclamos (para Admin/Secretaria).
      */
@@ -40,7 +35,7 @@ class ReclamoController extends Controller
 
         return Inertia::render('Reclamos/Index', [
             'reclamos' => $query->orderBy('created_at', 'desc')
-                                 ->paginate(15)
+                                 ->paginate(10)
                                  ->withQueryString(),
             'filters' => [
                 'estado' => $estadoFiltro,
@@ -143,7 +138,7 @@ class ReclamoController extends Controller
     }
 
     /**
-     * Muestra el detalle del reclamo (Admin o Usuario).
+     * Muestra el detalle del reclamo
      */
     public function show(Reclamo $reclamo)
     {
@@ -167,7 +162,7 @@ class ReclamoController extends Controller
     }
 
     /**
-     * Actualiza un reclamo (respuesta de Admin/Secretaria).
+     * Actualiza un reclamo 
      */
     public function update(Request $request, Reclamo $reclamo)
     {
@@ -194,7 +189,7 @@ class ReclamoController extends Controller
     }
 
     /**
-     * Reabrir un reclamo cerrado (Admin/Secretaria).
+     * Reabrir un reclamo cerrado 
      */
     public function reabrir(Reclamo $reclamo)
     {

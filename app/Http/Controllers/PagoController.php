@@ -10,10 +10,18 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use App\Services\PagoFacilService;
 
 class PagoController extends Controller
 {
+    // 1. Declaramos la variable para el servicio
+    protected $pagoService;
 
+    // 2. Creamos el constructor para inyectarlo
+    public function __construct(PagoFacilService $pagoService)
+    {
+        $this->pagoService = $pagoService;
+    }
     /**
      * Muestra el HISTORIAL de pagos, paginado y con filtros.
      */
@@ -22,7 +30,7 @@ class PagoController extends Controller
         $query = Pago::with([
             'factura:id,periodo,conexion_id',
             'factura.conexion:id,codigo_medidor,afiliado_id',
-            'factura.conexion.afiliado:id,nombre_completo,ci', // ¡Cambiado a 'afiliado'!
+            'factura.conexion.afiliado:id,nombre_completo,ci',
             'usuarioRegistrado:id,name'
         ]);
 
@@ -53,7 +61,7 @@ class PagoController extends Controller
         return Inertia::render('Pagos/Index', [
             'pagos' => $query->orderBy('fecha_pago', 'desc')
                              ->orderBy('id', 'desc')
-                             ->paginate(20)
+                             ->paginate(10)
                              ->withQueryString(),
             'filters' => $request->only('fecha_inicio', 'fecha_fin', 'search', 'forma_pago'),
         ]);
@@ -89,7 +97,7 @@ class PagoController extends Controller
     }
 
     /**
-     * Guarda el nuevo pago y actualiza la factura (¡SIN PAGOS PARCIALES!)
+     * Guarda el nuevo pago y actualiza la factura 
      */
     public function store(Request $request)
     {
@@ -114,7 +122,7 @@ class PagoController extends Controller
                     ]);
                 }
 
-                // El monto a pagar es la deuda total (REGLA: NO pagos parciales)
+                // El monto a pagar es la deuda total )
                 $montoAPagar = $factura->deuda_pendiente;
                 
                 if ($montoAPagar <= 0) {
@@ -126,7 +134,7 @@ class PagoController extends Controller
                 // 1. Crear el Pago
                 $pago = Pago::create([
                     'factura_id' => $factura->id,
-                    'monto_pagado' => $montoAPagar, // ¡Usamos el monto de la BD!
+                    'monto_pagado' => $montoAPagar, 
                     'fecha_pago' => $validated['fecha_pago'],
                     'forma_pago' => $validated['forma_pago'],
                     'referencia' => $validated['referencia'],
@@ -136,10 +144,10 @@ class PagoController extends Controller
                 // 2. Actualizar la Factura
                 $factura->update([
                     'estado' => 'pagado',
-                    'deuda_pendiente' => 0, // La deuda es cero
+                    'deuda_pendiente' => 0, 
                     'fecha_pago' => $validated['fecha_pago']
                 ]);
-            }); // Fin transacción
+            }); 
 
             return redirect()->route('facturas.show', $validated['factura_id'])
                            ->with('success', '✅ Pago registrado por Bs '.number_format($pago->monto_pagado, 2).'. Factura actualizada a "pagado".');
@@ -164,16 +172,15 @@ class PagoController extends Controller
             'usuarioRegistrado'
         ])->findOrFail($id);
 
-        return Inertia::render('Pagos/Show', [ // ¡Vista nueva!
+        return Inertia::render('Pagos/Show', [ 
             'pago' => $pago,
         ]);
     }
     
     /**
      * Anula un pago (acción de Admin).
-     * Esto revierte el pago Y la factura.
      */
-    public function anular(Request $request, $id) // 'id' es el ID del PAGO
+    public function anular(Request $request, $id) 
     {
         $pago = Pago::findOrFail($id);
         
@@ -219,7 +226,7 @@ class PagoController extends Controller
 
         $query = Pago::with([
             'factura:id,periodo,monto_total',
-            'usuarioRegistrado:id,name' // El cajero que cobró
+            'usuarioRegistrado:id,name' 
         ])
         // Busca pagos donde la factura asociada...
         ->whereHas('factura', function ($facturaQuery) use ($afiliadoId) {
@@ -230,20 +237,130 @@ class PagoController extends Controller
             });
         });
 
-        // (Aquí puedes añadir filtros de fecha si quieres)
-        
-        // ¡ASEGÚRATE DE CREAR ESTA VISTA! resources/js/Pages/Usuario/HistorialPagos.vue
         return Inertia::render('Usuario/HistorialPagos', [ 
             'pagos' => $query->orderBy('fecha_pago', 'desc')
                              ->paginate(15)
                              ->withQueryString(),
-            'filters' => $request->only([]), // Añade filtros si los pones
+            'filters' => $request->only([]), 
             'error' => null
         ]);
     }
 
-    // --- MÉTODOS OBSOLETOS (NO USAR) ---
-    public function edit($id) { abort(405, 'Los pagos no se editan, se anulan.'); }
-    public function update(Request $request, $id) { abort(405, 'Los pagos no se editan, se anulan.'); }
-    public function destroy($id) { abort(405, 'Los pagos no se eliminan, se anulan.'); }
+
+    // ... tus otras funciones (miHistorial, anular, etc) ...
+
+    /**
+     * ------------------------------------------------------------
+     * NUEVAS FUNCIONES PARA PAGO FÁCIL (QR)
+     * ------------------------------------------------------------
+     */
+
+    /**
+     * Genera la imagen QR y la devuelve al Frontend (sin guardar en BD aún)
+     */
+    public function generarQr(Request $request)
+    {
+        $request->validate(['factura_id' => 'required|exists:facturas,id']);
+        
+        $factura = Factura::with('conexion.afiliado')->findOrFail($request->factura_id);
+
+        // Validar que no esté pagada
+        if ($factura->estado !== 'impaga') {
+            return response()->json(['status' => 'error', 'message' => 'La factura ya está pagada o anulada.']);
+        }
+
+        // Usamos el servicio que inyectamos
+        $resultado = $this->pagoService->generarQR($factura, $factura->conexion->afiliado);
+
+        if ($resultado['success']) {
+            return response()->json([
+                'status' => 'ok',
+                'qr_image' => $resultado['qr_image'],      // La imagen Base64
+                'payment_number' => $resultado['payment_number'], // El ID "grupo05cc_..."
+                'monto' => $factura->deuda_pendiente
+            ]);
+        } else {
+            return response()->json(['status' => 'error', 'message' => $resultado['message']]);
+        }
+    }
+
+    /**
+     * Verifica si el cliente ya pagó desde su celular
+     * Se llama cada 5 segundos desde el navegador
+     */
+    public function verificarQr(Request $request)
+    {
+        $paymentNumber = $request->payment_number; // Recibimos "grupo05cc_123"
+
+        // 1. Consultar al Banco (Pago Fácil)
+        $respuesta = $this->pagoService->consultarTransaccion($paymentNumber);
+
+        // NOTA: Según tu PDF, debes revisar qué devuelve exactamente 'paymentStatus'.
+        // Asumiremos que devuelve un string o número indicando éxito.
+        // Si tienes dudas, usa: Log::info($respuesta); para ver qué llega.
+        
+        // Digamos que status == 2 es PAGADO (ajusta esto según tu prueba real)
+        $estadoPago = $respuesta['values']['paymentStatus'] ?? null; // Ajusta la ruta del JSON
+
+        // Verificamos si el estado indica éxito (Ajustar condición según respuesta real)
+        // A veces devuelven el string "COMPLETED" o "PROCESSED"
+        $pagadoEnBanco = ($estadoPago == 2 || $estadoPago == 5 || $estadoPago == 'COMPLETED');
+
+        if ($pagadoEnBanco) {
+            
+            // ¡EL DINERO ESTÁ EN EL BANCO! AHORA GUARDAMOS EN TU BD
+            
+            // Extraer ID real de la factura
+            $partes = explode('_', $paymentNumber); 
+            // El formato es: grupo05cc_IDFACTURA_UNIQID
+            // $partes[0] = grupo05cc
+            // $partes[1] = IDFACTURA (El que queremos)
+            // $partes[2] = UNIQID
+            $facturaId = $partes[1];
+
+            // Usamos Transaction igual que en tu método store() para seguridad
+            try {
+                DB::transaction(function () use ($facturaId, $paymentNumber, $respuesta) {
+                    
+                    // Verificar si YA lo registramos antes (para evitar duplicados por el polling)
+                    $yaExiste = Pago::where('referencia', $paymentNumber)->exists();
+                    if ($yaExiste) return; // Si ya existe, no hacemos nada, solo retornamos éxito abajo
+
+                    $factura = Factura::lockForUpdate()->find($facturaId);
+
+                    if ($factura && $factura->estado === 'impaga') {
+                        // Crear el Pago
+                        Pago::create([
+                            'factura_id'     => $factura->id,
+                            'monto_pagado'   => $factura->deuda_pendiente, // O $respuesta['values']['amount']
+                            'fecha_pago'     => Carbon::now(),
+                            'forma_pago'     => 'QR',
+                            'referencia'     => $paymentNumber, // Guardamos el ID de transacción
+                            'registrado_por' => Auth::id(),
+                        ]);
+
+                        // Actualizar Factura
+                        $factura->update([
+                            'estado'          => 'pagado',
+                            'deuda_pendiente' => 0,
+                            'fecha_pago'      => Carbon::now()
+                        ]);
+                    }
+                });
+
+                return response()->json(['status' => 'pagado']);
+
+            } catch (\Exception $e) {
+                Log::error("Error guardando pago QR: " . $e->getMessage());
+                return response()->json(['status' => 'error', 'message' => 'Error interno al guardar']);
+            }
+        }
+
+        // Si no ha pagado aún
+        return response()->json(['status' => 'pendiente']);
+    }
+  
+    // public function edit($id) { abort(405, 'Los pagos no se editan, se anulan.'); }
+    // public function update(Request $request, $id) { abort(405, 'Los pagos no se editan, se anulan.'); }
+    // public function destroy($id) { abort(405, 'Los pagos no se eliminan, se anulan.'); }
 }

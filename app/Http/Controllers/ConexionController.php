@@ -19,7 +19,7 @@ class ConexionController extends Controller
      */
     public function index(Request $request)
     {
-        // Cargar 'afiliado' y la nueva relación 'zona'
+        // Cargar 'afiliado'
         $query = Conexion::with(['afiliado:id,nombre_completo,ci', 'zona:id,nombre']); 
        // 1. Buscador (Código Medidor, CI o Nombre del Afiliado)
         $query->when($request->input('search'), function ($q, $search) {
@@ -54,7 +54,7 @@ class ConexionController extends Controller
 
         return Inertia::render('Conexiones/Index', [
             'conexiones' => $query->orderBy('codigo_medidor')
-                                 ->paginate(15)
+                                 ->paginate(10)
                                  ->withQueryString(),
             'filters' => $request->only(['search', 'estado', 'tipo_conexion', 'zona_id']), 
             'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']), 
@@ -76,11 +76,10 @@ class ConexionController extends Controller
 
     /**
      * Muestra el detalle de una conexión.
-     * (Tu método 'show' original estaba bien, solo añadimos 'zona')
      */
     public function show($id) 
     {
-        // Cargar las relaciones 'afiliado' y la nueva 'zona'
+        // Cargar las relaciones 'afiliado'
         $conexion = Conexion::with([
                             'afiliado', 
                             'zona', 
@@ -95,7 +94,6 @@ class ConexionController extends Controller
 
     /**
      * Muestra el formulario para editar una conexión.
-     * (Tu método 'edit' está perfecto, solo añadimos las zonas)
      */
     public function edit($id) 
     {
@@ -114,8 +112,7 @@ class ConexionController extends Controller
      */
     public function store(Request $request)
     {
-        
-        // Cambiamos la validación de 'zona' a 'zona_id'
+
         $validated = $request->validate([
             'codigo_medidor'  => 'required|string|unique:conexiones,codigo_medidor|max:50',
             'afiliado_id'     => 'required|exists:afiliados,id',
@@ -160,21 +157,18 @@ class ConexionController extends Controller
     {
         $conexion = Conexion::findOrFail($id); 
 
-        // --- MODIFICADO ---
-        // Cambiamos la validación de 'zona' a 'zona_id'
         $validated = $request->validate([
             'codigo_medidor'  => ['required','string','max:50', Rule::unique('conexiones')->ignore($conexion->id)],
             'afiliado_id'     => 'required|exists:afiliados,id', 
             'estado'          => 'required|in:activo,suspendido,eliminado',
             'direccion'       => 'required|string|max:255',
-            'zona_id'         => 'required|exists:zonas,id', // <-- CORREGIDO
+            'zona_id'         => 'required|exists:zonas,id', 
             'fecha_instalacion' => 'required|date',
             'tipo_conexion'   => 'required|in:domiciliaria,comercial,institucional,otro',
         ]);
-        // --- FIN MODIFICADO ---
 
         try {
-            $conexion->update($validated); // Guardará los datos validados (incluyendo zona_id)
+            $conexion->update($validated); 
         } catch (\Exception $e) {
              Log::error('Error al actualizar conexión:', ['error' => $e->getMessage(), 'request' => $request->all()]);
             return redirect()->back()->withInput()->withErrors(['error_general' => 'Error al actualizar la conexión.']);
@@ -185,7 +179,6 @@ class ConexionController extends Controller
     
     /**
      * Elimina una conexión (Solo Admin).
-     * (Modificado a $id para ser consistente)
      */
     public function destroy($id)
     {

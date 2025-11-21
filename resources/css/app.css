@@ -4,14 +4,13 @@
 
 [x-cloak] { display: none; }
 
-/* ============================================================= */
-/* TEMAS VISUALES + MODO OSCURO (AHORA CON AMARILLO MÁS FUERTE Y BONITO) */
-/* ============================================================= */
+/* ===================
+/* TEMAS VISUALES 
+/* ==================
 
 /* TEMA JÓVENES → tu estilo original */
 .tema-jovenes {}
 
-/* TEMA NIÑOS → colores más vivos y alegres (amarillo fuerte, celeste y verde agua) */
 .tema-ninos,
 .tema-ninos.dark {
     background: linear-gradient(135deg, #bae6fd, #fef08a, #bbf7d0) !important; /* ← AMARILLO MÁS FUERTE Y LINDO */
@@ -21,18 +20,17 @@
 }
 .tema-ninos .text-cyan-600,
 .tema-ninos .text-cyan-700 {
-    color: #ea580c !important; /* naranja fuerte */
+    color: #ea580c !important; 
 }
 .tema-ninos .bg-white,
 .tema-ninos .bg-gray-50 {
-    background-color: #fffbeb !important; /* fondo crema claro que combina perfecto con el amarillo fuerte */
+    background-color: #fffbeb !important; 
 }
 .tema-ninos .border-cyan-100,
 .tema-ninos .border-gray-200 {
-    border-color: #fde68a !important; /* borde amarillo suave */
+    border-color: #fde68a !important; 
 }
 
-/* TEMA ADULTOS → elegante y profesional */
 .tema-adultos,
 .tema-adultos.dark {
     background-color: #f8fafc !important;
@@ -49,7 +47,7 @@
     color: #93c5fd !important;
 }
 
-/* MODO OSCURO GLOBAL (todo oscuro de verdad en los 3 temas) */
+/* MODO OSCURO GLOBAL */
 .dark {
     background-color: #0f172a !important;
     color: #e2e8f0 ! important;
@@ -74,7 +72,7 @@
     border-color: #334155 !important;
 }
 
-/* Scrollbar bonita */
+
 .scrollbar-thin::-webkit-scrollbar { width: 6px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
 .scrollbar-thin::-webkit-scrollbar-thumb { 

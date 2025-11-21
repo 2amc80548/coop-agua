@@ -13,16 +13,16 @@ const props = defineProps({
 });
 const page = usePage();
 
-// --- 2. FORMULARIO PRINCIPAL (¡CORREGIDO!) ---
+// --- 2. FORMULARIO PRINCIPAL ---
 const form = useForm({
     nombre_completo: '',
     ci: '',
     celular: '',
-    direccion: '', // Calle
-    zona_id: '',     // Barrio
+    direccion: '', 
+    zona_id: '',     
     tipo: 'socio',
     estado: 'activo',
-    estado_servicio: 'Pendiente', // <-- ¡NUEVO VALOR POR DEFECTO!
+    estado_servicio: 'Pendiente', // 
     fecha_afiliacion: new Date().toISOString().split('T')[0],
     fecha_baja: null,
     codigo: '',
@@ -30,8 +30,8 @@ const form = useForm({
     adulto_mayor: false,
     profile_photo: null,
     requisitos_seleccionados: [],
-    observacion: '', // <-- ¡AÑADIDO!
-    // (Campos de 'crear_usuario' eliminados)
+    observacion: '', 
+   
 });
 
 // --- 3. LÓGICA DE FOTO ---
@@ -87,7 +87,6 @@ const guardarNuevaZona = () => {
 
 // --- 6. LÓGICA DE ENVÍO (SUBMIT) ---
 const submit = () => {
-    // (Validación de contraseña eliminada)
     form.post(route('afiliados.store'), {
         onError: (errors) => {
             console.error("Errores de validación:", errors);

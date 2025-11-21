@@ -122,12 +122,10 @@ class ReporteController extends Controller
         $pagosTotalesQuery   = (clone $pagosBase);
         $pagosPorMetodoQuery = (clone $pagosBase);
 
-        // ---- Reclamos base (usamos created_at) ----
+        // ---- Reclamos base ----
         $reclamosBase = Reclamo::query()
             ->whereBetween('created_at', [$fechaInicio, $fechaFin]);
 
-        // ⚠️ IMPORTANTE: tu tabla reclamos NO tiene conexion_id,
-        // así que SOLO filtramos por afiliado (no por conexión)
         if ($zonaId || $estadoServicio) {
             $reclamosBase->whereHas('afiliado', function ($qa) use ($zonaId, $estadoServicio) {
                 if ($zonaId) {
@@ -305,7 +303,7 @@ class ReporteController extends Controller
                 'nuevosUsuarios'      => $nuevosUsuarios,
             ],
 
-            // DETALLES PARA TABLAS / GRÁFICOS (los mismos props que tu Vue ya espera)
+            // DETALLES PARA TABLAS / GRÁFICOS
             'detallePagos' => [
                 'porMetodo' => $pagosPorMetodo,
             ],
@@ -318,7 +316,6 @@ class ReporteController extends Controller
             'detalleReclamos' => [
                 'porEstado' => $reclamosPorEstado,
             ],
-            // ESTE NO lo estás usando aún en Vue, pero queda listo:
             'detalleConexiones' => [
                 'porEstado' => $conexionesPorEstado,
                 'porTipo'   => $conexionesPorTipo,
@@ -335,7 +332,7 @@ class ReporteController extends Controller
         ]);
     }
 
-    // EJEMPLO ESQUELETO PARA PDF (cuando lo quieras usar):
+    // EJEMPLO ESQUELETO PARA PDF:
     /*
     public function exportPdf(Request $request)
     {

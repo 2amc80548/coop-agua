@@ -32,7 +32,6 @@ class Afiliado extends Model
 
     /**
      * Conversión de tipos (casts).
-     * ¡Actualizado con los nuevos campos!
      */
     protected $casts = [
         'fecha_afiliacion' => 'date:Y-m-d',
@@ -43,7 +42,6 @@ class Afiliado extends Model
 
     /**
      * Define la relación "pertenece a":
-     * Un Afiliado pertenece a una Zona.
      */
     public function zona(): BelongsTo
     {
@@ -51,15 +49,14 @@ class Afiliado extends Model
     }
 
     /**
-     * Define la relación "muchos a muchos":
      * Un Afiliado puede tener muchos Requisitos.
      */
     public function requisitos(): BelongsToMany
     {
-        return $this->belongsToMany(Requisito::class, 'afiliado_requisito') // Nombre de la tabla pivot
-                    ->using(AfiliadoRequisito::class) // Usa nuestro modelo Pivot personalizado
-                    ->withPivot('fecha_entrega', 'observacion') // Carga los campos extra
-                    ->withTimestamps(); // Maneja created_at/updated_at
+        return $this->belongsToMany(Requisito::class, 'afiliado_requisito')
+                    ->using(AfiliadoRequisito::class) 
+                    ->withPivot('fecha_entrega', 'observacion') 
+                    ->withTimestamps(); 
     }
 
 

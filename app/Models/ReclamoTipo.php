@@ -16,7 +16,6 @@ class ReclamoTipo extends Model
 
     /**
      * Indica si el modelo debe tener timestamps (created_at, updated_at).
-     * Lo ponemos en 'false' porque esta tabla es solo un catálogo.
      */
     public $timestamps = false;
 
@@ -29,7 +28,6 @@ class ReclamoTipo extends Model
      */
     public function reclamos()
     {
-        // Esto nos permitirá en el futuro contar cuántos reclamos hay de cada tipo.
         return $this->hasMany(Reclamo::class, 'reclamo_tipo_id');
     }
 }

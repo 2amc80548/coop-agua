@@ -25,7 +25,6 @@ class Factura extends Model
 
     /**
      * Conversión de tipos (casts) para que Laravel maneje bien los datos.
-     * ¡Muy importante para montos decimales y fechas!
      */
     protected $casts = [
         'fecha_emision' => 'date:Y-m-d',

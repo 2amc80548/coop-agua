@@ -19,22 +19,6 @@ use Illuminate\Validation\Rule; // Para validación
 class LecturaController extends Controller
 {
     /**
-     * Define los permisos para este controlador.
-     */
-    // public function __construct()
-    // {
-    //     $this->middleware('role:Administrador|Secretaria|Tecnico');
-    //     $this->middleware('role:Administrador|Tecnico')->except(['index', 'show']); // Secretaria solo puede ver
-    //     $this->middleware('role:Administrador')->only('destroy'); // Solo Admin puede borrar
-    //     $this->middleware('role:Administrador|Secretaria|Tecnico')->only([ // APIs
-    //         'apiSearchConexiones', 
-    //         'apiGetPendientes', 
-    //         'apiGetTarifaActiva', 
-    //         'showAviso'
-    //     ]);
-    // }
-
-    /**
      * Muestra lista paginada y filtrable de lecturas.
      */
     public function index(Request $request)
@@ -49,7 +33,7 @@ class LecturaController extends Controller
         $query->when($request->input('search'), function ($q, $search) {
             $q->whereHas('conexion', function ($conexionQuery) use ($search) {
                 $conexionQuery->where('codigo_medidor', 'like', "%{$search}%")
-                    ->orWhereHas('afiliado', function ($afiliadoQuery) use ($search) { // Corregido a 'afiliado'
+                    ->orWhereHas('afiliado', function ($afiliadoQuery) use ($search) { 
                         $afiliadoQuery->where('ci', 'like', "%{$search}%")
                                       ->orWhere('nombre_completo', 'like', "%{$search}%");
                     });
@@ -68,7 +52,7 @@ class LecturaController extends Controller
             $q->where('estado', $estado);
         });
         
-        // ¡NUEVO! Filtro por Zona
+        // Filtro por Zona
         $query->when($request->input('zona_id'), function ($q, $zonaId) {
              $q->whereHas('conexion', function ($conQuery) use ($zonaId) {
                  $conQuery->where('zona_id', $zonaId);
@@ -82,24 +66,23 @@ class LecturaController extends Controller
         return Inertia::render('Lecturas/Index', [
             'lecturas' => $query->orderBy('fecha_lectura', 'desc')
                                 ->orderBy('id', 'desc')
-                                ->paginate(15) // ¡PAGINADO!
+                                ->paginate(10) // ¡PAGINADO!
                                 ->withQueryString(),
-            'filters' => $request->only(['search', 'periodo', 'estado', 'zona_id']), // Añadido 'zona_id'
+            'filters' => $request->only(['search', 'periodo', 'estado', 'zona_id']), 
             'periodos' => $periodos,
-            'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']), // <-- ¡AÑADIDO! Enviar zonas al Index
+            'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']), 
         ]);
     }
 
     /**
      * Muestra el formulario para crear una nueva lectura.
-     * (¡CORREGIDO!)
      */
     public function create()
     {
         $periodoActual = Carbon::now()->format('Y-m');
         $ultimoPeriodoRegistrado = Lectura::max('periodo') ?? $periodoActual;
         
-        // ¡CORREGIDO! Solo obtenemos las zonas de la tabla 'zonas'
+        // Solo obtenemos las zonas de la tabla 'zonas'
         $zonas = Zona::orderBy('nombre')->get(['id', 'nombre']);
 
         return Inertia::render('Lecturas/Create', [
@@ -108,13 +91,12 @@ class LecturaController extends Controller
             'apiUrlTarifaActiva' => route('api.tarifas.activa'),
             'periodoActual' => $periodoActual,
             'ultimoPeriodoRegistrado' => $ultimoPeriodoRegistrado,
-            'zonas' => $zonas, // Pasamos las zonas para el filtro de pendientes
+            'zonas' => $zonas, 
         ]);
     }
 
     /**
      * Guarda una nueva lectura en la base de datos.
-     * (Tu lógica de 'store' ya era profesional y está correcta)
      */
     public function store(Request $request)
     {
@@ -201,8 +183,8 @@ class LecturaController extends Controller
     public function edit($id)
     {
          $lectura = Lectura::with([
-                         'conexion.afiliado', // ¡Corregido!
-                         'conexion.zona'      // ¡Añadido!
+                         'conexion.afiliado', 
+                         'conexion.zona'     
                      ])->findOrFail($id);
 
          if ($lectura->estado !== 'pendiente') {
@@ -212,7 +194,7 @@ class LecturaController extends Controller
     
          return Inertia::render('Lecturas/Edit', [
              'lectura' => $lectura, 
-             // No necesitamos pasar 'conexiones' ni 'afiliados'
+            
          ]);
     }
 
@@ -280,7 +262,7 @@ class LecturaController extends Controller
     // --- APIs --- 
 
     /**
-     * API: Busca conexiones (¡Corregido para 'afiliado' y 'zona_nombre')
+     * API: Busca conexiones 
      */
     public function apiSearchConexiones(Request $request) 
     {
@@ -325,12 +307,12 @@ class LecturaController extends Controller
     }
 
     /**
-     * API: Devuelve conexiones pendientes (¡Corregido para 'zona_id')
+     * API: Devuelve conexiones pendientes 
      */
     public function apiGetPendientes(Request $request)
     {
         $periodo = $request->input('periodo', Carbon::now()->format('Y-m'));
-        $zonaId = $request->input('zona_id'); // <-- ¡Cambiado a zona_id!
+        $zonaId = $request->input('zona_id'); 
 
         if (!preg_match('/^\d{4}-\d{2}$/', $periodo)) {
             return response()->json(['error' => 'Formato de período inválido. Use YYYY-MM.'], 400);
@@ -343,16 +325,16 @@ class LecturaController extends Controller
 
             $query = Conexion::with([
                 'afiliado:id,nombre_completo,ci,adulto_mayor',
-                'zona:id,nombre' // ¡Añadido!
+                'zona:id,nombre' 
             ])
                 ->where('estado', 'activo') 
                 ->whereNotIn('id', $conexionesConLectura);
 
-            // --- ¡CORRECCIÓN! Filtrar por la nueva columna 'zona_id'
+            //  Filtrar por la nueva columna 'zona_id'
             $query->when($zonaId, function ($q, $zonaId) {
                 $q->where('zona_id', $zonaId);
             });
-            // --- FIN CORRECCIÓN ---
+          
 
             $pendientes = $query->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion')
                                 ->orderBy('zona_id')->orderBy('direccion')->get();
@@ -365,7 +347,7 @@ class LecturaController extends Controller
                      'id' => $conexion->id,
                      'codigo_medidor' => $conexion->codigo_medidor,
                      'direccion' => $conexion->direccion,
-                     'zona_nombre' => $conexion->zona?->nombre, // ¡Añadido!
+                     'zona_nombre' => $conexion->zona?->nombre, 
                      'afiliado_nombre' => $conexion->afiliado?->nombre_completo ?? 'N/A',
                      'afiliado_ci' => $conexion->afiliado?->ci ?? 'N/A',
                      'afiliado_adulto_mayor' => $conexion->afiliado?->adulto_mayor ?? false,
@@ -384,7 +366,6 @@ class LecturaController extends Controller
 
     /**
      * API: Devuelve los detalles de la tarifa activa.
-     * (Tu código original está perfecto)
      */
     public function apiGetTarifaActiva(Request $request)
     {
@@ -420,18 +401,17 @@ class LecturaController extends Controller
     
     /**
      * Muestra la vista simple para el Aviso de Cobranza (para imprimir).
-     * (Tu código original está perfecto, solo aseguramos 'afiliado')
      */
     public function showAviso($id) 
     {
         $lectura = Lectura::with([
                         'conexion.afiliado', 
-                        'conexion',                 // aseguramos tener la conexión completa
+                        'conexion',                 
                         'usuarioRegistrado:id,name'
                     ])->findOrFail($id);
         
         // 1) Tomar el tipo de conexión de la lectura
-        $tipo = $lectura->conexion->tipo_conexion; // domiciliaria / comercial / institucional / etc.
+        $tipo = $lectura->conexion->tipo_conexion; 
 
         // 2) Buscar la tarifa ACTIVA para ese tipo
         $tarifa = Tarifa::where('activo', 1)
@@ -447,21 +427,21 @@ class LecturaController extends Controller
         $consumo = $lectura->lectura_actual - $lectura->lectura_anterior;
         $montoCalculado = 0;
 
-        // 4) Regla de cálculo (igual que antes)
+        // 4) Regla de cálculo 
         if ($consumo <= $tarifa->min_m3 && $tarifa->min_monto > ($consumo * $tarifa->precio_m3) ) {
             $montoCalculado = $tarifa->min_monto;
         } else {
             $montoCalculado = $consumo * $tarifa->precio_m3;
         }
 
-        // 5) Descuento adulto mayor (igual que antes)
+        // 5) Descuento adulto mayor 
         $descuento = 0;
         if ($lectura->conexion->afiliado?->adulto_mayor && $tarifa->descuento_adulto_mayor_pct > 0) {
             $descuento = ($montoCalculado * $tarifa->descuento_adulto_mayor_pct) / 100;
         }
         $montoEstimado = $montoCalculado - $descuento;
 
-        // 6) Mandar todo al Blade (tus nombres siguen igual)
+        // 6) Mandar todo al Blade 
         return View::make('avisos.cobranza', [ 
             'lectura' => $lectura,
             'tarifa' => $tarifa,

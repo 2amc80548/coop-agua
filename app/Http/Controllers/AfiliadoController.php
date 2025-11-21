@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-// --- Imports necesarios ---
 use App\Models\Afiliado;
 use App\Models\User;
 use App\Models\Zona;
@@ -43,7 +42,7 @@ $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
 
         
         return Inertia::render('Afiliados/Index', [
-            'afiliados' => $query->orderBy('nombre_completo')->paginate(15)->withQueryString(),
+            'afiliados' => $query->orderBy('nombre_completo')->paginate(10)->withQueryString(),
             'filters' => $request->only(['search', 'tipo', 'estado_servicio', 'zona_id']),
             'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']), 
         ]);
@@ -56,16 +55,16 @@ $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
     {
         return Inertia::render('Afiliados/Create', [
             'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']),
-            'requisitos' => Requisito::orderBy('nombre')->get(), // Carga todos los campos (incluye es_para_...)
+            'requisitos' => Requisito::orderBy('nombre')->get(), 
         ]);
     }
 
     /**
-     * Guarda un nuevo afiliado (¡CORREGIDO!)
+     * Guarda un nuevo afiliado 
      */
     public function store(Request $request)
     {
-        // 1. Validación (¡Actualizada!)
+        // 1. Validación 
         $validated = $request->validate([
             'nombre_completo'  => ['required','string','max:255'],
             'ci'               => ['required','string','max:50', Rule::unique('afiliados')],
@@ -127,7 +126,7 @@ $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
                     $afiliado->requisitos()->attach($requisitosConData);
                 }
                 
-                // (Lógica de crear usuario eliminada)
+              
                 
                 return $afiliado;
             });
@@ -172,7 +171,7 @@ $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
     }
 
     /**
-     * Actualiza un afiliado (¡CORREGIDO!)
+     * Actualiza un afiliado 
      */
     public function update(Request $request, Afiliado $afiliado)
     {
@@ -194,7 +193,7 @@ $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
              }
         }
 
-        // 3. Validación (¡Actualizada!)
+        // 3. Validación 
         $validated = $request->validate([
             'nombre_completo'  => ['required','string','max:255'],
             'ci'               => $reglasCi,
@@ -296,7 +295,7 @@ $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
     }
 
     /**
-     * API para buscar afiliados por CI (usada en Conexiones/Create).
+     * API para buscar afiliados por CI 
      */
     public function buscarPorCI($ci)
     {

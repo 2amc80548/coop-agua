@@ -22,7 +22,6 @@ class Lectura extends Model
         'estado',
     ];
 
-    // --- CASTS  ---
     // Ayuda a Laravel a tratar estos campos correctamente
     protected $casts = [
         'fecha_lectura' => 'date:Y-m-d', 

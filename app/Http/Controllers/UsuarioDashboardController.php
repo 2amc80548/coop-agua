@@ -3,12 +3,12 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // Para saber qué usuario está logueado
+use Illuminate\Support\Facades\Auth; 
 use Inertia\Inertia;
-use App\Models\Afiliado; // Para buscar al afiliado
-use App\Models\Factura;  // Para calcular deudas
-use App\Models\Lectura;  // Para ver el último consumo
-use Illuminate\Support\Facades\Log; // Para registrar errores
+use App\Models\Afiliado; 
+use App\Models\Factura;  
+use App\Models\Lectura;  
+use Illuminate\Support\Facades\Log;
 
 class UsuarioDashboardController extends Controller
 {
@@ -26,7 +26,7 @@ class UsuarioDashboardController extends Controller
             if (!$user->afiliado_id) {
                 Log::warning("Usuario {$user->id} ({$user->email}) intentó acceder al dashboard sin afiliado_id.");
                 return Inertia::render('Dashboard/Usuario', [
-                    'summary' => null, // Enviar null para que la vista muestre el error
+                    'summary' => null, 
                     'error' => 'Tu cuenta de usuario no está vinculada a un perfil de Afiliado. Por favor, contacta con la cooperativa.'
                 ]);
             }
@@ -46,10 +46,8 @@ class UsuarioDashboardController extends Controller
             $conexionIds = $afiliado->conexiones()->pluck('id');
 
             // 4. Calcular Resumen de Deudas (usando las columnas que creamos)
-            //    Buscamos facturas donde la conexión esté en $conexionIds Y el estado sea 'impaga'
             $queryDeuda = Factura::whereIn('conexion_id', $conexionIds)
-                                 ->where('estado', 'impaga'); // ¡Tu estado!
-
+                                 ->where('estado', 'impaga'); 
             // Usamos 'deuda_pendiente' para un cálculo súper rápido
             $deudaTotal = $queryDeuda->sum('deuda_pendiente'); 
             $facturasPendientesCount = $queryDeuda->count();
@@ -59,7 +57,7 @@ class UsuarioDashboardController extends Controller
             $ultimoPeriodo = 'N/A';
             
             $ultimaLectura = Lectura::whereIn('conexion_id', $conexionIds)
-                                    ->orderBy('periodo', 'desc') // Ordenar por el período más reciente
+                                    ->orderBy('periodo', 'desc') 
                                     ->first();
 
             if ($ultimaLectura) {
@@ -72,13 +70,13 @@ class UsuarioDashboardController extends Controller
                 'summary' => [
                     'afiliado_nombre' => $afiliado->nombre_completo,
                     'afiliado_codigo' => $afiliado->codigo,
-                    'estado_servicio' => $afiliado->estado_servicio, // 'activo', 'en_corte', 'cortado'
+                    'estado_servicio' => $afiliado->estado_servicio, 
                     'deuda_total' => (float) $deudaTotal,
                     'facturas_pendientes_count' => $facturasPendientesCount,
                     'ultimo_consumo_m3' => (float) $ultimoConsumo,
                     'ultimo_periodo' => $ultimoPeriodo,
                 ],
-                'error' => null // No hay error
+                'error' => null 
             ]);
 
         } catch (\Exception $e) {

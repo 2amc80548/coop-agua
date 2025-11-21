@@ -15,11 +15,11 @@ use Carbon\Carbon;
 
 class AdminDashboardController extends Controller
 {
-    public function __construct()
-    {
-        // Solo Admin / Secretaria pueden ver este dashboard
-        $this->middleware('role:Administrador|Secretaria');
-    }
+    // public function __construct()
+    // {
+    //     // Solo Admin / Secretaria pueden ver este dashboard
+    //     $this->middleware('role:Administrador|Secretaria');
+    // }
 
     public function index()
     {
@@ -155,9 +155,9 @@ $topDeudores = Afiliado::select(
     ->join('conexiones', 'conexiones.afiliado_id', '=', 'afiliados.id')
     ->join('facturas', 'facturas.conexion_id', '=', 'conexiones.id')
     ->whereBetween('facturas.fecha_emision', [$inicioMes, $finMes])
-    ->where('facturas.estado', 'impaga') // importante: string 'impaga'
+    ->where('facturas.estado', 'impaga') 
     ->groupBy('afiliados.id', 'afiliados.nombre_completo')
-    // ⬇️ AQUÍ EL CAMBIO: usar la expresión original en el HAVING
+
     ->havingRaw('SUM(facturas.deuda_pendiente) > 0')
     ->orderByDesc('deuda_total')
     ->limit(10)
@@ -195,7 +195,6 @@ $topPuntuales = Afiliado::select(
     ->join('facturas', 'facturas.conexion_id', '=', 'conexiones.id')
     ->whereBetween('facturas.fecha_emision', [$inicioMes, $finMes])
     ->groupBy('afiliados.id', 'afiliados.nombre_completo')
-    // ⬇️ AQUÍ EL CAMBIO: no usar alias total_facturas
     ->havingRaw('COUNT(facturas.id) >= 3')
     ->orderByDesc('porcentaje_puntualidad')
     ->orderByDesc('pagos_puntuales')

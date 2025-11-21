@@ -19,7 +19,7 @@ class TarifaConceptoController extends Controller
             'activo'        => ['required','boolean'],
         ]);
 
-        // Evitar duplicados por (tarifa, codigo)
+        // Evitar duplicados tarifa, codigo)
         if (TarifaConcepto::where('tarifa_id', $tarifa->id)->where('codigo', $data['codigo'])->exists()) {
             return back()->withErrors('Ya existe un concepto con ese código en esta tarifa.');
         }

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 use Laravel\Jetstream\Jetstream;
-use Spatie\Permission\Models\Role; // <-- ¡IMPORTANTE! Importa el modelo Role
+use Spatie\Permission\Models\Role; 
 
 class CreateNewUser implements CreatesNewUsers
 {
@@ -20,7 +20,7 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
-        // 1. Validación (sin 'ci')
+        // 1. Validación 
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
@@ -33,15 +33,13 @@ class CreateNewUser implements CreatesNewUsers
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
-            'afiliado_id' => null, // <-- ¡Importante! Se crea sin afiliado
+            'afiliado_id' => null, 
         ]);
 
         // 3. Asignar Rol "Usuario" por Defecto (¡Tu lógica!)
         try {
-            $user->assignRole('Usuario'); // Asigna el rol por defecto
+            $user->assignRole('Usuario'); 
         } catch (\Exception $e) {
-            // Manejar error si el rol "Usuario" no existe en la BD
-            // (En un sistema en producción, esto debería registrar un log)
         }
 
         return $user;

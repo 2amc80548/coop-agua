@@ -405,84 +405,84 @@ const logout = () => {
                         </button>
 
 
-<div class="flex-1 flex items-center justify-between px-4 md:px-6 relative z-50">
+                    <div class="flex-1 flex items-center justify-between px-4 md:px-6 relative z-50">
 
-    <div
-        class="relative max-w-sm w-full transition-all duration-300"
-        :class="{
-            'ml-20 md:ml-64': !isSidebarHidden,
-            'ml-20': isSidebarHidden
-        }"
-    >
-        <input
-            v-model="textoBusqueda"
-            @input="buscar"
-            @keydown.enter.prevent="irAlPrimero"
-            type="text"
-            placeholder="Buscar afiliado, medidor, factura..."
-            class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-shadow shadow-sm backdrop-blur-sm"
-        />
+                        <div
+                            class="relative max-w-sm w-full transition-all duration-300"
+                            :class="{
+                                'ml-20 md:ml-64': !isSidebarHidden,
+                                'ml-20': isSidebarHidden
+                            }"
+                        >
+                            <input
+                                v-model="textoBusqueda"
+                                @input="buscar"
+                                @keydown.enter.prevent="irAlPrimero"
+                                type="text"
+                                placeholder="Buscar afiliado, medidor, factura..."
+                                class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-shadow shadow-sm backdrop-blur-sm"
+                            />
 
-        <svg
-            class="absolute left-3 top-2.5 h-5 w-5 text-gray-500 pointer-events-none"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-        >
-            <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-        </svg>
+                            <svg
+                                class="absolute left-3 top-2.5 h-5 w-5 text-gray-500 pointer-events-none"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
+                            </svg>
 
-        <!-- Dropdown -->
-        <div
-            v-if="textoBusqueda.length >= 2"
-            class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50 max-h-64 overflow-y-auto"
-        >
-            <!-- Estados -->
-            <div v-if="buscadorCargando" class="px-4 py-2 text-xs text-gray-500">
-                Buscando...
-            </div>
+                            <!-- Dropdown -->
+                            <div
+                                v-if="textoBusqueda.length >= 2"
+                                class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50 max-h-64 overflow-y-auto"
+                            >
+                                <!-- Estados -->
+                                <div v-if="buscadorCargando" class="px-4 py-2 text-xs text-gray-500">
+                                    Buscando...
+                                </div>
 
-            <div
-                v-else-if="buscadorError && !resultados.length"
-                class="px-4 py-2 text-xs text-red-500"
-            >
-                {{ buscadorError }}
-            </div>
+                                <div
+                                    v-else-if="buscadorError && !resultados.length"
+                                    class="px-4 py-2 text-xs text-red-500"
+                                >
+                                    {{ buscadorError }}
+                                </div>
 
-            <!-- Resultados -->
-            <template v-else>
-                <button
-                    v-for="(r, i) in resultados"
-                    :key="i"
-                    @click="irA(r.url)"
-                    class="w-full text-left px-4 py-2.5 hover:bg-cyan-50 dark:hover:bg-gray-700 text-sm flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-0"
-                >
-                    <span class="text-xl">{{ r.icon }}</span>
-                    <div>
-                        <div class="font-medium">{{ r.title }}</div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400">
-                            {{ r.subtitle }}
+                                <!-- Resultados -->
+                                <template v-else>
+                                    <button
+                                        v-for="(r, i) in resultados"
+                                        :key="i"
+                                        @click="irA(r.url)"
+                                        class="w-full text-left px-4 py-2.5 hover:bg-cyan-50 dark:hover:bg-gray-700 text-sm flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-0"
+                                    >
+                                        <span class="text-xl">{{ r.icon }}</span>
+                                        <div>
+                                            <div class="font-medium">{{ r.title }}</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                                {{ r.subtitle }}
+                                            </div>
+                                        </div>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="hidden md:block text-right pr-4">
+                            <div class="font-bold text-cyan-700 dark:text-cyan-300 text-sm">
+                                Asociación de Beneficiarios de Agua Cabezas
+                            </div>
+                            <div class="text-xs text-cyan-600 dark:text-cyan-400 mt-1">
+                                {{ currentTime }}
+                            </div>
                         </div>
                     </div>
-                </button>
-            </template>
-        </div>
-    </div>
-
-    <div class="hidden md:block text-right pr-4">
-        <div class="font-bold text-cyan-700 dark:text-cyan-300 text-sm">
-            Asociación de Beneficiarios de Agua Cabezas
-        </div>
-        <div class="text-xs text-cyan-600 dark:text-cyan-400 mt-1">
-            {{ currentTime }}
-        </div>
-    </div>
-</div>
 
 
 

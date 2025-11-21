@@ -19,7 +19,7 @@ class FacturacionController extends Controller
      */
     public function showGenerador(Request $request)
     {
-        // 1. Determinar el período a mostrar (Se eliminó la verificación de tarifa global)
+        // 1. Determinar el período a mostrar 
         $filtroPeriodo = $request->input('periodo');
         
         $queryPeriodos = Lectura::where('estado', 'pendiente')
@@ -27,7 +27,7 @@ class FacturacionController extends Controller
             ->orderBy('periodo', 'desc');
 
         if (!$filtroPeriodo) {
-            $filtroPeriodo = $queryPeriodos->first()?->periodo; // Tomar el más reciente pendiente
+            $filtroPeriodo = $queryPeriodos->first()?->periodo; 
         }
         
         // Obtener todos los períodos que tienen lecturas pendientes para el dropdown
@@ -37,15 +37,15 @@ class FacturacionController extends Controller
         $lecturasPendientes = [];
         if ($filtroPeriodo) {
             $lecturasPendientes = Lectura::with([
-                'conexion:id,codigo_medidor,afiliado_id,direccion,tipo_conexion', // Se agrega tipo_conexion para la tarifa
-                'conexion.afiliado:id,nombre_completo,ci,adulto_mayor' // Cargar afiliado y estado de adulto_mayor
+                'conexion:id,codigo_medidor,afiliado_id,direccion,tipo_conexion', 
+                'conexion.afiliado:id,nombre_completo,ci,adulto_mayor' 
             ])
             ->where('estado', 'pendiente')
             ->where('periodo', $filtroPeriodo)
             ->get()
             ->map(function ($lectura) {
                 
-                // 3. OBTENER LA TARIFA ESPECÍFICA (CORRECCIÓN CLAVE)
+                // 3. OBTENER LA TARIFA ESPECÍFICA 
                 $tarifa = $this->getTarifaForLectura($lectura);
 
                 // Manejo de error si no se encuentra la tarifa
@@ -67,7 +67,7 @@ class FacturacionController extends Controller
             });
         }
 
-        // 5. Enviar los datos a la vista Vue (Se eliminó la info de tarifa global)
+        // 5. Enviar los datos a la vista Vue 
         return Inertia::render('Facturacion/Generar', [
             'lecturasPendientes' => $lecturasPendientes,
             'periodosDisponibles' => $periodosDisponibles,
@@ -83,15 +83,13 @@ class FacturacionController extends Controller
         // 1. Validar que recibimos los IDs de las lecturas
         $validated = $request->validate([
             'lectura_ids' => 'required|array|min:1',
-            'lectura_ids.*' => 'integer|exists:lecturas,id', // Asegurar que cada ID exista
+            'lectura_ids.*' => 'integer|exists:lecturas,id', 
         ]);
-
-        // 2. [SE ELIMINÓ la llamada a getTarifaForLectura($lectura) y la verificación fallida de $tarifaActiva]
 
         $lecturaIds = $validated['lectura_ids'];
         $generadasCount = 0;
         $erroresCount = 0;
-        $erroresDetalle = []; // Usamos este array para mejor log
+        $erroresDetalle = []; 
 
         // 3. Usar una transacción de Base de Datos
         try {
@@ -147,7 +145,7 @@ class FacturacionController extends Controller
                         throw $e; 
                     }
                 }
-            }); // Fin de la transacción
+            }); 
 
         } catch (\Exception $e) {
             // Capturar el error que forzó el Rollback
@@ -185,8 +183,7 @@ class FacturacionController extends Controller
 
 
     /**
-     * Obtiene la tarifa activa de la base de datos específica para una conexión.
-     * ESTA ES LA FUNCIÓN CORRECTA PARA FACTURAR POR TIPO DE CONEXIÓN.
+
      * @param Lectura $lectura
      * @return Tarifa|null
      */
@@ -195,7 +192,7 @@ class FacturacionController extends Controller
         $tipo = $lectura->conexion->tipo_conexion;
         
         return Tarifa::where('activo', 1)
-            ->where('tipo_conexion', $tipo) // Filtra por el tipo de conexión.
+            ->where('tipo_conexion', $tipo) 
             ->orderBy('vigente_desde', 'desc')
             ->first();
     }
@@ -238,8 +235,8 @@ class FacturacionController extends Controller
             'consumo' => $consumo,
             'monto_base' => $montoCalculado,
             'descuento' => $descuento,
-            'total' => round(($totalFinal >= 0) ? $totalFinal : 0, 2), // Asegurar no negativo y redondear
+            'total' => round(($totalFinal >= 0) ? $totalFinal : 0, 2), 
         ];
     }
 
-} // Fin de la clase
+} 

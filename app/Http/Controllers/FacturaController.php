@@ -22,14 +22,14 @@ class FacturaController extends Controller
 
 
     /**
-     * 1. Muestra la lista PROFESIONAL de facturas.
+     * 1. Muestra la lista  de facturas.
      * Con filtros, paginación y búsqueda.
      */
     public function index(Request $request)
     {
         $query = Factura::with([
             'conexion:id,codigo_medidor,afiliado_id',
-            'conexion.afiliado:id,nombre_completo,ci' // ¡Asegúrate que la relación sea 'afiliado'!
+            'conexion.afiliado:id,nombre_completo,ci' 
         ]);
 
         // --- Filtros ---
@@ -38,7 +38,7 @@ class FacturaController extends Controller
             $q->where('id', 'like', "%{$search}%")
               ->orWhereHas('conexion', function ($conQuery) use ($search) {
                   $conQuery->where('codigo_medidor', 'like', "%{$search}%")
-                           ->orWhereHas('afiliado', function ($afilQuery) use ($search) { // ¡'afiliado'!
+                           ->orWhereHas('afiliado', function ($afilQuery) use ($search) { 
                                $afilQuery->where('ci', 'like', "%{$search}%")
                                          ->orWhere('nombre_completo', 'like', "%{$search}%");
                            });
@@ -75,9 +75,9 @@ class FacturaController extends Controller
         return Inertia::render('Facturas/Index', [
             'facturas' => $query->orderBy('fecha_emision', 'desc')
                                 ->orderBy('id', 'desc')
-                                ->paginate(20) // ¡¡AQUÍ ESTÁ LA PAGINACIÓN!!
-                                ->withQueryString(), // Mantiene filtros en URL
-            'filters' => [ // Devolver filtros al frontend
+                                ->paginate(10) //  PAGINACIÓN
+                                ->withQueryString(), 
+            'filters' => [ 
                 'search' => $request->input('search'),
                 'periodo' => $request->input('periodo'),
                 'estado' => $estadoFiltro,
@@ -111,7 +111,7 @@ class FacturaController extends Controller
         $totalPagado = $factura->pagos->sum('monto_pagado');
         $saldo = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado); 
 
-        return Inertia::render('Facturas/Show', [ // ¡Asegúrate que esta vista exista!
+        return Inertia::render('Facturas/Show', [ 
             'factura' => $factura,
             'totalPagado' => $totalPagado,
             'saldoPendiente' => max(0, $saldo),
@@ -119,7 +119,7 @@ class FacturaController extends Controller
     }
 
     /**
-     * 3. Anula una factura (cambia estado, NO la borra).
+     * 3. Anula una factura cambia estado, NO la borra.
      */
     public function anular(Request $request, $id)
     {
@@ -156,8 +156,6 @@ class FacturaController extends Controller
     public function updateMonto(Request $request, $id)
     {
         $factura = Factura::findOrFail($id);
-        
-        // (La autorización está en el __construct o en la ruta)
 
         if ($factura->estado !== 'impaga') { 
              return redirect()->back()->withErrors(['error_general' => 'Solo se pueden modificar facturas IMPAGAS.']);
@@ -187,11 +185,6 @@ class FacturaController extends Controller
     }
 
 
-    /**
-     * 5. Genera y descarga la factura en formato PDF.
-     */
-   // --- EN: app/Http/Controllers/FacturaController.php ---
-// (Asegúrate de tener 'use Illuminate\Support\Facades\Auth;' y 'use Illuminate\Support\Facades\View;' al inicio)
 
     /**
      * 6. Muestra las facturas SOLO para el usuario autenticado (rol Usuario).
@@ -211,7 +204,7 @@ class FacturaController extends Controller
                          ->whereHas('conexion', fn($q) => $q->where('afiliado_id', $afiliadoId));
  
         // Filtro de estado para el usuario ('impaga', 'pagado', 'todos')
-        $estadoFiltro = $request->input('estado', 'impaga'); // Mostrar impagas por defecto
+        $estadoFiltro = $request->input('estado', 'impaga'); 
         if ($estadoFiltro !== 'todos') {
             $query->where('estado', $estadoFiltro);
         }
@@ -219,7 +212,6 @@ class FacturaController extends Controller
         $periodos = Factura::whereHas('conexion', fn($q) => $q->where('afiliado_id', $afiliadoId))
                              ->select('periodo')->distinct()->orderBy('periodo','desc')->pluck('periodo');
  
-        // ¡ASEGÚRATE DE CREAR ESTA VISTA! resources/js/Pages/Usuario/MisFacturas.vue
         return Inertia::render('Usuario/MisFacturas', [ 
              'facturas' => $query->orderBy('periodo', 'desc')
                                  ->paginate(10)
@@ -231,9 +223,9 @@ class FacturaController extends Controller
     }
 
     /**
-     * Muestra la factura en HTML/Blade para imprimir (en lugar de PDF).
+     * Muestra la factura en HTML/Blade para imprimir 
      */
-    public function imprimirFactura($id) // Renombrado de 'descargarPdf'
+    public function imprimirFactura($id)
     {
          $user = Auth::user();
          $factura = Factura::with([
@@ -247,44 +239,44 @@ class FacturaController extends Controller
              abort(403, 'No tiene permiso para ver esta factura.');
          }
 
-$consumo = $factura->lectura
-    ? ($factura->lectura->lectura_actual - $factura->lectura->lectura_anterior)
-    : $factura->consumo_m3;
+        $consumo = $factura->lectura
+            ? ($factura->lectura->lectura_actual - $factura->lectura->lectura_anterior)
+            : $factura->consumo_m3;
 
-$totalPagado = $factura->pagos->sum('monto_pagado');
-$saldo = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado);
-$ultimoPago = $factura->pagos->sortByDesc('fecha_pago')->first();
+        $totalPagado = $factura->pagos->sum('monto_pagado');
+        $saldo = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado);
+        $ultimoPago = $factura->pagos->sortByDesc('fecha_pago')->first();
 
-// --- NUEVO: cálculo estimado de subtotal y descuento (solo para mostrar) ---
-$montoBase = null;
-$descuentoEstimado = 0;
-$porcentajeDescuento = 0;
+        // cálculo estimado de subtotal y descuento (solo para mostrar) ---
+        $montoBase = null;
+        $descuentoEstimado = 0;
+        $porcentajeDescuento = 0;
 
-try {
-    $tipoConexion = $factura->conexion->tipo_conexion ?? null;
+        try {
+            $tipoConexion = $factura->conexion->tipo_conexion ?? null;
 
-    if ($factura->lectura && $tipoConexion) {
-        $tarifa = Tarifa::where('activo', 1)
-            ->where('tipo_conexion', $tipoConexion)
-            ->orderBy('vigente_desde', 'desc')
-            ->first();
+            if ($factura->lectura && $tipoConexion) {
+                $tarifa = Tarifa::where('activo', 1)
+                    ->where('tipo_conexion', $tipoConexion)
+                    ->orderBy('vigente_desde', 'desc')
+                    ->first();
 
-        if ($tarifa) {
-            $calculoDirecto = $consumo * $tarifa->precio_m3;
+                if ($tarifa) {
+                    $calculoDirecto = $consumo * $tarifa->precio_m3;
 
-            if ($consumo <= $tarifa->min_m3 && $tarifa->min_monto > $calculoDirecto) {
-                $montoBase = $tarifa->min_monto;
-            } else {
-                $montoBase = $calculoDirecto;
+                    if ($consumo <= $tarifa->min_m3 && $tarifa->min_monto > $calculoDirecto) {
+                        $montoBase = $tarifa->min_monto;
+                    } else {
+                        $montoBase = $calculoDirecto;
+                    }
+
+                    $porcentajeDescuento = $tarifa->descuento_adulto_mayor_pct;
+
+                    if ($factura->conexion->afiliado?->adulto_mayor && $tarifa->descuento_adulto_mayor_pct > 0) {
+                        $descuentoEstimado = ($montoBase * $tarifa->descuento_adulto_mayor_pct) / 100;
+                    }
+                }
             }
-
-            $porcentajeDescuento = $tarifa->descuento_adulto_mayor_pct;
-
-            if ($factura->conexion->afiliado?->adulto_mayor && $tarifa->descuento_adulto_mayor_pct > 0) {
-                $descuentoEstimado = ($montoBase * $tarifa->descuento_adulto_mayor_pct) / 100;
-            }
-        }
-    }
                     } catch (\Exception $e) {
                         // Si algo falla, no rompemos la vista, solo dejamos los campos en null
                         $montoBase = null;
@@ -308,10 +300,10 @@ try {
 
     }
 
-    // --- Métodos Deshabilitados (No se usan en este flujo) ---
-    public function create() { return redirect()->route('facturacion.generar.show')->with('info', 'Las facturas se generan desde "Facturación".'); }
-    public function store(Request $request) { abort(405, 'Acción no permitida. Use el módulo de Facturación.'); }
-    public function edit($id) { abort(405, 'Acción no permitida. Use "Ver" para modificar montos o anular.'); }
-    public function update(Request $request, $id) { abort(405, 'Acción no permitida. Use "updateMonto" o "anular".'); }
-    public function destroy($id) { abort(405, 'Acción no permitida. Use "anular".'); }
+    // // --- Métodos Deshabilitados  ---
+    // public function create() { return redirect()->route('facturacion.generar.show')->with('info', 'Las facturas se generan desde "Facturación".'); }
+    // public function store(Request $request) { abort(405, 'Acción no permitida. Use el módulo de Facturación.'); }
+    // public function edit($id) { abort(405, 'Acción no permitida. Use "Ver" para modificar montos o anular.'); }
+    // public function update(Request $request, $id) { abort(405, 'Acción no permitida. Use "updateMonto" o "anular".'); }
+    // public function destroy($id) { abort(405, 'Acción no permitida. Use "anular".'); }
 }
