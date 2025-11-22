@@ -74,8 +74,8 @@ class PagoFacilService
         $paymentNumber = env('PAGO_FACIL_PREFIX', 'grupo05cc') . '_' . $factura->id . '_' . $suffix;
 
         // Validar datos del cliente
-        $emailCliente = filter_var($afiliado->email, FILTER_VALIDATE_EMAIL) ? $afiliado->email : 'sin_correo@cooperativa.bo';
-        $telefonoCliente = (!empty($afiliado->celular)) ? $afiliado->celular : '70000000';
+        $emailCliente = filter_var($afiliado->email, FILTER_VALIDATE_EMAIL) ? $afiliado->email : 'amc80548@gmail.com';
+        $telefonoCliente = (!empty($afiliado->celular)) ? $afiliado->celular : '77813839';
 
         $cuerpoSolicitud = [
             "paymentMethod" => 4, // QR BCP
@@ -92,7 +92,7 @@ class PagoFacilService
             // --- CAMBIO IMPORTANTE: URL DE CALLBACK ---
             // Aunque estés en localhost, el banco exige este campo. 
             // Ponemos una URL dummy o la tuya local, no importa, pero debe ir.
-            "callbackUrl"   => "https://tu-dominio.com/api/webhook-pago", 
+            "callbackUrl"   => "https://aguacabezas.fun/api/webhook-pago", 
             // ------------------------------------------
 
             "orderDetail"   => [
