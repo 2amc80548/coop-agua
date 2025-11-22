@@ -261,31 +261,6 @@ Route::post('/pagos/verificar-qr', [PagoController::class, 'verificarQr'])->name
              ->name('usuario.pendiente');
     });            
 
-
-    Route::get('/probar-configuracion', function () {
-    // 1. Autenticarse
-    $login = Http::withHeaders([
-        'tcTokenService' => env('PAGO_FACIL_SERVICE'),
-        'tcTokenSecret'  => env('PAGO_FACIL_SECRET')
-    ])->post(env('PAGO_FACIL_BASE_URL') . '/login');
-
-    if ($login->failed()) return "Falló el login: " . $login->body();
-    
-    $token = $login->json()['values']['accessToken'];
-
-    // 2. Preguntar qué servicios tengo habilitados
-    $servicios = Http::withHeaders([
-        'Authorization' => 'Bearer ' . $token
-    ])->post(env('PAGO_FACIL_BASE_URL') . '/list-enabled-services');
-
-    return $servicios->json();
-});
-Route::get('/buscar', [BuscadorController::class, 'buscar'])
-    ->name('buscar.global');
-
-
-
-
 });
 Route::get('/hit-view', function () {
     $file = storage_path('app/views.json');
@@ -299,5 +274,27 @@ Route::get('/hit-view', function () {
 })->name('hit-view');
 
 
+Route::get('/diagnostico-banco', function () {
+    // 1. Autenticar 
+    $login = Http::withHeaders([
+        'tcTokenService' => env('PAGO_FACIL_SERVICE'),
+        'tcTokenSecret'  => env('PAGO_FACIL_SECRET')
+    ])->post('https://masterqr.pagofacil.com.bo/api/services/v2/login');
 
+    if ($login->failed()) return "Error Login: " . $login->body();
+    
+    // Si el login falla y no devuelve values, mostramos el error completo
+    $jsonLogin = $login->json();
+    if (!isset($jsonLogin['values']['accessToken'])) {
+        return "Login rechazado por el banco: " . $login->body();
+    }
 
+    $token = $jsonLogin['values']['accessToken'];
+
+    // 2. Ver Servicios Habilitados
+    $servicios = Http::withHeaders([
+        'Authorization' => 'Bearer ' . $token
+    ])->post('https://masterqr.pagofacil.com.bo/api/services/v2/list-enabled-services');
+
+    return $servicios->json();
+});
