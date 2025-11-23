@@ -512,13 +512,31 @@ const logout = () => {
                                 </label>
                             </div>
 
-                            <!-- BOTONES DE TEMA (CHICOS Y SIMPLES) -->
-                            <div class="border-t border-cyan-100 dark:border-gray-700 py-2">
-                                <div class="px-4 text-xs font-bold text-cyan-600 dark:text-cyan-400">Estilo visual</div>
-                                <div class="flex justify-center gap-4 px-4 py-3">
-                                    <button @click="cambiarTema('tema-jovenes')" :class="temaActual === 'tema-jovenes' ? 'ring-4 ring-cyan-500' : ''" class="w-10 h-10 rounded-xl bg-cyan-500 hover:shadow-lg transition"></button>
-                                    <button @click="cambiarTema('tema-ninos')" :class="temaActual === 'tema-ninos' ? 'ring-4 ring-orange-500' : ''" class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-orange-400 hover:shadow-lg transition"></button>
-                                    <button @click="cambiarTema('tema-adultos')" :class="temaActual === 'tema-adultos' ? 'ring-4 ring-indigo-600' : ''" class="w-10 h-10 rounded-xl bg-indigo-700 hover:shadow-lg transition"></button>
+                            <!-- BOTONES DE TEMA CON TEXTO Y CHECK -->
+                            <div class="border-t border-cyan-100 dark:border-gray-700 py-3">
+                                <div class="px-4 text-xs font-bold text-cyan-600 dark:text-cyan-400 mb-2">Estilo visual</div>
+                                <div class="space-y-2 px-4">
+                                    <button @click="cambiarTema('tema-ninos')" 
+                                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-cyan-50 dark:hover:bg-gray-700 transition text-sm">
+                                        <span>Niños</span>
+                                        <svg v-if="temaActual === 'tema-ninos'" class="h-5 w-5 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                    <button @click="cambiarTema('tema-jovenes')" 
+                                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-cyan-50 dark:hover:bg-gray-700 transition text-sm">
+                                        <span>Jóvenes</span>
+                                        <svg v-if="temaActual === 'tema-jovenes'" class="h-5 w-5 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                    <button @click="cambiarTema('tema-adultos')" 
+                                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-cyan-50 dark:hover:bg-gray-700 transition text-sm">
+                                        <span>Adultos</span>
+                                        <svg v-if="temaActual === 'tema-adultos'" class="h-5 w-5 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
 

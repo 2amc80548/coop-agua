@@ -54,10 +54,10 @@ class PagoFacilService
         $paymentNumber = env('PAGO_FACIL_PREFIX', 'grupo05cc') . '_' . $factura->id . '_' . $suffix;
 
         // Datos seguros del cliente (evita error si es null)
-        $nombreCliente = substr($afiliado->nombre_completo ?? 'Cliente Generico', 0, 50);
+        $nombreCliente = substr($afiliado->nombre_completo ?? 'ANDRES MC', 0, 50);
         $ciCliente     = $afiliado->ci ?? '0';
-        $celular       = $afiliado->celular ?? '70000000';
-        $email         = (filter_var($afiliado->email ?? '', FILTER_VALIDATE_EMAIL)) ? $afiliado->email : 'sin_correo@sistema.com';
+        $celular       = $afiliado->celular ?? '77813839';
+        $email         = (filter_var($afiliado->email ?? '', FILTER_VALIDATE_EMAIL)) ? $afiliado->email : 'amc80548@gmail.com';
 
         $cuerpoSolicitud = [
             "paymentMethod" => 4,

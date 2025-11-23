@@ -304,15 +304,15 @@ class PagoController extends Controller
              ]);
         }
 
-        // Obtenemos el estado. Si no existe, asumimos 0 (Desconocido)
+        // Obtenemos el estado. Si no existe, asumimos 0 
         $estadoPago = $respuesta['values']['paymentStatus'] ?? 0;
 
         // LOGICA DE ESTADOS:
-        // 1 = Pendiente (Chat)
-        // 5 = Error/Revisión (Chat)
+        // 1 = proceso 
+        // 5 = Error/Revisión (datos no coinciden)
         // 2 = Éxito (Estándar PagoFácil al quitar el error del callback)
         
-        $esPagado = ($estadoPago == 2);
+        $esPagado = ($estadoPago == 2);//|| $estadoPago == 5
 
         if ($esPagado) {
             try {
