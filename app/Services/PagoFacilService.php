@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class PagoFacilService
@@ -13,56 +14,34 @@ class PagoFacilService
 
     public function __construct()
     {
-        $this->baseUrl = env('PAGO_FACIL_BASE_URL');
+        $this->baseUrl = env('PAGO_FACIL_BASE_URL', 'https://masterqr.pagofacil.com.bo/api/services/v2');
         $this->serviceKey = env('PAGO_FACIL_SERVICE');
         $this->secretKey = env('PAGO_FACIL_SECRET');
     }
 
-    /**
-     * PASO 1 DEL FLUJO: AUTENTICACIÓN
-     * Obtiene el "Bearer Token" temporal
-     */
-/**
-     * PASO 1 DEL FLUJO: AUTENTICACIÓN
-     * Corrección: Enviar credenciales en HEADERS, no en el body.
-     */
     private function autenticar()
     {
         try {
-            // 1. Enviar credenciales en los HEADERS como pide el PDF
             $response = Http::withHeaders([
-                'tcTokenService' => $this->serviceKey, // Credencial 1 en Header
-                'tcTokenSecret'  => $this->secretKey   // Credencial 2 en Header
-            ])->post($this->baseUrl . '/login'); // El cuerpo va vacío
+                'tcTokenService' => $this->serviceKey,
+                'tcTokenSecret'  => $this->secretKey
+            ])->post($this->baseUrl . '/login');
 
             $data = $response->json();
 
-            // 2. Verificamos si respondió éxito
-            // Según el PDF, el éxito devuelve error: 0 y status: 1
             if ($response->successful() && isset($data['values']['accessToken'])) {
-                return $data['values']['accessToken']; 
+                return $data['values']['accessToken'];
             }
 
-            // Si falla, guardamos el error en el log para que sepas qué pasó
-            \Illuminate\Support\Facades\Log::error('Error Auth PagoFácil:', $data ?? []);
-            
-            throw new Exception("El banco rechazó la conexión. Mensaje: " . ($data['message'] ?? 'Desconocido'));
+            Log::error('Error Auth PagoFácil:', $data ?? []);
+            return null;
 
         } catch (Exception $e) {
-            \Illuminate\Support\Facades\Log::error("Error Guzzle: " . $e->getMessage());
+            Log::error("Error conexión Auth: " . $e->getMessage());
             return null;
         }
     }
 
-    /**
-     * PASO 2 DEL FLUJO: GENERAR QR
-     */
-    /**
-     * PASO 2 DEL FLUJO: GENERAR QR (CORREGIDO Y MEJORADO)
-     */
-  /**
-     * PASO 2 DEL FLUJO: GENERAR QR (CORREGIDO CAMPO FALTANTE)
-     */
     public function generarQR($factura, $afiliado)
     {
         $token = $this->autenticar();
@@ -70,35 +49,35 @@ class PagoFacilService
             return ['success' => false, 'message' => 'No se pudo autenticar con el banco.'];
         }
 
-        $suffix = uniqid(); 
+        // Generar ID único
+        $suffix = uniqid();
         $paymentNumber = env('PAGO_FACIL_PREFIX', 'grupo05cc') . '_' . $factura->id . '_' . $suffix;
 
-        // Validar datos del cliente
-        $emailCliente = filter_var($afiliado->email, FILTER_VALIDATE_EMAIL) ? $afiliado->email : 'amc80548@gmail.com';
-        $telefonoCliente = (!empty($afiliado->celular)) ? $afiliado->celular : '77813839';
+        // Datos seguros del cliente (evita error si es null)
+        $nombreCliente = substr($afiliado->nombre_completo ?? 'Cliente Generico', 0, 50);
+        $ciCliente     = $afiliado->ci ?? '0';
+        $celular       = $afiliado->celular ?? '70000000';
+        $email         = (filter_var($afiliado->email ?? '', FILTER_VALIDATE_EMAIL)) ? $afiliado->email : 'sin_correo@sistema.com';
 
         $cuerpoSolicitud = [
-            "paymentMethod" => 4, // QR BCP
-            "clientName"    => substr($afiliado->nombre_completo ?? 'Cliente Generico', 0, 50),
-            "documentType"  => 1, // CI
-            "documentId"    => $afiliado->ci ?? '0', 
-            "phoneNumber"   => $telefonoCliente,
-            "email"         => $emailCliente, 
-            "paymentNumber" => $paymentNumber, 
-            "amount"        => (float)number_format($factura->deuda_pendiente, 2, '.', ''), 
-            "currency"      => 2, // 2 = BOB (Confirmado por tu log anterior)
+            "paymentMethod" => 4,
+            "clientName"    => $nombreCliente,
+            "documentType"  => 1,
+            "documentId"    => $ciCliente,
+            "phoneNumber"   => $celular,
+            "email"         => $email,
+            "paymentNumber" => $paymentNumber,
+            "amount"        => (float)number_format($factura->deuda_pendiente, 2, '.', ''),
+            "currency"      => 2,
             "clientCode"    => (string)$afiliado->id,
-            
-            // --- CAMBIO IMPORTANTE: URL DE CALLBACK ---
-            // Aunque estés en localhost, el banco exige este campo. 
-            // Ponemos una URL dummy o la tuya local, no importa, pero debe ir.
+
             "callbackUrl"   => "https://aguacabezas.fun/api/webhook-pago", 
-            // ------------------------------------------
+
 
             "orderDetail"   => [
                 [
                     "serial" => 1,
-                    "product" => "Pago Agua F-" . $factura->id,
+                    "product" => "Servicio F-" . $factura->id,
                     "quantity" => 1,
                     "price" => (float)number_format($factura->deuda_pendiente, 2, '.', ''),
                     "discount" => 0,
@@ -108,14 +87,13 @@ class PagoFacilService
         ];
 
         try {
-            $response = Http::timeout(15)->withHeaders([
+            $response = Http::timeout(20)->withHeaders([
                 'Authorization' => 'Bearer ' . $token
             ])->post($this->baseUrl . '/generate-qr', $cuerpoSolicitud);
 
             $resultado = $response->json();
 
-            \Illuminate\Support\Facades\Log::info('Intento QR V2:', ['envio' => $cuerpoSolicitud, 'respuesta' => $resultado]);
-
+            // Verificación estricta basada en PDF
             if ($response->successful() && ($resultado['error'] ?? 1) === 0) {
                 return [
                     'success' => true,
@@ -124,56 +102,108 @@ class PagoFacilService
                     'transaccion_id' => $resultado['values']['transactionId'] ?? null
                 ];
             } else {
-                $mensajeError = $resultado['message'] ?? 'Error desconocido';
                 return [
-                    'success' => false, 
-                    'message' => "El banco respondió: " . $mensajeError
+                    'success' => false,
+                    'message' => $resultado['message'] ?? 'Error desconocido al generar QR'
                 ];
             }
 
         } catch (Exception $e) {
-            return ['success' => false, 'message' => 'Error interno: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Excepción: ' . $e->getMessage()];
         }
     }
 
-    /**
-
-     * PASO 3: CONSULTAR ESTADO (Polling) - CON LOGS
-     */
-    /**
-     * PASO 3: CONSULTAR ESTADO (CORREGIDO)
-     */
-    /**
-     * PASO 3: CONSULTAR ESTADO (VERSIÓN FINAL SEGURA)
-     */
-   public function consultarTransaccion($paymentNumber)
+    public function consultarTransaccion($paymentNumber)
     {
         $token = $this->autenticar();
-        if (!$token) return ['error' => true, 'message' => 'No auth'];
+        if (!$token) return ['error' => true, 'message' => 'Fallo auth en consulta'];
 
         try {
-            // Preparamos la petición con un tiempo de espera razonable
             $http = Http::timeout(30)->withHeaders([
                 'Authorization' => 'Bearer ' . $token
             ]);
 
-            // EL TRUCO DE VELOCIDAD:
-            // Si estás en tu PC (local), desactivamos la verificación SSL.
-            // Esto hace que la respuesta baje de 10s a 0.5s.
-            // En producción (servidor real), esto se ignora automáticamente.
             if (app()->isLocal()) {
                 $http->withoutVerifying();
             }
 
+            // OJO: PDF Pag 9 dice "company TransactionId" con espacio, pero probamos sin espacio primero.
+            // Si falla, intentamos enviar solo paymentNumber que es lo que usa el ejemplo del chat.
             $response = $http->post($this->baseUrl . '/query-transaction', [
-                'paymentNumber' => $paymentNumber,       
-                'companyTransactionId' => $paymentNumber 
+                'paymentNumber' => $paymentNumber
             ]);
 
             return $response->json();
 
         } catch (Exception $e) {
             return ['error' => true, 'message' => $e->getMessage()];
+        }
+    }
+
+
+    public function callbackPagoFacil(Request $request)
+    {
+        try {
+            
+            $datos = $request->all();
+            $paymentNumber = $datos['PedidoID'] ?? null; 
+            $estado = $datos['Estado'] ?? null; 
+
+            // Log para depurar si llega la petición
+            Log::info('Webhook PagoFácil recibido:', $datos);
+
+            if ($paymentNumber) {
+                $partes = explode('_', $paymentNumber);
+                $facturaId = $partes[1] ?? null;
+
+                if ($facturaId) {
+               
+                    DB::transaction(function () use ($facturaId, $paymentNumber) {
+                        // Verificar si ya se pagó para no duplicar
+                        if (Pago::where('referencia', $paymentNumber)->exists()) return;
+
+                        $factura = Factura::lockForUpdate()->find($facturaId);
+
+                        // Si la factura existe y sigue impaga, la pagamos
+                        if ($factura && $factura->estado === 'impaga') {
+                            Pago::create([
+                                'factura_id'     => $factura->id,
+                                'monto_pagado'   => $factura->deuda_pendiente,
+                                'fecha_pago'     => Carbon::now(),
+                                'forma_pago'     => 'QR (Webhook)',
+                                'referencia'     => $paymentNumber,
+                                'registrado_por' => 1, // Usuario sistema
+                            ]);
+
+                            $factura->update([
+                                'estado'          => 'pagado',
+                                'deuda_pendiente' => 0,
+                                'fecha_pago'      => Carbon::now()
+                            ]);
+                        }
+                    });
+                }
+            }
+
+            // 2. RESPUESTA OBLIGATORIA PARA PAGO FÁCIL 
+            // Si no devuelves esto, ellos creen que falló y te ponen en Estado 5
+            return response()->json([
+                "error" => 0,
+                "status" => 1,
+                "message" => "Pago recibido correctamente",
+                "values" => true
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error en Webhook: ' . $e->getMessage());
+            // Aun si falla internamente, es mejor decirles que recibimos el mensaje
+            // para que dejen de insistir.
+            return response()->json([
+                "error" => 1,
+                "status" => 0,
+                "message" => "Error interno: " . $e->getMessage(),
+                "values" => false
+            ]);
         }
     }
 }

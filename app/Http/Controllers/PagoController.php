@@ -262,21 +262,22 @@ class PagoController extends Controller
     {
         $request->validate(['factura_id' => 'required|exists:facturas,id']);
         
+        // Cargar relaciones necesarias (conexion, afiliado)
         $factura = Factura::with('conexion.afiliado')->findOrFail($request->factura_id);
 
-        // Validar que no esté pagada
         if ($factura->estado !== 'impaga') {
-            return response()->json(['status' => 'error', 'message' => 'La factura ya está pagada o anulada.']);
+            return response()->json(['status' => 'error', 'message' => 'Factura ya pagada.']);
         }
 
-        // Usamos el servicio que inyectamos
-        $resultado = $this->pagoService->generarQR($factura, $factura->conexion->afiliado);
+        $afiliado = $factura->conexion->afiliado; // Asegurar que esto no sea null
+
+        $resultado = $this->pagoService->generarQR($factura, $afiliado);
 
         if ($resultado['success']) {
             return response()->json([
                 'status' => 'ok',
-                'qr_image' => $resultado['qr_image'],      // La imagen Base64
-                'payment_number' => $resultado['payment_number'], // El ID "grupo05cc_..."
+                'qr_image' => $resultado['qr_image'],
+                'payment_number' => $resultado['payment_number'],
                 'monto' => $factura->deuda_pendiente
             ]);
         } else {
@@ -284,62 +285,59 @@ class PagoController extends Controller
         }
     }
 
-    /**
-     * Verifica si el cliente ya pagó desde su celular
-     * Se llama cada 5 segundos desde el navegador
-     */
     public function verificarQr(Request $request)
     {
-        $paymentNumber = $request->payment_number; // Recibimos "grupo05cc_123"
+        $paymentNumber = $request->payment_number;
+        if (!$paymentNumber) {
+            return response()->json(['status' => 'error', 'message' => 'Falta payment_number']);
+        }
 
-        // 1. Consultar al Banco (Pago Fácil)
+        // 1. Consultar al Banco
         $respuesta = $this->pagoService->consultarTransaccion($paymentNumber);
 
-        // NOTA: Según tu PDF, debes revisar qué devuelve exactamente 'paymentStatus'.
-        // Asumiremos que devuelve un string o número indicando éxito.
-        // Si tienes dudas, usa: Log::info($respuesta); para ver qué llega.
+        // Verificación de seguridad para que no crashee si el banco falla
+        if (!isset($respuesta['values'])) {
+             return response()->json([
+                 'status' => 'error', 
+                 'message' => 'Respuesta inválida del banco',
+                 'debug' => $respuesta // Para que veas qué llegó
+             ]);
+        }
+
+        // Obtenemos el estado. Si no existe, asumimos 0 (Desconocido)
+        $estadoPago = $respuesta['values']['paymentStatus'] ?? 0;
+
+        // LOGICA DE ESTADOS:
+        // 1 = Pendiente (Chat)
+        // 5 = Error/Revisión (Chat)
+        // 2 = Éxito (Estándar PagoFácil al quitar el error del callback)
         
-        // Digamos que status == 2 es PAGADO (ajusta esto según tu prueba real)
-        $estadoPago = $respuesta['values']['paymentStatus'] ?? null; // Ajusta la ruta del JSON
+        $esPagado = ($estadoPago == 2);
 
-        // Verificamos si el estado indica éxito (Ajustar condición según respuesta real)
-        // A veces devuelven el string "COMPLETED" o "PROCESSED"
-        $pagadoEnBanco = ($estadoPago == 2 || $estadoPago == 5 || $estadoPago == 'COMPLETED');
-
-        if ($pagadoEnBanco) {
-            
-            // ¡EL DINERO ESTÁ EN EL BANCO! AHORA GUARDAMOS EN TU BD
-            
-            // Extraer ID real de la factura
-            $partes = explode('_', $paymentNumber); 
-            // El formato es: grupo05cc_IDFACTURA_UNIQID
-            // $partes[0] = grupo05cc
-            // $partes[1] = IDFACTURA (El que queremos)
-            // $partes[2] = UNIQID
-            $facturaId = $partes[1];
-
-            // Usamos Transaction igual que en tu método store() para seguridad
+        if ($esPagado) {
             try {
-                DB::transaction(function () use ($facturaId, $paymentNumber, $respuesta) {
-                    
-                    // Verificar si YA lo registramos antes (para evitar duplicados por el polling)
-                    $yaExiste = Pago::where('referencia', $paymentNumber)->exists();
-                    if ($yaExiste) return; // Si ya existe, no hacemos nada, solo retornamos éxito abajo
+                $partes = explode('_', $paymentNumber);
+                // Validación por si el paymentNumber no tiene el formato correcto
+                if (count($partes) < 2) throw new \Exception("Formato de referencia inválido");
+                
+                $facturaId = $partes[1];
+
+                DB::transaction(function () use ($facturaId, $paymentNumber) {
+                    // Evitar duplicados
+                    if (Pago::where('referencia', $paymentNumber)->exists()) return;
 
                     $factura = Factura::lockForUpdate()->find($facturaId);
 
                     if ($factura && $factura->estado === 'impaga') {
-                        // Crear el Pago
                         Pago::create([
                             'factura_id'     => $factura->id,
-                            'monto_pagado'   => $factura->deuda_pendiente, // O $respuesta['values']['amount']
+                            'monto_pagado'   => $factura->deuda_pendiente,
                             'fecha_pago'     => Carbon::now(),
                             'forma_pago'     => 'QR',
-                            'referencia'     => $paymentNumber, // Guardamos el ID de transacción
-                            'registrado_por' => Auth::id(),
+                            'referencia'     => $paymentNumber,
+                            'registrado_por' => Auth::id() ?? 1, // Si no hay usuario logueado, usa 1 o null
                         ]);
 
-                        // Actualizar Factura
                         $factura->update([
                             'estado'          => 'pagado',
                             'deuda_pendiente' => 0,
@@ -351,15 +349,22 @@ class PagoController extends Controller
                 return response()->json(['status' => 'pagado']);
 
             } catch (\Exception $e) {
-                Log::error("Error guardando pago QR: " . $e->getMessage());
-                return response()->json(['status' => 'error', 'message' => 'Error interno al guardar']);
+                Log::error("Error guardando pago: " . $e->getMessage());
+                return response()->json(['status' => 'error', 'message' => 'Error interno']);
             }
         }
 
-        // Si no ha pagado aún
-        return response()->json(['status' => 'pendiente']);
+        // Respuesta informativa para el frontend
+        $mensaje = 'Pendiente';
+        if ($estadoPago == 5) $mensaje = 'En Revisión (Datos no coinciden)';
+        if ($estadoPago == 1) $mensaje = 'Esperando pago...';
+
+        return response()->json([
+            'status' => 'pendiente', 
+            'estado_banco' => $estadoPago, // IMPORTANTE: Verás este número en la consola del navegador
+            'mensaje' => $mensaje
+        ]);
     }
-  
     // public function edit($id) { abort(405, 'Los pagos no se editan, se anulan.'); }
     // public function update(Request $request, $id) { abort(405, 'Los pagos no se editan, se anulan.'); }
     // public function destroy($id) { abort(405, 'Los pagos no se eliminan, se anulan.'); }

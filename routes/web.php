@@ -273,6 +273,9 @@ Route::get('/hit-view', function () {
     return ['views' => $data[$url]];
 })->name('hit-view');
 
+Route::post('/webhook-pago', [PagoController::class, 'callbackPagoFacil']);
+
+
 
 Route::get('/diagnostico-banco', function () {
     // 1. Autenticar 
