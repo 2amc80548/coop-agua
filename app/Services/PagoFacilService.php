@@ -71,7 +71,7 @@ class PagoFacilService
             "currency"      => 2,
             "clientCode"    => (string)$afiliado->id,
 
-            "callbackUrl"   => "https://aguacabezas.fun/api/webhook-pago", 
+            "callbackUrl"   => "https://tu-dominio.com/api/webhook-pago",
 
 
             "orderDetail"   => [

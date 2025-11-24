@@ -309,6 +309,7 @@ $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
             'ci'              => $afiliado->ci,
             'direccion'       => $afiliado->direccion,
             'zona_id'         => $afiliado->zona_id,
+            'codigo'          => $afiliado->codigo,
         ]);
     }
 }

@@ -45,9 +45,9 @@ const buscarAfiliado = async () => {
         if (response.data) {
             afiliadoEncontrado.value = response.data;
             form.afiliado_id = response.data.id;
-            // Autocompletar campos (¡Actualizado a zona_id!)
             form.direccion = response.data.direccion;
-            form.zona_id = response.data.zona_id; // <-- ¡Actualizado!
+            form.zona_id = response.data.zona_id; 
+            form.codigo_medidor = response.data.codigo;
             busquedaMensaje.value = `Afiliado: ${response.data.nombre_completo}`;
         }
     } catch (error) {
@@ -58,7 +58,7 @@ const buscarAfiliado = async () => {
 };
 // --- Fin Lógica Buscador ---
 
-// --- Lógica de "Nueva Zona" (Tu idea) ---
+// --- Lógica de "Nueva Zona" 
 const showNuevaZonaModal = ref(false);
 const nuevaZonaForm = useForm({ nombre: '' });
 const zonasLocales = ref([...props.zonas]); // Lista local reactiva
@@ -69,8 +69,8 @@ const guardarNuevaZona = () => {
             // Leemos la 'nueva_zona' que el controlador nos envía en el flash
             const nuevaZona = page.props.flash.nueva_zona;
             if (nuevaZona) {
-                zonasLocales.value.push(nuevaZona); // Añade a la lista
-                zonasLocales.value.sort((a, b) => a.nombre.localeCompare(b.nombre)); // Ordena
+                zonasLocales.value.push(nuevaZona); 
+                zonasLocales.value.sort((a, b) => a.nombre.localeCompare(b.nombre));
                 form.zona_id = nuevaZona.id; // Auto-selecciona
             }
             showNuevaZonaModal.value = false;
@@ -137,7 +137,6 @@ const submit = () => {
                                     <label for="direccion" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Dirección de Instalación *</label>
                                     <input id="direccion" v-model="form.direccion" type="text" 
                                            class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required />
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Autocompletado del afiliado (puede editarlo).</p>
                                     <div v-if="form.errors.direccion" class="text-red-600 text-sm mt-1">{{ form.errors.direccion }}</div>
                                 </div>
                                 <div>

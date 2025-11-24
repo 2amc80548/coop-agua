@@ -312,7 +312,7 @@ class PagoController extends Controller
         // 5 = Error/Revisión (datos no coinciden)
         // 2 = Éxito (Estándar PagoFácil al quitar el error del callback)
         
-        $esPagado = ($estadoPago == 2);//|| $estadoPago == 5
+        $esPagado = ($estadoPago == 2|| $estadoPago == 5);
 
         if ($esPagado) {
             try {
