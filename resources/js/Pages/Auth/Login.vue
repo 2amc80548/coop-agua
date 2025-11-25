@@ -14,14 +14,37 @@ const submit = () => {
     form.transform(data => ({ ...data, remember: form.remember ? 'on' : '' }))
         .post(route('login'), { onFinish: () => form.reset('password') });
 };
+
+const getLogoUrl = () => {
+    let path = window.location.pathname;
+    let root = path.replace(/\/login\/?$/, ''); 
+    
+    if (root === '/' || root === '') {
+        root = '';
+    } else if (root.endsWith('/')) {
+        root = root.slice(0, -1); a
+    }
+    return `${root}/storage/img/AGUA CABEZAS.png`;
+}
+const getFondoUrl = () => {
+    let path = window.location.pathname;
+    const pages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email']; 
+    pages.forEach(p => { 
+        if (path.endsWith(p)) path = path.replace(p, ''); 
+    });
+    if (path.endsWith('/')) path = path.slice(0, -1);  
+    return `${path}/storage/img/2583.jpg`;
+};
+
+
 </script>
 
 <template>
     <Head title="Iniciar Sesión" />
 
-    <div class="fixed inset-0 bg-gradient-to-br from-blue-100 via-cyan-50 to-blue-200 overflow-hidden">
+<div class="fixed inset-0 bg-gradient-to-br from-blue-100 via-cyan-50 to-blue-200 overflow-hidden">
         <img 
-            src="/storage/img/2583.jpg" 
+            :src="getFondoUrl()" 
             alt="Fondo" 
             class="absolute inset-0 w-full h-full object-cover opacity-10 mix-blend-multiply"
             onerror="this.style.display='none'"
@@ -31,12 +54,14 @@ const submit = () => {
     <div class="relative min-h-screen flex items-center justify-center p-4 md:p-8 z-10">
         <div class="bg-white/90 backdrop-blur-md rounded-[2rem] shadow-2xl border border-white/50 p-6 sm:p-8 md:p-10 w-full max-w-xs sm:max-w-sm md:max-w-md animate-float-once">
             
-            <div class="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 mx-auto mb-4 sm:mb-6 flex items-center justify-center">
-                <div class="absolute inset-0 bg-gradient-to-tr from-blue-400 to-cyan-300 rounded-full blur opacity-40"></div>
-                <div class="relative bg-white p-2 rounded-full shadow-lg border-2 border-blue-50 w-full h-full flex items-center justify-center">
-                    <img src="/storage/img/AGUA CABEZAS.png" alt="Logo" class="w-20 h-20 rounded-full object-contain">
+            <Link :href="'/'">
+                <div class="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 mx-auto mb-4 sm:mb-6 flex items-center justify-center">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-blue-400 to-cyan-300 rounded-full blur opacity-40"></div>
+                    <div class="relative bg-white p-2 rounded-full shadow-lg border-2 border-blue-50 w-full h-full flex items-center justify-center">
+                        <img :src="getLogoUrl()" alt="Logo" class="w-20 h-20 rounded-full object-contain">
+                    </div>
                 </div>
-            </div>
+            </Link>
 
             <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-center text-slate-800 mb-1 sm:mb-2 tracking-tight">AGUA CABEZAS</h1>
             <p class="text-center text-slate-500 text-xs sm:text-sm md:text-base mb-6 sm:mb-8 px-2 font-medium">Asociación de Beneficiarios de Agua Potable</p>

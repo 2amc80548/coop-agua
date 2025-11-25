@@ -22,15 +22,24 @@ const submit = () => {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 };
+
+const getFondoUrl = () => {
+    let path = window.location.pathname;
+    const pages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email']; 
+    pages.forEach(p => { 
+        if (path.endsWith(p)) path = path.replace(p, ''); 
+    });
+    if (path.endsWith('/')) path = path.slice(0, -1);  
+    return `${path}/storage/img/2583.jpg`;
+};
 </script>
 
 <template>
     <Head title="Registrarse" />
 
-    <!-- FONDO: Mismo estilo que Login (Degradado Azul + Imagen sutil) -->
-    <div class="fixed inset-0 bg-gradient-to-br from-blue-100 via-cyan-50 to-blue-200 overflow-hidden">
+<div class="fixed inset-0 bg-gradient-to-br from-blue-100 via-cyan-50 to-blue-200 overflow-hidden">
         <img 
-            src="/storage/img/2583.jpg" 
+            :src="getFondoUrl()" 
             alt="Fondo" 
             class="absolute inset-0 w-full h-full object-cover opacity-10 mix-blend-multiply"
             onerror="this.style.display='none'"
