@@ -194,9 +194,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
 
              // Rutas para el QR
-Route::post('/pagos/generar-qr', [PagoController::class, 'generarQr'])->name('pagos.generarQr');
-Route::post('/pagos/verificar-qr', [PagoController::class, 'verificarQr'])->name('pagos.verificarQr');
-    });
+     Route::post('/pagos/generar-qr', [PagoController::class, 'generarQr'])->name('pagos.generarQr');
+     Route::post('/pagos/verificar-qr', [PagoController::class, 'verificarQr'])->name('pagos.verificarQr');
+     });
 
 
     // --- APIS (Para Vue) ---
@@ -261,7 +261,11 @@ Route::post('/pagos/verificar-qr', [PagoController::class, 'verificarQr'])->name
              ->name('usuario.pendiente');
     });            
 
+    route::get('/buscar', [BuscadorController::class, 'buscar'])
+         ->name('buscar');
+
 });
+
 Route::get('/hit-view', function () {
     $file = storage_path('app/views.json');
     $url  = request('url') ?: request()->path() ?: '/';

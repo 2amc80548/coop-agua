@@ -51,11 +51,12 @@ const confirmDelete = (afiliado) => {
 // Obtener la URL de la foto de perfil
 const getPhotoUrl = (path) => {
     if (path) {
-        // Asume que tu disco 'public' está enlazado con 'storage'
-        // ¡IMPORTANTE! Ejecuta `php artisan storage:link` en tu terminal si no lo has hecho
-        return `/storage/${path}`; 
+        if (path.startsWith('http')) return path;
+        let baseUrl = route('afiliados.index');
+        baseUrl = baseUrl.replace('/afiliados', '');
+
+        return `${baseUrl}/storage/${path}`; 
     }
-    // Retorna una imagen placeholder
     return `https://ui-avatars.com/api/?name=${encodeURIComponent('N/A')}&color=7F9CF5&background=EBF4FF`;
 };
 

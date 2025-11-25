@@ -16,9 +16,12 @@ import axios from 'axios'
 const visits = ref(0)
 
 const contar = () => {
-  axios.get('/hit-view', { params: { url: usePage().url } })
+  axios.get(route('hit-view'), { params: { url: usePage().url } })
        .then(r => visits.value = r.data.views)
-       .catch(() => visits.value = 0)
+       .catch((e) => {
+           console.error("Error contador:", e);
+           visits.value = 0;
+       })
 }
 
 onMounted(contar)

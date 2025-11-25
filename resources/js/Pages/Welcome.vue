@@ -7,13 +7,18 @@ const cooperativa = {
   nombre: 'Asociación de Beneficiarios de Agua Potable',
   localidad: 'de la Localidad de Cabezas',
   slogan: 'Garantizando el líquido elemento para nuestra comunidad.',
-  celular: '78773687', 
+  celular: '63591312', 
   direccion: 'Av. Benigno Vaca Nº S/N, Barrio El Carmen',
   ciudad: 'Cabezas - Santa Cruz',
   horario: 'Lun-Vie: 08:00-12:00 / 14:00-18:00 | Sáb: 08:00-12:00',
   mapaUrl: 'https://maps.app.goo.gl/KddN4an1zct27eAa7'
 }
 
+const getLogoUrl = () => {
+    let baseUrl = route('login'); 
+    baseUrl = baseUrl.replace('/login', '')
+    return `${baseUrl}/storage/img/AGUA CABEZAS.png`;
+};
 // --- IMÁGENES ---
 const images = {
     // historia: "/img/historia.jpg",
@@ -53,7 +58,7 @@ defineProps({
           <div class="relative group mb-6 transition-transform hover:scale-105 duration-300">
               <div class="absolute -inset-3 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full blur-md opacity-50 group-hover:opacity-80 transition duration-500"></div>
               <div class="relative bg-white p-4 rounded-full shadow-2xl border-2 border-blue-50">
-                 <img src="/storage/img/AGUA CABEZAS.png" alt="Logo Cabezas" class="w-28 h-28 object-contain" />
+                 <img :src="getLogoUrl()" alt="Logo Cabezas" class="w-28 h-28 object-contain" />
               </div>
           </div>
 
