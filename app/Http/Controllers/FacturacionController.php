@@ -137,6 +137,10 @@ class FacturacionController extends Controller
                         $lectura->estado = 'facturado';
                         $lectura->save();
 
+                        if ($lectura->conexion) {
+                            \App\Models\Afiliado::verificarEstadoFinanciero($lectura->conexion->afiliado_id);
+                        }
+
                         $generadasCount++;
                     } catch (\Exception $e) {
                         Log::error("Error al facturar lectura ID: {$lectura->id}", ['error' => $e->getMessage()]);

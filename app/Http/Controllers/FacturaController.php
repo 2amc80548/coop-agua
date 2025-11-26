@@ -300,10 +300,5 @@ class FacturaController extends Controller
 
     }
 
-    // // --- Métodos Deshabilitados  ---
-    // public function create() { return redirect()->route('facturacion.generar.show')->with('info', 'Las facturas se generan desde "Facturación".'); }
-    // public function store(Request $request) { abort(405, 'Acción no permitida. Use el módulo de Facturación.'); }
-    // public function edit($id) { abort(405, 'Acción no permitida. Use "Ver" para modificar montos o anular.'); }
-    // public function update(Request $request, $id) { abort(405, 'Acción no permitida. Use "updateMonto" o "anular".'); }
-    // public function destroy($id) { abort(405, 'Acción no permitida. Use "anular".'); }
+
 }

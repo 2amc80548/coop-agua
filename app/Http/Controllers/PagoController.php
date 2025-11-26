@@ -113,7 +113,7 @@ class PagoController extends Controller
             DB::transaction(function () use ($validated, &$pago) {
                 
                 $factura = Factura::where('id', $validated['factura_id'])
-                                 ->lockForUpdate() // ¡Bloquea la fila para evitar pagos dobles!
+                                 ->lockForUpdate() 
                                  ->first();
 
                 if ($factura->estado !== 'impaga') {
@@ -147,7 +147,14 @@ class PagoController extends Controller
                     'deuda_pendiente' => 0, 
                     'fecha_pago' => $validated['fecha_pago']
                 ]);
+
+$facturaCheck = Factura::with('conexion')->find($validated['factura_id']);
+                if ($facturaCheck && $facturaCheck->conexion) {
+                     \App\Models\Afiliado::verificarEstadoFinanciero($facturaCheck->conexion->afiliado_id);
+                }
+                
             }); 
+
 
             return redirect()->route('facturas.show', $validated['factura_id'])
                            ->with('success', '✅ Pago registrado por Bs '.number_format($pago->monto_pagado, 2).'. Factura actualizada a "pagado".');
@@ -198,6 +205,11 @@ class PagoController extends Controller
                 // 2. Eliminar el Pago
                 $pago->delete();
             });
+
+            $facturaCheck = Factura::with('conexion')->find($pago->factura_id);
+        if ($facturaCheck && $facturaCheck->conexion) {
+             \App\Models\Afiliado::verificarEstadoFinanciero($facturaCheck->conexion->afiliado_id);
+        }
 
         } catch (\Exception $e) {
              Log::error('Error al anular pago:', ['error' => $e->getMessage(), 'pago_id' => $id]);
@@ -341,7 +353,7 @@ class PagoController extends Controller
                             'fecha_pago'     => Carbon::now(),
                             'forma_pago'     => 'QR',
                             'referencia'     => $paymentNumber,
-                            'registrado_por' => Auth::id() ?? 1, // Si no hay usuario logueado, usa 1 o null
+                            'registrado_por' => Auth::id() ?? 1, 
                         ]);
 
                         $factura->update([
@@ -410,6 +422,10 @@ class PagoController extends Controller
                             ]);
                         }
                     });
+                        $facturaCheck = Factura::with('conexion')->find($facturaId);
+                           if ($facturaCheck && $facturaCheck->conexion) {
+                      \App\Models\Afiliado::verificarEstadoFinanciero($facturaCheck->conexion->afiliado_id);
+                    }
                 }
             }
 

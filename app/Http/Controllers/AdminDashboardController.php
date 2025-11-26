@@ -15,11 +15,7 @@ use Carbon\Carbon;
 
 class AdminDashboardController extends Controller
 {
-    // public function __construct()
-    // {
-    //     // Solo Admin / Secretaria pueden ver este dashboard
-    //     $this->middleware('role:Administrador|Secretaria');
-    // }
+
 
     public function index()
     {
@@ -54,8 +50,9 @@ class AdminDashboardController extends Controller
         $nuevosUsuariosMes   = User::whereBetween('created_at', [$inicioMes, $finMes])->count();
 
         $afiliadosActivos    = Afiliado::where('estado_servicio', 'activo')->count();
-        $afiliadosEnMora     = Afiliado::where('estado_servicio', 'en_mora')->count();
+        $afiliadosEnMora     = Afiliado::where('estado_servicio', 'en_corte')->count();
         $afiliadosCortados   = Afiliado::where('estado_servicio', 'cortado')->count();
+        $afiliadosPendientes = Afiliado::where('estado_servicio', 'pendiente')->count();
 
         $kpis = [
             'inicioMes'         => $inicioMes->format('Y-m-d'),

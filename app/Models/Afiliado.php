@@ -75,4 +75,51 @@ class Afiliado extends Model
     {
         return $this->hasOne(User::class, 'afiliado_id');
     }
+
+    /**
+     * EL CEREBRO: Revisa las deudas y actualiza el estado automáticamente.
+     * Se llama al Pagar y al Facturar.
+     */
+public static function verificarEstadoFinanciero($afiliadoId)
+    {
+        $afiliado = self::find($afiliadoId);
+        
+        // Validación inicial
+        if (!$afiliado) return;
+
+        // Limpiamos el estado actual de espacios y mayúsculas para evitar errores
+        $estadoActual = strtolower(trim($afiliado->estado_servicio));
+
+        // Si es "pendiente", no hacemos nada.
+        if ($estadoActual === 'pendiente') {
+            return;
+        }
+
+        // 1. Contamos deudas impagas
+        $totalDeudas = \App\Models\Factura::whereHas('conexion', function($q) use ($afiliadoId){
+                            $q->where('afiliado_id', $afiliadoId);
+                        })
+                        ->where('estado', 'impaga')
+                        ->count();
+
+        // CASO A: REHABILITACIÓN (Debe 0, 1 o 2 facturas)
+        if ($totalDeudas < 3) {
+            // Lógica: Si debe menos de 3, NO debería estar castigado.
+            // Si su estado NO es 'activo' (ej: está 'en_corte', 'cortado', 'suspendido'), lo activamos.
+            if ($estadoActual !== 'activo') {
+                $afiliado->estado_servicio = 'activo';
+                $afiliado->save();
+            }
+        }
+
+        // CASO B: CASTIGO (Debe 3 o más)
+        if ($totalDeudas >= 3) {
+            // Solo lo pasamos a 'en_corte' si estaba confiado en 'activo'.
+            // Si ya estaba 'cortado' o 'suspendido', NO lo tocamos.
+            if ($estadoActual === 'activo') {
+                $afiliado->estado_servicio = 'en_corte';
+                $afiliado->save();
+            }
+        }
+    }
 }

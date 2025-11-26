@@ -122,151 +122,121 @@ const conexionesZonaData = computed(() =>
         <!-- ==========================
              KPIs PRINCIPALES
              ========================== -->
-        <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-5 text-xs md:text-sm">
-          <!-- Facturación -->
-          <div
-            class="relative overflow-hidden bg-gradient-to-br from-cyan-500/90 to-cyan-700 rounded-2xl p-4 shadow-md text-white"
-          >
-            <div class="absolute -right-8 -top-8 w-24 h-24 bg-white/10 rounded-full" />
-            <div class="absolute -right-12 top-10 w-32 h-32 bg-white/5 rounded-full" />
-            <div class="relative space-y-1">
-              <p class="text-[11px] uppercase tracking-wide">
-                Monto facturado (mes)
-              </p>
-              <p class="text-xl md:text-2xl font-bold">
-                {{ formatCurrency(kpis.montoFacturadoMes) }}
-              </p>
-              <p class="text-[11px] text-cyan-100">
-                Facturas emitidas:
-                <span class="font-semibold">{{ formatNumber(kpis.totalFacturasMes) }}</span>
-              </p>
-              <p class="text-[11px] text-rose-100 mt-1">
-                Deuda pendiente:
-                <span class="font-semibold">
-                  {{ formatCurrency(kpis.montoDeudaMes) }}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <!-- Recaudación -->
-          <div
-            class="relative overflow-hidden bg-gradient-to-br from-emerald-500/90 to-emerald-700 rounded-2xl p-4 shadow-md text-white"
-          >
-            <div class="absolute -right-10 -top-10 w-24 h-24 bg-white/10 rounded-full" />
-            <div class="absolute -right-14 top-12 w-32 h-32 bg-white/5 rounded-full" />
-            <div class="relative space-y-1">
-              <p class="text-[11px] uppercase tracking-wide">
-                Monto recaudado (mes)
-              </p>
-              <p class="text-xl md:text-2xl font-bold">
-                {{ formatCurrency(kpis.montoRecaudadoMes) }}
-              </p>
-              <p class="text-[11px] text-emerald-100">
-                Pagos registrados:
-                <span class="font-semibold">{{ formatNumber(kpis.totalPagosMes) }}</span>
-              </p>
-            </div>
-          </div>
-
-          <!-- Afiliados -->
-          <div
-            class="relative overflow-hidden bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-700/40 rounded-2xl p-4 shadow-sm flex flex-col justify-between"
-          >
-            <div class="relative space-y-1">
-              <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Afiliados
-              </p>
-              <p class="text-xl md:text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                {{ formatNumber(kpis.totalAfiliados) }}
-              </p>
-              <p class="text-[11px] text-gray-500 dark:text-gray-400">
-                Nuevos en el mes:
-                <span class="font-semibold text-indigo-600 dark:text-indigo-300">
-                  {{ formatNumber(kpis.nuevosAfiliadosMes) }}
-                </span>
-              </p>
-              <p class="text-[11px] text-gray-500 dark:text-gray-400">
-                Activos:
-                <span class="font-semibold text-emerald-600 dark:text-emerald-300">
-                  {{ formatNumber(kpis.afiliadosActivos) }}
-                </span>,
-                En mora:
-                <span class="font-semibold text-amber-600 dark:text-amber-300">
-                  {{ formatNumber(kpis.afiliadosEnMora) }}
-                </span>,
-                Cortados:
-                <span class="font-semibold text-rose-600 dark:text-rose-300">
-                  {{ formatNumber(kpis.afiliadosCortados) }}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <!-- Sistema -->
-          <div
-            class="relative overflow-hidden bg-white dark:bg-gray-800 border border-amber-100 dark:border-amber-700/40 rounded-2xl p-4 shadow-sm flex flex-col justify-between"
-          >
-            <div class="relative space-y-1">
-              <p class="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Sistema
-              </p>
-              <p class="text-xl md:text-2xl font-bold text-amber-600 dark:text-amber-400">
-                {{ formatNumber(kpis.totalUsuarios) }} usuarios
-              </p>
-              <p class="text-[11px] text-gray-500 dark:text-gray-400">
-                Nuevos usuarios (mes):
-                <span class="font-semibold text-amber-600 dark:text-amber-300">
-                  {{ formatNumber(kpis.nuevosUsuariosMes) }}
-                </span>
-              </p>
-              <p class="text-[11px] text-gray-500 dark:text-gray-400">
-                Conexiones totales:
-                <span class="font-semibold text-cyan-600 dark:text-cyan-300">
-                  {{ formatNumber(kpis.totalConexiones) }}
-                </span>
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <!-- ==========================
-             GRÁFICO LINEAL PRINCIPAL
-             ========================== -->
-        <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 text-xs md:text-sm">
-          <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-cyan-100 dark:border-gray-700 p-4 md:p-5">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="font-semibold text-gray-800 dark:text-gray-100">
-                Facturación vs Recaudación (últimos 6 meses)
-              </h3>
-            </div>
-            <div v-if="lineLabels.length" class="h-64">
-              <BaseLineChart :labels="lineLabels" :datasets="lineDatasets" />
-            </div>
-            <p v-else class="text-xs text-gray-500 dark:text-gray-400">
-              No hay datos suficientes para el período.
+        <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-5">
+      
+      <div class="relative overflow-hidden bg-gradient-to-br from-cyan-500/90 to-cyan-700 rounded-2xl p-5 shadow-md text-white">
+        <div class="absolute -right-8 -top-8 w-24 h-24 bg-white/10 rounded-full"></div>
+        <div class="absolute -right-12 top-10 w-32 h-32 bg-white/5 rounded-full"></div>
+        <div class="relative space-y-2">
+          <p class="text-sm md:text-base font-medium uppercase tracking-wide opacity-90">
+            Monto facturado (mes)
+          </p>
+          <p class="text-3xl md:text-4xl font-bold">
+            {{ formatCurrency(kpis.montoFacturadoMes) }}
+          </p>
+          <div class="space-y-1 mt-2">
+            <p class="text-sm text-cyan-50">
+              Facturas emitidas:
+              <span class="font-bold text-base">{{ formatNumber(kpis.totalFacturasMes) }}</span>
+            </p>
+            <p class="text-sm text-rose-100">
+              Deuda pendiente:
+              <span class="font-bold text-base">
+                {{ formatCurrency(kpis.montoDeudaMes) }}
+              </span>
             </p>
           </div>
+        </div>
+      </div>
 
-          <!-- Afiliados nuevos -->
-          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-indigo-100 dark:border-gray-700 p-4 md:p-5">
-            <h3 class="font-semibold text-gray-800 dark:text-gray-100 mb-3">
-              Nuevos afiliados (últimos 6 meses)
-            </h3>
-            <div v-if="afiliadosNuevosLabels.length" class="h-64">
-              <BaseBarChart
-                :labels="afiliadosNuevosLabels"
-                :data="afiliadosNuevosData"
-                label="Afiliados nuevos"
-              />
-            </div>
-            <p v-else class="text-xs text-gray-500 dark:text-gray-400">
-              No hay datos de nuevas afiliaciones.
+      <div class="relative overflow-hidden bg-gradient-to-br from-emerald-500/90 to-emerald-700 rounded-2xl p-5 shadow-md text-white">
+        <div class="absolute -right-10 -top-10 w-24 h-24 bg-white/10 rounded-full"></div>
+        <div class="absolute -right-14 top-12 w-32 h-32 bg-white/5 rounded-full"></div>
+        <div class="relative space-y-2">
+          <p class="text-sm md:text-base font-medium uppercase tracking-wide opacity-90">
+            Monto recaudado (mes)
+          </p>
+          <p class="text-3xl md:text-4xl font-bold">
+            {{ formatCurrency(kpis.montoRecaudadoMes) }}
+          </p>
+          <div class="mt-2">
+            <p class="text-sm text-emerald-50">
+              Pagos registrados:
+              <span class="font-bold text-base">{{ formatNumber(kpis.totalPagosMes) }}</span>
             </p>
           </div>
-        </section>
+        </div>
+      </div>
 
-        <!-- ==========================
+      <div class="relative overflow-hidden bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-700/40 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+        <div class="relative space-y-2">
+          <p class="text-sm md:text-base font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Afiliados
+          </p>
+          <p class="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+            {{ formatNumber(kpis.totalAfiliados) }}
+          </p>
+          
+          <p class="text-sm text-gray-600 dark:text-gray-300">
+            Nuevos en el mes:
+            <span class="font-bold text-indigo-600 dark:text-indigo-300 text-base">
+              {{ formatNumber(kpis.nuevosAfiliadosMes) }}
+            </span>
+          </p>
+
+          <div class="pt-2 border-t border-gray-100 dark:border-gray-700 mt-2">
+            <p class="text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+              Activos:
+              <span class="font-bold text-emerald-600 dark:text-emerald-300">
+                {{ formatNumber(kpis.afiliadosActivos) }}
+              </span>,
+              En corte:
+              <span class="font-bold text-amber-600 dark:text-amber-300">
+                {{ formatNumber(kpis.afiliadosEnMora) }}
+              </span>,
+              Cortados:
+              <span class="font-bold text-rose-600 dark:text-rose-300">
+                {{ formatNumber(kpis.afiliadosCortados) }}
+              </span>,
+              Pendientes:
+              <span class="font-bold text-yellow-600 dark:text-yellow-300">
+                {{ formatNumber(kpis.afiliadosPendientes) }}
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="relative overflow-hidden bg-white dark:bg-gray-800 border border-amber-100 dark:border-amber-700/40 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+        <div class="relative space-y-2">
+          <p class="text-sm md:text-base font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Sistema
+          </p>
+          <p class="text-3xl md:text-4xl font-bold text-amber-600 dark:text-amber-400">
+            {{ formatNumber(kpis.totalUsuarios) }} <span class="text-lg text-gray-400 font-normal">usuarios</span>
+          </p>
+          
+          <div class="space-y-1 mt-2">
+            <p class="text-sm text-gray-600 dark:text-gray-300">
+              Nuevos usuarios (mes):
+              <span class="font-bold text-amber-600 dark:text-amber-300 text-base">
+                {{ formatNumber(kpis.nuevosUsuariosMes) }}
+              </span>
+            </p>
+            <p class="text-sm text-gray-600 dark:text-gray-300">
+              Conexiones totales:
+              <span class="font-bold text-cyan-600 dark:text-cyan-300 text-base">
+                {{ formatNumber(kpis.totalConexiones) }}
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+</section>
+
+
+          <!-- ==========================
              TORTAS / DISTRIBUCIONES
              ========================== -->
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 text-xs md:text-sm">
@@ -319,6 +289,43 @@ const conexionesZonaData = computed(() =>
             </p>
           </div>
         </section>
+        <!-- ==========================
+             GRÁFICO LINEAL PRINCIPAL
+             ========================== -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5 text-xs md:text-sm">
+          <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-cyan-100 dark:border-gray-700 p-4 md:p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold text-gray-800 dark:text-gray-100">
+                Facturación vs Recaudación (últimos 6 meses)
+              </h3>
+            </div>
+            <div v-if="lineLabels.length" class="h-64">
+              <BaseLineChart :labels="lineLabels" :datasets="lineDatasets" />
+            </div>
+            <p v-else class="text-xs text-gray-500 dark:text-gray-400">
+              No hay datos suficientes para el período.
+            </p>
+          </div>
+
+          <!-- Afiliados nuevos -->
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-indigo-100 dark:border-gray-700 p-4 md:p-5">
+            <h3 class="font-semibold text-gray-800 dark:text-gray-100 mb-3">
+              Nuevos afiliados (últimos 6 meses)
+            </h3>
+            <div v-if="afiliadosNuevosLabels.length" class="h-64">
+              <BaseBarChart
+                :labels="afiliadosNuevosLabels"
+                :data="afiliadosNuevosData"
+                label="Afiliados nuevos"
+              />
+            </div>
+            <p v-else class="text-xs text-gray-500 dark:text-gray-400">
+              No hay datos de nuevas afiliaciones.
+            </p>
+          </div>
+        </section>
+
+        
 
         <!-- ==========================
              TOPS DEL MES
