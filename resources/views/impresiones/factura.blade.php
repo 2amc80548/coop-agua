@@ -90,10 +90,10 @@
 
             <div class="text-right">
                 <p class="text-[10px] uppercase tracking-wide opacity-80">
-                    Recibo
+                    Factura
                 </p>
                 <p class="text-xl font-bold leading-tight">
-                    RECIBO
+                    FACTURA
                 </p>
                 <p class="text-[11px] mt-0.5">
                     Cuenta de factura
@@ -124,7 +124,7 @@
         </div>
         <div class="text-right text-[10px]">
             <p class="font-bold">
-                RECIBO
+                FACTURA
             </p>
             <p>
                 Cuenta de Factura F-{{ str_pad($factura->id, 6, '0', STR_PAD_LEFT) }}
@@ -302,7 +302,7 @@
             <hr class="my-2 border-dashed border-gray-300">
 
             <div class="flex justify-between text-gray-800">
-                <span>Monto pagado en este recibo:</span>
+                <span>Monto pagado en esta Factura:</span>
                 <span class="font-bold text-emerald-700 print:text-black">
                     Bs {{ number_format($ultimoPago?->monto_pagado ?? $totalPagado, 2) }}
                 </span>
@@ -350,7 +350,7 @@
         onclick="window.print()"
         class="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2.5 px-7 rounded-full shadow-md text-[13px] md:text-sm transition transform hover:scale-105"
     >
-        🧾 Imprimir Recibo
+        🧾 Imprimir Factura
     </button>
 </div>
 

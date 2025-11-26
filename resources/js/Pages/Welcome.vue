@@ -38,7 +38,7 @@ defineProps({
 </script>
 
 <template>
-  <Head title="Bienvenidos - Agua Potable Cabezas" />
+  <Head title="AguaCabezas - Servicio de Agua Potable" />
 
   <!-- FONDO MEJORADO -->
   <div class="min-h-screen bg-gradient-to-br from-blue-100 via-cyan-50 to-blue-200 text-slate-800 overflow-x-hidden font-sans selection:bg-blue-600 selection:text-white">
