@@ -292,6 +292,11 @@ class PagoController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Falta payment_number']);
         }
 
+        $yaPagadoLocalmente = Pago::where('referencia', $paymentNumber)->exists();
+        
+        if ($yaPagadoLocalmente) {
+            return response()->json(['status' => 'pagado', 'origen' => 'local']);
+        }
         // 1. Consultar al Banco
         $respuesta = $this->pagoService->consultarTransaccion($paymentNumber);
 
@@ -393,7 +398,7 @@ class PagoController extends Controller
                                 'factura_id'     => $factura->id,
                                 'monto_pagado'   => $factura->deuda_pendiente,
                                 'fecha_pago'     => Carbon::now(),
-                                'forma_pago'     => 'QR (Callback)', // Marca distintiva
+                                'forma_pago'     => 'QR ', // Marca distintiva
                                 'referencia'     => $paymentNumber,
                                 'registrado_por' => 1, 
                             ]);
