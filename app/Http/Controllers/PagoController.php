@@ -312,7 +312,8 @@ class PagoController extends Controller
         // 5 = Error/Revisión (datos no coinciden)
         // 2 = Éxito (Estándar PagoFácil al quitar el error del callback)
         
-        $esPagado = ($estadoPago == 2|| $estadoPago == 5);
+        $esPagado = ($estadoPago == 2);
+                       // || $estadoPago == 5
 
         if ($esPagado) {
             try {
@@ -365,7 +366,60 @@ class PagoController extends Controller
             'mensaje' => $mensaje
         ]);
     }
-    // public function edit($id) { abort(405, 'Los pagos no se editan, se anulan.'); }
-    // public function update(Request $request, $id) { abort(405, 'Los pagos no se editan, se anulan.'); }
-    // public function destroy($id) { abort(405, 'Los pagos no se eliminan, se anulan.'); }
+    public function callbackPagoFacil(Request $request)
+    {
+        try {
+            $datos = $request->all();
+            Log::info('Callback PagoFácil Recibido:', $datos);
+
+            $paymentNumber = $datos['PedidoID'] ?? null; 
+            $estado = $datos['Estado'] ?? null; 
+
+            // Validamos que sea un pago exitoso (2 o COMPLETED)
+            if ($paymentNumber && ($estado == 2 || $estado == 'COMPLETED')) {
+                
+                $partes = explode('_', $paymentNumber);
+                $facturaId = $partes[1] ?? null;
+
+                if ($facturaId) {
+                    DB::transaction(function () use ($facturaId, $paymentNumber) {
+                        // Evitar duplicados
+                        if (Pago::where('referencia', $paymentNumber)->exists()) return;
+
+                        $factura = Factura::lockForUpdate()->find($facturaId);
+
+                        if ($factura && $factura->estado === 'impaga') {
+                            Pago::create([
+                                'factura_id'     => $factura->id,
+                                'monto_pagado'   => $factura->deuda_pendiente,
+                                'fecha_pago'     => Carbon::now(),
+                                'forma_pago'     => 'QR (Callback)', // Marca distintiva
+                                'referencia'     => $paymentNumber,
+                                'registrado_por' => 1, 
+                            ]);
+
+                            $factura->update([
+                                'estado'          => 'pagado',
+                                'deuda_pendiente' => 0,
+                                'fecha_pago'      => Carbon::now()
+                            ]);
+                        }
+                    });
+                }
+            }
+
+            // Respuesta OBLIGATORIA para que PagoFácil sepa que recibimos el mensaje
+            return response()->json([
+                "error" => 0,
+                "status" => 1,
+                "message" => "Pago recibido correctamente",
+                "values" => true
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error Callback: ' . $e->getMessage());
+            return response()->json(["error" => 1, "status" => 1, "message" => "Error interno", "values" => false]);
+        }
+    }
+
 }

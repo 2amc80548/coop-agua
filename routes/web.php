@@ -277,7 +277,7 @@ Route::get('/hit-view', function () {
     return ['views' => $data[$url]];
 })->name('hit-view');
 
-Route::post('/webhook-pago', [PagoController::class, 'callbackPagoFacil']);
+// Route::post('/webhook-pago', [PagoController::class, 'callbackPagoFacil']);
 
 
 

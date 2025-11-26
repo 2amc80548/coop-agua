@@ -32,6 +32,7 @@ const qrLoading = ref(false);
 const qrPaymentNumber = ref(null);
 const qrStatus = ref('espera'); // espera, procesando, pagado, error
 let pollingInterval = null;
+let pollingTimeout = null;
 
 // 1. Generar el QR
 const generarQr = async () => {

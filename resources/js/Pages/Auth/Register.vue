@@ -23,12 +23,22 @@ const submit = () => {
     });
 };
 
+// --- LOGO  ---
+const getLogoUrl = () => {
+    let path = window.location.pathname;
+    let root = path.replace(/\/register\/?$/, ''); 
+    
+    if (root === '/' || root === '') root = '';
+    else if (root.endsWith('/')) root = root.slice(0, -1);
+    
+    return `${root}/storage/img/AGUA CABEZAS.png`;
+}
+
+// --- FONDO ---
 const getFondoUrl = () => {
     let path = window.location.pathname;
     const pages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email']; 
-    pages.forEach(p => { 
-        if (path.endsWith(p)) path = path.replace(p, ''); 
-    });
+    pages.forEach(p => { if (path.endsWith(p)) path = path.replace(p, ''); });
     if (path.endsWith('/')) path = path.slice(0, -1);  
     return `${path}/storage/img/2583.jpg`;
 };
@@ -37,10 +47,8 @@ const getFondoUrl = () => {
 <template>
     <Head title="Registrarse" />
 
-<div class="fixed inset-0 bg-gradient-to-br from-blue-100 via-cyan-50 to-blue-200 overflow-hidden">
-        <img 
-            :src="getFondoUrl()" 
-            alt="Fondo" 
+ <div class="fixed inset-0 bg-gradient-to-br from-blue-100 via-cyan-50 to-blue-200 overflow-hidden">
+        <img :src="getFondoUrl()" alt="Fondo" 
             class="absolute inset-0 w-full h-full object-cover opacity-10 mix-blend-multiply"
             onerror="this.style.display='none'"
         />
@@ -51,12 +59,12 @@ const getFondoUrl = () => {
         <div class="bg-white/90 backdrop-blur-md rounded-[2rem] shadow-2xl border border-white/50 p-6 sm:p-8 md:p-10 w-full max-w-xs sm:max-w-sm md:max-w-md animate-float-once">
 
             <!-- LOGO con brillo -->
-            <div class="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 mx-auto mb-4 sm:mb-6 flex items-center justify-center">
-                <div class="absolute inset-0 bg-gradient-to-tr from-blue-400 to-cyan-300 rounded-full blur opacity-40"></div>
-                <div class="relative bg-white p-2 rounded-full shadow-lg border-2 border-blue-50 w-full h-full flex items-center justify-center">
-                    <img src="/storage/img/AGUA CABEZAS.png" alt="Logo" class="w-20 h-20 rounded-full object-contain">
+                <div class="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 mx-auto mb-4 sm:mb-6 flex items-center justify-center">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-blue-400 to-cyan-300 rounded-full blur opacity-40"></div>
+                    <div class="relative bg-white p-2 rounded-full shadow-lg border-2 border-blue-50 w-full h-full flex items-center justify-center">
+                        <img :src="getLogoUrl()" alt="Logo" class="w-20 h-20 rounded-full object-contain">
+                    </div>
                 </div>
-            </div>
 
             <!-- TÍTULOS ORIGINALES -->
             <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-center text-slate-800 mb-1 sm:mb-2 tracking-tight uppercase">REGISTRARSE</h1>

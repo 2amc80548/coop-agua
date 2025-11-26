@@ -42,22 +42,22 @@ class PagoFacilService
         }
     }
 
-    public function generarQR($factura, $afiliado)
+   public function generarQR($factura, $afiliado)
     {
         $token = $this->autenticar();
-        if (!$token) {
-            return ['success' => false, 'message' => 'No se pudo autenticar con el banco.'];
-        }
+        if (!$token) return ['success' => false, 'message' => 'No auth'];
 
-        // Generar ID único
         $suffix = uniqid();
-        $paymentNumber = env('PAGO_FACIL_PREFIX', 'grupo05cc') . '_' . $factura->id . '_' . $suffix;
+       $paymentNumber = env('PAGO_FACIL_PREFIX', 'grupo05cc') . '_' . $factura->id . '_' . $suffix;
 
-        // Datos seguros del cliente (evita error si es null)
-        $nombreCliente = substr($afiliado->nombre_completo ?? 'ANDRES MC', 0, 50);
+        // Datos seguros
+        $nombreCliente = substr($afiliado->nombre_completo ?? 'Andres Miranda', 0, 50);
         $ciCliente     = $afiliado->ci ?? '0';
-        $celular       = $afiliado->celular ?? '77813839';
-        $email         = (filter_var($afiliado->email ?? '', FILTER_VALIDATE_EMAIL)) ? $afiliado->email : 'amc80548@gmail.com';
+        $celular       = $afiliado->celular ?? '77813839'; 
+        $email         = (filter_var($afiliado->email ?? '', FILTER_VALIDATE_EMAIL)) ? $afiliado->email : 'amcymbc@gmail.com';
+
+       $urlCallback = "https://www.tecnoweb.org.bo/inf513/grupo05cc/coop-agua/public/api/payment/callback";
+       
 
         $cuerpoSolicitud = [
             "paymentMethod" => 4,
@@ -71,8 +71,8 @@ class PagoFacilService
             "currency"      => 2,
             "clientCode"    => (string)$afiliado->id,
 
-            "callbackUrl"   => "https://tu-dominio.com/api/webhook-pago",
-
+            // AQUÍ ENVIAMOS LA URL DEFINITIVA
+            "callbackUrl"   => $urlCallback, 
 
             "orderDetail"   => [
                 [
@@ -93,7 +93,6 @@ class PagoFacilService
 
             $resultado = $response->json();
 
-            // Verificación estricta basada en PDF
             if ($response->successful() && ($resultado['error'] ?? 1) === 0) {
                 return [
                     'success' => true,
@@ -103,8 +102,8 @@ class PagoFacilService
                 ];
             } else {
                 return [
-                    'success' => false,
-                    'message' => $resultado['message'] ?? 'Error desconocido al generar QR'
+                    'success' => false, 
+                    'message' => "Banco: " . ($resultado['message'] ?? 'Error desconocido')
                 ];
             }
 

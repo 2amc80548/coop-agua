@@ -66,15 +66,10 @@ const checkPaymentStatus = async () => {
         const res = await axios.post(route('pagos.verificarQr'), {
             payment_number: currentPaymentNumber.value
         });
-
-        // Si el backend confirma el pago (Estados 2 o 5)
         if (res.data.status === 'pagado') {
             qrStatus.value = 'pagado';
             
-            // Actualizar la lista de facturas por detrás sin recargar toda la página
             router.reload({ only: ['facturas'], preserveScroll: true });
-            
-            // Terminamos aquí, no llamamos más al timeout
             return; 
         }
     } catch (error) {
@@ -82,7 +77,6 @@ const checkPaymentStatus = async () => {
         console.warn("Reintentando verificación...", error);
     }
 
-    // TRUCO DE RENDIMIENTO:
     // Esperamos 3 segundos y volvemos a llamar a esta misma función.
     // Al usar setTimeout en vez de setInterval, nunca se acumulan peticiones.
     pollingTimeout = setTimeout(checkPaymentStatus, 3000); 
@@ -139,6 +133,18 @@ const estadoClass = (estado) => {
         case 'anulada': return 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200';
         default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
+};
+
+const descargarImagenQr = () => {
+    if (!qrImage.value) return;
+    
+    // Crea un enlace temporal invisible
+    const link = document.createElement('a');
+    link.href = 'data:image/png;base64,' + qrImage.value;
+    link.download = `QR-Factura-${props.factura.id}.png`; 
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
 
 const imprimirFactura = (facturaId) => {
@@ -285,6 +291,14 @@ const imprimirFactura = (facturaId) => {
                     <div class="bg-white p-3 rounded-xl shadow-lg border-2 border-purple-100 mb-6">
                         <img :src="'data:image/png;base64,' + qrImage" alt="QR Pago" class="w-64 h-64 object-contain" />
                     </div>
+
+                <button @click="descargarImagenQr" type="button" class="mb-6 text-sm flex items-center gap-2 text-purple-600 hover:text-purple-800 font-semibold hover:underline">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Guardar imagen en galería
+                </button>
+                    
                     <div class="flex items-center gap-2 text-purple-500 font-medium text-sm mb-2 animate-pulse">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         Esperando confirmación...

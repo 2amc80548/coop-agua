@@ -2,14 +2,21 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\PagoController;
+use App\Models\Afiliado;
 // Route::get('/user', function (Request $request) {
 //     return $request->user();
 // })->middleware('auth:sanctum');
+/*
+|--------------------------------------------------------------------------
+| Endpoint para Callback de PagoFácil
+|--------------------------------------------------------------------------
+| URL Final: https://www.tecnoweb.org.bo/inf513/grupo06cc/metaluvcamiri/api/payment/callback
+*/
+Route::post('/payment/callback', [PagoController::class, 'callbackPagoFacil']);
 
 
 
-use App\Models\Afiliado;
 Route::get('/afiliados/buscar', function (Request $request) {
     $query = $request->input('q');
 
