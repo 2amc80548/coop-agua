@@ -268,7 +268,7 @@ $facturaCheck = Factura::with('conexion')->find($validated['factura_id']);
      */
 
     /**
-     * Genera la imagen QR y la devuelve al Frontend (sin guardar en BD aún)
+     * Genera la imagen QR y la devuelve al Frontend 
      */
     public function generarQr(Request $request)
     {
@@ -281,7 +281,7 @@ $facturaCheck = Factura::with('conexion')->find($validated['factura_id']);
             return response()->json(['status' => 'error', 'message' => 'Factura ya pagada.']);
         }
 
-        $afiliado = $factura->conexion->afiliado; // Asegurar que esto no sea null
+        $afiliado = $factura->conexion->afiliado; 
 
         $resultado = $this->pagoService->generarQR($factura, $afiliado);
 
@@ -317,7 +317,7 @@ $facturaCheck = Factura::with('conexion')->find($validated['factura_id']);
              return response()->json([
                  'status' => 'error', 
                  'message' => 'Respuesta inválida del banco',
-                 'debug' => $respuesta // Para que veas qué llegó
+                 'debug' => $respuesta 
              ]);
         }
 

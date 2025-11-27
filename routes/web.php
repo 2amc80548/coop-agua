@@ -276,32 +276,3 @@ Route::get('/hit-view', function () {
 
     return ['views' => $data[$url]];
 })->name('hit-view');
-
-// Route::post('/webhook-pago', [PagoController::class, 'callbackPagoFacil']);
-
-
-
-// Route::get('/diagnostico-banco', function () {
-//     // 1. Autenticar 
-//     $login = Http::withHeaders([
-//         'tcTokenService' => env('PAGO_FACIL_SERVICE'),
-//         'tcTokenSecret'  => env('PAGO_FACIL_SECRET')
-//     ])->post('https://masterqr.pagofacil.com.bo/api/services/v2/login');
-
-//     if ($login->failed()) return "Error Login: " . $login->body();
-    
-//     // Si el login falla y no devuelve values, mostramos el error completo
-//     $jsonLogin = $login->json();
-//     if (!isset($jsonLogin['values']['accessToken'])) {
-//         return "Login rechazado por el banco: " . $login->body();
-//     }
-
-//     $token = $jsonLogin['values']['accessToken'];
-
-//     // 2. Ver Servicios Habilitados
-//     $servicios = Http::withHeaders([
-//         'Authorization' => 'Bearer ' . $token
-//     ])->post('https://masterqr.pagofacil.com.bo/api/services/v2/list-enabled-services');
-
-//     return $servicios->json();
-// });

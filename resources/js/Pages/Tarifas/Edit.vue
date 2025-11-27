@@ -1,7 +1,8 @@
-<script setup>
+r<script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, useForm, router } from '@inertiajs/vue3';
 import ViewCounter from '@/Components/ViewCounter.vue';
+
 const props = defineProps({
   tarifa: Object
 });
@@ -10,7 +11,7 @@ const form = useForm({
   vigente_desde: props.tarifa.vigente_desde,
   vigente_hasta: props.tarifa.vigente_hasta,
   activo: props.tarifa.activo,
-   tipo_conexion: props.tarifa.tipo_conexion,
+  tipo_conexion: props.tarifa.tipo_conexion,
 
   min_m3: props.tarifa.min_m3,
   min_monto: props.tarifa.min_monto,
@@ -26,9 +27,10 @@ const form = useForm({
   notas: props.tarifa.notas ?? ''
 });
 
-const submit = () => form.put(`/tarifas/${props.tarifa.id}`);
+const submit = () => form.put(route('tarifas.update', props.tarifa.id));
 
 const newConcept = useForm({
+  tarifa_id: props.tarifa.id, 
   codigo: '',
   nombre: '',
   tipo: 'FIJO',
@@ -38,8 +40,11 @@ const newConcept = useForm({
 });
 
 const addConcept = () => {
-  newConcept.post(`/tarifas/${props.tarifa.id}/conceptos`, {
-    onSuccess: () => router.reload({ only: ['tarifa'] })
+  newConcept.post(route('tarifasConceptos.store'), {
+    onSuccess: () => {
+        newConcept.reset(); 
+        router.reload({ only: ['tarifa'] });
+    }
   });
 };
 
@@ -51,14 +56,16 @@ const updateConcept = (c) => {
     aplica_sobre: c.aplica_sobre,
     activo: c.activo
   });
-  f.put(`/tarifas/${props.tarifa.id}/conceptos/${c.id}`, {
+
+  f.put(route('tarifasConceptos.update', c.id), {
     onSuccess: () => router.reload({ only: ['tarifa'] })
   });
 };
 
 const deleteConcept = (c) => {
   if (!confirm('¿Eliminar concepto?')) return;
-  router.delete(`/tarifas/${props.tarifa.id}/conceptos/${c.id}`, {
+
+  router.delete(route('tarifasConceptos.destroy', c.id), {
     onSuccess: () => router.reload({ only: ['tarifa'] })
   });
 };
@@ -69,7 +76,9 @@ const deleteConcept = (c) => {
     <div class="p-6 max-w-5xl mx-auto">
       <div class="flex items-center justify-between mb-4">
         <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-200">Editar Tarifa</h1>
-        <Link href="/tarifas" class="bg-gray-600 dark:bg-gray-700 text-white px-4 py-2 rounded shadow hover:bg-gray-700 dark:hover:bg-gray-600">Volver</Link>
+          <Link :href="route('tarifas.index')" class="bg-gray-600 dark:bg-gray-700 text-white px-4 py-2 rounded shadow hover:bg-gray-700 dark:hover:bg-gray-600">
+              Volver
+          </Link>
       </div>
 
       <div v-if="$page.props.flash?.success" class="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 p-3 rounded mb-4">
@@ -165,7 +174,9 @@ const deleteConcept = (c) => {
         </div>
 
         <div class="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 transition duration-150">Guardar cambios</button>
+          <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 transition duration-150">
+            Guardar cambios
+        </button>
         </div>
       </form>
 
@@ -201,7 +212,9 @@ const deleteConcept = (c) => {
             <label for="nc_activo" class="text-sm font-medium text-gray-700 dark:text-gray-300">Activo</label>
           </div>
           <div class="mt-3">
-            <button @click="addConcept" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition duration-150">Agregar</button>
+            <button type="button" @click="addConcept" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition duration-150">
+                Agregar
+            </button>
           </div>
         </div>
 

@@ -122,7 +122,11 @@ const submit = () => form.post('/tarifas');
 
         <div class="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
           <button class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 transition duration-150">Guardar</button>
-          <Link href="/tarifas" class="bg-gray-500 text-white px-4 py-2 rounded shadow hover:bg-gray-600 transition duration-150">Cancelar</Link>
+         <Link :href="route('tarifas.index')" class="bg-gray-500 text-white px-4 py-2 rounded shadow hover:bg-gray-600 transition duration-150">
+             Cancelar
+        </Link>
+        
+
         </div>
       </form>
       <ViewCounter />
