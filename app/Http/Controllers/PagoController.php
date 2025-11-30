@@ -379,7 +379,7 @@ $facturaCheck = Factura::with('conexion')->find($validated['factura_id']);
 
         return response()->json([
             'status' => 'pendiente', 
-            'estado_banco' => $estadoPago, // IMPORTANTE: Verás este número en la consola del navegador
+            'estado_banco' => $estadoPago, //  número en la consola del navegador
             'mensaje' => $mensaje
         ]);
     }
@@ -410,7 +410,7 @@ $facturaCheck = Factura::with('conexion')->find($validated['factura_id']);
                                 'factura_id'     => $factura->id,
                                 'monto_pagado'   => $factura->deuda_pendiente,
                                 'fecha_pago'     => Carbon::now(),
-                                'forma_pago'     => 'QR ', // Marca distintiva
+                                'forma_pago'     => 'QR', // Marca distintiva
                                 'referencia'     => $paymentNumber,
                                 'registrado_por' => 1, 
                             ]);

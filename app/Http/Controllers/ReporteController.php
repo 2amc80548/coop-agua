@@ -332,7 +332,6 @@ class ReporteController extends Controller
         ]);
     }
 
-    // EJEMPLO ESQUELETO PARA PDF:
     /*
     public function exportPdf(Request $request)
     {

@@ -59,9 +59,9 @@ Route::middleware([
     }
     if ($user->hasRole('Usuario')) {
         
-        // 1. Si es "Usuario" PERO NO ESTÁ VINCULADO...
+        // 1.  "Usuario"  NO VINCULADO...
         if ($user->afiliado_id === null) {
-            // ...lo mandamos a la sala de espera.
+            // sala de espera.
             return redirect()->route('usuario.pendiente'); 
         }
         

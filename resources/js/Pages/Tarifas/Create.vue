@@ -105,7 +105,7 @@ const submit = () => form.post('/tarifas');
             <input v-model.number="form.multa_corte_monto" type="number" step="0.01" 
                    class="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md w-full px-3 py-2 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
           </div>
-        </div>
+        </div>  
 
         <div class="grid md:grid-cols-2 gap-4">
           <div>

@@ -74,7 +74,7 @@ const formatDate = (dateString) => {
     <AppLayout title="Conexiones">
       <template #header>
         <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            Gestión de Conexiones (Medidores)
+            Gestión de Conexiones
         </h2>
       </template>
 

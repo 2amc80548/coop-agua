@@ -113,7 +113,7 @@ const imprimirFactura = (facturaId) => {
           <label for="estado" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">Estado</label>
           <select id="estado" v-model="filterForm.estado" 
                   class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block w-full text-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-            <option value="impaga">Impagas (Defecto)</option>
+            <option value="impaga">Impagas </option>
             <option value="pagado">Pagadas</option>
             <option value="anulada">Anuladas</option>
             <option value="todos">Todas</option>

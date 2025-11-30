@@ -167,7 +167,7 @@ const submit = () => {
                                         <option value="domiciliaria">Domiciliaria</option>
                                         <option value="comercial">Comercial</option>
                                         <option value="institucional">Institucional</option>
-                                        <option value="otro">Otro</option>
+                                        <!-- <option value="otro">Otro</option> -->
                                     </select>
                                 </div>
                                 <div>

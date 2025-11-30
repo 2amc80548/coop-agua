@@ -140,7 +140,7 @@ const rangoTexto = computed(() => {
                 >
                   <option value="">Todos</option>
                   <option value="activo">Activo</option>
-                  <option value="en_mora">En mora</option>
+                  <option value="en_corte">En corte</option>
                   <option value="cortado">Cortado</option>
                 </select>
               </div>
