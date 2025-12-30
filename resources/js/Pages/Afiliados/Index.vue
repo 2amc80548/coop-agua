@@ -12,7 +12,7 @@ const props = defineProps({
   
 });
 const page = usePage();
-
+const mostrarMensaje = ref(false);
 // --- Formulario de Filtros ---
 const filterForm = useForm({
   search: props.filters.search ?? '',
@@ -69,6 +69,17 @@ const estadoServicioClass = (estado) => {
         default: return 'bg-gray-100 text-gray-800';
     }
 };
+
+watch(() => page.props.flash.success, (nuevoMensaje) => {
+  if (nuevoMensaje) {
+    mostrarMensaje.value = true; // Lo mostramos
+    
+    // Iniciamos la cuenta regresiva de 3 segundos
+    setTimeout(() => {
+      mostrarMensaje.value = false; // Lo ocultamos
+    }, 3000);
+  }
+}, { immediate: true });
 </script>
 
 <template>
@@ -87,8 +98,11 @@ const estadoServicioClass = (estado) => {
         </Link>
       </div>
 
-      <div v-if="page.props.flash.success" class="bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-4 shadow-sm" role="alert">
-        <p class="font-bold">Éxito</p> <p>{{ page.props.flash.success }}</p>
+      <div v-if="mostrarMensaje && page.props.flash.success" 
+          class="bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-4 shadow-sm transition-all duration-500" 
+          role="alert">
+        <p class="font-bold">Éxito</p> 
+        <p>{{ page.props.flash.success }}</p>
       </div>
       <div v-if="page.props.flash.error || Object.keys(page.props.errors).length > 0" class="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4 shadow-sm" role="alert">
          <p class="font-bold">Error</p>
@@ -99,7 +113,7 @@ const estadoServicioClass = (estado) => {
        </div>
 
       <div class="mb-4 p-4 bg-white dark:bg-gray-800 rounded shadow-sm 
-                  flex flex-wrap items-end gap-4">
+                  flex flex-wrap items-end gap-4">  
 
         <!-- Buscar -->
         <div class="flex flex-col w-64">

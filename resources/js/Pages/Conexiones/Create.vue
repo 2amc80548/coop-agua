@@ -22,39 +22,55 @@ const form = useForm({
     estado: 'activo',
     fecha_instalacion: new Date().toISOString().split('T')[0], 
     tipo_conexion: 'domiciliaria',
+
+    es_antiguo: false,      // El checkbox (true/false)
+    lectura_anterior: 0,    // El número que se guardará
 });
 
-// --- Lógica de Buscador de Afiliado ---
-const searchCi = ref('');
-const afiliadoEncontrado = ref(null);
-const busquedaMensaje = ref('');
+// --- Lógica de Buscador de Afiliado (ESTILO LECTURA) ---
+const searchTerm = ref(''); // Usaremos esta para el input
+const searchResults = ref([]);
 const isSearching = ref(false);
+const showSearchDropdown = ref(false);
 
-const buscarAfiliado = async () => {
-    if (!searchCi.value.trim()) { busquedaMensaje.value = 'Ingrese un CI.'; return; }
-    isSearching.value = true;
-    afiliadoEncontrado.value = null;
-    form.afiliado_id = null;
-    busquedaMensaje.value = 'Buscando...';
+let searchTimeout = null;
+
+const onSearchInput = () => {
+    clearTimeout(searchTimeout);
+    showSearchDropdown.value = true;
     
-    // Construir la URL de la API (reemplazando el placeholder)
-    const url = props.searchAfiliadosUrl.replace('__CI_PLACEHOLDER__', searchCi.value.trim());
-
-    try {
-        const response = await axios.get(url);
-        if (response.data) {
-            afiliadoEncontrado.value = response.data;
-            form.afiliado_id = response.data.id;
-            form.direccion = response.data.direccion;
-            form.zona_id = response.data.zona_id; 
-            form.codigo_medidor = response.data.codigo;
-            busquedaMensaje.value = `Afiliado: ${response.data.nombre_completo}`;
-        }
-    } catch (error) {
-        busquedaMensaje.value = 'No se encontró ningún afiliado con ese CI (404).';
-    } finally {
+    if (searchTerm.value.length < 2) {
+        searchResults.value = [];
         isSearching.value = false;
+        return;
     }
+
+    isSearching.value = true;
+    searchTimeout = setTimeout(async () => {
+        try {
+            // Llamamos a la API enviando el término
+            const response = await axios.get('/api/afiliados/buscar', { 
+                params: { term: searchTerm.value } 
+            });
+            searchResults.value = response.data;
+        } catch (error) {
+            console.error("Error buscando:", error);
+        } finally {
+            isSearching.value = false;
+        }
+    }, 300);
+};
+
+// Función para seleccionar el afiliado y rellenar el formulario
+const selectAfiliado = (a) => {
+    form.afiliado_id = a.id;
+    form.direccion = a.direccion;
+    form.zona_id = a.zona_id; 
+    form.codigo_medidor = a.codigo;
+    
+    searchTerm.value = a.nombre_completo; // Lo que se queda escrito
+    showSearchDropdown.value = false;
+    searchResults.value = [];
 };
 // --- Fin Lógica Buscador ---
 
@@ -108,19 +124,29 @@ const submit = () => {
                     
                     <form @submit.prevent="submit" class="space-y-6">
                         
-                        <div class="p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900">
-                            <label class="block font-medium text-sm text-gray-700 dark:text-gray-300 mb-1">1. Buscar Afiliado por CI</label>
-                            <div class="flex gap-2">
-                                <input v-model="searchCi" @keydown.enter.prevent="buscarAfiliado" type="text" placeholder="Ingrese CI..." 
-                                       class="flex-grow border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                                <button @click.prevent="buscarAfiliado" :disabled="isSearching" 
-                                        class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 disabled:opacity-50 transition duration-150">
-                                    {{ isSearching ? 'Buscando...' : 'Buscar' }}
-                                </button>
-                            </div>
-                            <div v-if="busquedaMensaje" :class="{'text-green-600 dark:text-green-400': form.afiliado_id, 'text-red-600 dark:text-red-400': !form.afiliado_id}" class="text-sm mt-1">{{ busquedaMensaje }}</div>
-                            <div v-if="form.errors.afiliado_id" class="text-red-600 text-sm mt-1">{{ form.errors.afiliado_id }}</div>
-                        </div>
+                       <div class="p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900">
+                        <label class="block font-medium text-sm text-gray-700 dark:text-gray-300 mb-1">
+                            1. Buscar Afiliado (Nombre, CI o Código)
+                        </label>
+                        <div class="relative">
+                        <input 
+                            v-model="searchTerm" 
+                            @input="onSearchInput" 
+                            @focus="showSearchDropdown = true"
+                            type="text" 
+                            placeholder="Buscar por Nombre, CI o Código..." 
+                            class="w-full ..." 
+                        />
+                        
+                        <ul v-if="showSearchDropdown && searchResults.length" class="absolute z-50 w-full bg-white border shadow-lg">
+                            <li v-for="a in searchResults" :key="a.id" @mousedown="selectAfiliado(a)" class="p-2 hover:bg-blue-100 cursor-pointer text-sm">
+                                <strong>{{ a.nombre_completo }}</strong> - CI: {{ a.ci }}
+                            </li>
+                        </ul>
+                    </div>
+                        
+                        <div v-if="form.errors.afiliado_id" class="text-red-600 text-sm mt-1">{{ form.errors.afiliado_id }}</div>
+                    </div>
 
                         <fieldset :disabled="!form.afiliado_id" class="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
                             <legend class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2">2. Datos de la Conexión (Medidor)</legend>
@@ -131,7 +157,30 @@ const submit = () => {
                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required />
                                 <div v-if="form.errors.codigo_medidor" class="text-red-600 text-sm mt-1">{{ form.errors.codigo_medidor }}</div>
                             </div>
-                            
+                             <div class="mt-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900">
+                        <div class="flex items-center">
+                            <input 
+                                id="check_antiguo" 
+                                v-model="form.es_antiguo" 
+                                type="checkbox" 
+                                class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            >
+                            <label for="check_antiguo" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                ¿Es una conexión con lectura anterior? (Medidor antiguo)
+                            </label>
+                        </div>
+
+                        <div v-if="form.es_antiguo" class="mt-3">
+                            <label class="block font-medium text-xs text-gray-600 dark:text-gray-400">Lectura Anterior Acumulada *</label>
+                            <input 
+                                v-model="form.lectura_anterior" 
+                                type="number" 
+                                class="mt-1 block w-full md:w-1/4 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Ej: 540"
+                                required
+                            >
+                        </div>
+                    </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label for="direccion" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Dirección de Instalación *</label>
@@ -180,6 +229,9 @@ const submit = () => {
                                     </select>
                                 </div>
                             </div>
+                           
+
+
                         </fieldset>
 
                         <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">

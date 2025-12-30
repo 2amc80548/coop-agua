@@ -111,44 +111,63 @@ class ConexionController extends Controller
      * Guarda una nueva conexión.
      */
     public function store(Request $request)
-    {
+{
+    // 1. Validar estrictamente lo que llega de Vue
+    $validated = $request->validate([
+        'codigo_medidor'    => 'required|string|unique:conexiones,codigo_medidor|max:50',
+        'afiliado_id'       => 'required|exists:afiliados,id',
+        'estado'            => 'required|in:activo,suspendido,eliminado',
+        'direccion'         => 'required|string|max:255',
+        'zona_id'           => 'required|exists:zonas,id', 
+        'fecha_instalacion' => 'required|date',
+        'tipo_conexion'     => 'required|in:domiciliaria,comercial,institucional,otro',
+        // Estos son los campos nuevos del checkbox
+        'es_antiguo'        => 'nullable|boolean',
+        'lectura_anterior'  => 'nullable|numeric|min:0',
+    ]);
 
-        $validated = $request->validate([
-            'codigo_medidor'  => 'required|string|unique:conexiones,codigo_medidor|max:50',
-            'afiliado_id'     => 'required|exists:afiliados,id',
-            'estado'          => 'required|in:activo,suspendido,eliminado',
-            'direccion'       => 'required|string|max:255',
-            'zona_id'         => 'required|exists:zonas,id', 
-            'fecha_instalacion' => 'required|date',
-            'tipo_conexion'   => 'required|in:domiciliaria,comercial,institucional,otro',
-        ]);
-        
+    try {
+        return DB::transaction(function () use ($request, $validated) {
+            
+            // 2. Crear la conexión
+            $conexion = \App\Models\Conexion::create($validated);
 
-       try {
-        DB::transaction(function () use ($validated) {
+            // 3. Lógica de los 1100 (Lectura Semilla)
+            $montoArranque = $request->es_antiguo ? $request->lectura_anterior : 0;
 
-            // 1) Crear la conexión
-            $conexion = Conexion::create($validated);
+            // IMPORTANTE: Ponemos periodo del mes pasado para NO bloquear el mes actual
+            $periodoBase = date('Y-m', strtotime("-1 month"));
 
-            // 2) Buscar el afiliado
-            $afiliado = Afiliado::find($validated['afiliado_id']);
+            \App\Models\Lectura::create([
+                'conexion_id'      => $conexion->id,
+                'fecha_lectura'    => $validated['fecha_instalacion'],
+                'periodo'          => $periodoBase, 
+                'lectura_anterior' => $montoArranque,
+                'lectura_actual'   => $montoArranque, // Iguales para que consumo sea 0
+                'observacion'      => 'Arranque de sistema',
+                'registrado_por'   => Auth::id(),
+                'estado'           => 'finalizado', // <--- IMPORTANTE: No aparecerá para facturar
+            ]);
 
-            // 3) Si existe y está pendiente, pasarlo a activo
+            // 4. Activar afiliado
+            $afiliado = \App\Models\Afiliado::find($validated['afiliado_id']);
             if ($afiliado && $afiliado->estado_servicio === 'Pendiente') {
-                $afiliado->update([
-                    'estado_servicio' => 'activo',
-                ]);
+                $afiliado->update(['estado_servicio' => 'activo']);
             }
 
+            return redirect()->route('conexiones.index')->with('success', '✅ Conexión creada correctamente.');
         });
-        } catch (\Exception $e) {
-             Log::error('Error al guardar conexión:', ['error' => $e->getMessage(), 'request' => $request->all()]);
-             return redirect()->back()->withInput()->withErrors(['error_general' => 'Error al guardar la conexión.']);
-        }
 
-        return redirect()->route('conexiones.index')->with('success', '✅ Conexión creada correctamente.');
+    } catch (\Exception $e) {
+        // Esto te dirá el error real en el log
+        Log::error("Error al guardar conexión: " . $e->getMessage());
+        
+        // Devolvemos el error a la pantalla para que lo veas
+        return redirect()->back()
+            ->withInput()
+            ->withErrors(['error_general' => 'Fallo en la base de datos: ' . $e->getMessage()]);
     }
-
+}
 
     /**
      * Actualiza una conexión.

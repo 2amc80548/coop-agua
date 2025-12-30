@@ -11,14 +11,15 @@ use App\Models\Afiliado;
 |--------------------------------------------------------------------------
 | Endpoint para Callback de PagoFácil
 |--------------------------------------------------------------------------
-| URL Final: https://www.tecnoweb.org.bo/inf513/grupo06cc/metaluvcamiri/api/payment/callback
+| 
 */
 Route::post('/payment/callback', [PagoController::class, 'callbackPagoFacil']);
 
 
 
 Route::get('/afiliados/buscar', function (Request $request) {
-    $query = $request->input('q');
+  
+    $query = $request->input('q') ?? $request->input('term'); 
 
     if (strlen($query) < 2) {
         return response()->json([]);
@@ -26,7 +27,7 @@ Route::get('/afiliados/buscar', function (Request $request) {
 
     $afiliados = Afiliado::where('ci', 'like', "%{$query}%")
         ->orWhere('nombre_completo', 'like', "%{$query}%")
-        ->withCount('users') 
+        ->orWhere('codigo', 'like', "%{$query}%") 
         ->limit(10)
         ->get()
         ->map(function ($b) {
@@ -34,8 +35,9 @@ Route::get('/afiliados/buscar', function (Request $request) {
                 'id' => $b->id,
                 'nombre_completo' => $b->nombre_completo,
                 'ci' => $b->ci,
-                'usuarios_count' => $b->users_count, // ✅ 
-                'puede_tener_mas' => $b->users_count < 2
+                'codigo' => $b->codigo,
+                'direccion' => $b->direccion,
+                'zona_id' => $b->zona_id,     
             ];
         });
 
