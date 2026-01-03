@@ -213,7 +213,7 @@ const logout = () => {
                             <span class="mr-3 md:mr-4 text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform" title="Roles y Usuarios">
                                 <svg class="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                             </span>
-                            <span v-if="!isSidebarHidden" class="font-medium">Gestionar Roles y Usuarios</span>
+                            <span v-if="!isSidebarHidden" class="font-medium">Roles y Usuarios</span>
                         </NavLink>
 
                         <span v-if="!isSidebarHidden" class="px-3 text-xs md:text-sm font-bold uppercase text-cyan-600 dark:text-cyan-400">Gestión</span>
@@ -222,21 +222,21 @@ const logout = () => {
                             <span class="mr-3 md:mr-4 text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform" title="Afiliados">
                                 <svg class="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.124-1.282-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.653.124-1.282.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                             </span>
-                            <span v-if="!isSidebarHidden" class="font-medium">Gestionar Afiliados</span>
+                            <span v-if="!isSidebarHidden" class="font-medium">Afiliados</span>
                         </NavLink>
 
                         <NavLink :href="route('conexiones.index')" :active="route().current('conexiones.*')" class="group flex items-center text-gray-700 dark:text-gray-300 hover:bg-cyan-50 dark:hover:bg-gray-700 px-3 md:px-4 py-3 md:py-3.5 rounded-xl transition-all duration-200 text-sm md:text-base">
                             <span class="mr-3 md:mr-4 text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform" title="Conexiones">
                                 <svg class="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                             </span>
-                            <span v-if="!isSidebarHidden" class="font-medium">Gestionar Conexiones</span>
+                            <span v-if="!isSidebarHidden" class="font-medium">Conexiones</span>
                         </NavLink>
 
                         <NavLink :href="route('lecturas.index')" :active="route().current('lecturas.*')" class="group flex items-center text-gray-700 dark:text-gray-300 hover:bg-cyan-50 dark:hover:bg-gray-700 px-3 md:px-4 py-3 md:py-3.5 rounded-xl transition-all duration-200 text-sm md:text-base">
                             <span class="mr-3 md:mr-4 text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform" title="Lecturas">
                                 <svg class="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 0v6m0-6l-6 6m6-6v6m0-6l-6 6" /></svg>
                             </span>
-                            <span v-if="!isSidebarHidden" class="font-medium">Gestionar Lecturas</span>
+                            <span v-if="!isSidebarHidden" class="font-medium">Lecturas</span>
                         </NavLink>
 
                         <span v-if="!isSidebarHidden" class="px-3 text-xs md:text-sm font-bold uppercase text-cyan-600 dark:text-cyan-400">Facturación</span>

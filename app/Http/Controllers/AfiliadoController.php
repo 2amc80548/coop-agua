@@ -312,4 +312,38 @@ $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
             'codigo'          => $afiliado->codigo,
         ]);
     }
+
+
+    public function apiSearch(Request $request) 
+    {
+        // Tomamos el término de búsqueda ('q' o 'term')
+        $term = $request->input('q') ?: $request->input('term', '');
+
+        if (strlen($term) < 2) {
+            return response()->json([]);
+        }
+
+        // Buscamos por CI, Nombre o Código
+        $afiliados = Afiliado::where(function ($query) use ($term) {
+                $query->where('ci', 'like', "%{$term}%")
+                      ->orWhere('nombre_completo', 'like', "%{$term}%")
+                      ->orWhere('codigo', 'like', "%{$term}%");
+            })
+            ->limit(10)
+            ->get();
+
+        // Formateamos la respuesta para que Vue/Inertia la reciba limpia
+        $results = $afiliados->map(function ($a) {
+            return [
+                'id' => $a->id,
+                'nombre_completo' => $a->nombre_completo,
+                'ci' => $a->ci,
+                'codigo' => $a->codigo,
+                'direccion' => $a->direccion,
+                'zona_id' => $a->zona_id,
+            ];
+        });
+
+        return response()->json($results);
+    }
 }

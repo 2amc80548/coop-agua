@@ -103,6 +103,10 @@ const guardarNuevaZona = () => {
 const submit = () => {
     form.post(route('conexiones.store'));
 };
+
+const handleBlur = () => { 
+    setTimeout(() => { showSearchDropdown.value = false; }, 300); 
+};
 </script>
 
 <template>
@@ -128,19 +132,34 @@ const submit = () => {
                         <label class="block font-medium text-sm text-gray-700 dark:text-gray-300 mb-1">
                             1. Buscar Afiliado (Nombre, CI o Código)
                         </label>
-                        <div class="relative">
+                    <div class="relative">
                         <input 
                             v-model="searchTerm" 
                             @input="onSearchInput" 
                             @focus="showSearchDropdown = true"
+                            @blur="handleBlur" 
                             type="text" 
                             placeholder="Buscar por Nombre, CI o Código..." 
-                            class="w-full ..." 
+                            class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" 
+                            autocomplete="off"
                         />
                         
-                        <ul v-if="showSearchDropdown && searchResults.length" class="absolute z-50 w-full bg-white border shadow-lg">
-                            <li v-for="a in searchResults" :key="a.id" @mousedown="selectAfiliado(a)" class="p-2 hover:bg-blue-100 cursor-pointer text-sm">
-                                <strong>{{ a.nombre_completo }}</strong> - CI: {{ a.ci }}
+                        <span v-if="isSearching" class="absolute right-3 top-2 mt-px text-gray-400">
+                            <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        </span>
+
+                        <ul v-if="showSearchDropdown && (searchResults.length > 0 || isSearching || searchTerm.length >= 2)" class="absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                            <li v-if="isSearching && !searchResults.length" class="px-4 py-2 text-gray-500 text-sm">Buscando...</li>
+                            
+                            <li v-for="a in searchResults" :key="a.id" @mousedown="selectAfiliado(a)" class="px-4 py-2 hover:bg-blue-100 dark:hover:bg-gray-600 cursor-pointer border-b last:border-b-0">
+                                <div class="text-sm">
+                                    <strong class="dark:text-white">{{ a.nombre_completo }}</strong><br>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400">CI: {{ a.ci }} | Código: {{ a.codigo }}</span>
+                                </div>
+                            </li>
+
+                            <li v-if="!isSearching && !searchResults.length && searchTerm.length >= 2" class="px-4 py-2 dark: text-gray-500 text-sm">
+                                 Afiliado no encontrado.
                             </li>
                         </ul>
                     </div>
