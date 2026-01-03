@@ -15,7 +15,6 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-
 class AfiliadoController extends Controller
 {
     /**

@@ -102,6 +102,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // ===============================================
     // RUTAS DE GESTIÓN (ESTRUCTURA LIMPIA Y ÚNICA)
     // ===============================================
+Route::get('afiliados/buscar', [AfiliadoController::class, 'apiSearch'])
+     ->middleware('role:Administrador|Secretaria')
+     ->name('afiliados.buscar');
 
     // --- MÓDULOS CRUD ---
     Route::resource('users', UserController::class)
@@ -134,6 +137,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // --- RUTAS DE ACCIONES ESPECIALES (Admin y Secretaria) ---
     Route::middleware(['role:Administrador|Secretaria'])->group(function () {
         
+          //      Route::get('afiliados/buscar', [AfiliadoController::class, 'apiSearch'])
+          // ->name('afiliados.buscar');
+          
         // Facturación Manual
         Route::get('/facturacion/generar', [FacturacionController::class, 'showGenerador'])
              ->name('facturacion.generar.show');
@@ -162,6 +168,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
           Route::get('/reportes', [ReporteController::class, 'index'])
                ->name('reportes.index');    
+           
+
 
     });
 

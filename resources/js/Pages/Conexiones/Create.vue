@@ -35,6 +35,7 @@ const showSearchDropdown = ref(false);
 
 let searchTimeout = null;
 
+// --- Lógica de Buscador de Afiliado ---
 const onSearchInput = () => {
     clearTimeout(searchTimeout);
     showSearchDropdown.value = true;
@@ -48,8 +49,7 @@ const onSearchInput = () => {
     isSearching.value = true;
     searchTimeout = setTimeout(async () => {
         try {
-            // Llamamos a la API enviando el término
-            const response = await axios.get('/api/afiliados/buscar', { 
+            const response = await axios.get(route('afiliados.buscar'), { 
                 params: { term: searchTerm.value } 
             });
             searchResults.value = response.data;

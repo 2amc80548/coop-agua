@@ -21,5 +21,6 @@ Route::post('/payment/callback', [PagoController::class, 'callbackPagoFacil']);
 
 
 
-Route::get('afiliados/buscar', [AfiliadoController::class, 'apiSearch']);
+    //  Route::get('afiliados/buscar', [AfiliadoController::class, 'apiSearch']);
+
 
