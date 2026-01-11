@@ -23,7 +23,7 @@ const form = useForm({
   notas: ''
 });
 
-const submit = () => form.post('/tarifas');
+const submit = () => form.post(route('tarifas.store'));
 </script>
 
 <template>

@@ -104,7 +104,7 @@ public static function verificarEstadoFinanciero($afiliadoId)
 
         // CASO A: REHABILITACIÓN (Debe 0, 1 o 2 facturas)
         if ($totalDeudas < 3) {
-            // Lógica: Si debe menos de 3, NO debería estar castigado.
+            // Ló gica: Si debe menos de 3, NO debería estar castigado.
             // Si su estado NO es 'activo' (ej: está 'en_corte', 'cortado', 'suspendido'), lo activamos.
             if ($estadoActual !== 'activo') {
                 $afiliado->estado_servicio = 'activo';
