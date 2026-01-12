@@ -11,7 +11,12 @@ const props = defineProps({
 
 // Helper para la foto
 const getPhotoUrl = (path) => {
-    if (path) return `storage/${path}`;
+    if (path) {
+        // Esto detecta automáticamente si estás en Tecnoweb o Localhost
+        // y construye la ruta correcta hasta la carpeta /public
+        const baseUrl = window.location.origin + window.location.pathname.split('/afiliados')[0];
+        return `${baseUrl}/storage/${path}`;
+    }
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(props.afiliado.nombre_completo)}&color=7F9CF5&background=EBF4FF`;
 };
 
