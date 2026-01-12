@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Modal from '@/Components/Modal.vue';
@@ -93,6 +93,55 @@ const submit = () => {
         },
     });
 };
+
+// --- LÓGICA DE CÁMARA ---
+const showCameraModal = ref(false);
+const videoPlayer = ref(null);
+const canvasElement = ref(null);
+const stream = ref(null);
+
+const abrirCamara = async () => {
+    showCameraModal.value = true;
+    try {
+        stream.value = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: 1280, height: 720 }, 
+            audio: false 
+        });
+        videoPlayer.value.srcObject = stream.value;
+    } catch (err) {
+        alert("No se pudo acceder a la cámara. Revisa los permisos.");
+        showCameraModal.value = false;
+    }
+};
+
+const cerrarCamara = () => {
+    if (stream.value) {
+        stream.value.getTracks().forEach(track => track.stop());
+    }
+    showCameraModal.value = false;
+};
+
+const capturarFoto = () => {
+    const context = canvasElement.value.getContext('2d');
+    // Dibujamos el video en el canvas
+    context.drawImage(videoPlayer.value, 0, 0, 640, 480);
+    
+    // Convertimos el canvas a un BLOB (archivo) para que Laravel lo reciba bien
+    canvasElement.value.toBlob((blob) => {
+        const file = new File([blob], "foto_camara.jpg", { type: "image/jpeg" });
+        
+        // Asignamos al formulario de Inertia
+        form.profile_photo = file;
+        
+        // Generamos la vista previa
+        photoPreview.value = URL.createObjectURL(blob);
+        
+        cerrarCamara();
+    }, 'image/jpeg', 0.9);
+};
+
+// Limpiar stream si el usuario cierra la pestaña o navega a otro lado
+onUnmounted(() => cerrarCamara());
 </script>
 
 <template>
@@ -119,14 +168,26 @@ const submit = () => {
                         <div class="col-span-6 sm:col-span-4">
                             <input ref="photoInput" type="file" class="hidden" @change="updatePhotoPreview" accept="image/*">
                             <label class="block font-medium text-sm text-gray-700 dark:text-gray-300">Foto del Afiliado (Opcional)</label>
+                            
                             <div class="mt-2 flex items-center gap-4">
-                                <span v-if="!photoPreview" class="block rounded-full w-20 h-20 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                                    <svg class="h-12 w-12 text-gray-400 dark:text-gray-500" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                                <span v-if="!photoPreview" class="block rounded-full w-20 h-20 bg-gray-100 dark:bg-gray-700 flex items-center justify-center border-2 border-dashed border-gray-300">
+                                    <svg class="h-12 w-12 text-gray-400 dark:text-gray-500" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
                                 </span>
-                                <img v-if="photoPreview" :src="photoPreview" alt="Vista previa" class="w-20 h-20 rounded-full object-cover">
-                                <button @click.prevent="selectNewPhoto" type="button" class="bg-gray-200 dark:bg-gray-700 dark:text-gray-200 text-gray-700 py-2 px-4 rounded-md text-sm hover:bg-gray-300 dark:hover:bg-gray-600 transition duration-150">
-                                    {{ photoPreview ? 'Cambiar Foto' : 'Seleccionar Foto' }}
-                                </button>
+                                <img v-if="photoPreview" :src="photoPreview" alt="Vista previa" class="w-20 h-20 rounded-full object-cover border-2 border-indigo-500">
+
+                                <div class="flex flex-col sm:flex-row gap-2">
+                                    <button @click.prevent="selectNewPhoto" type="button" class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                        {{ photoPreview ? 'Cambiar de Galería' : 'Desde Galería' }}
+                                    </button>
+
+                                    <button @click.prevent="abrirCamara" type="button" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                        Tomar Foto
+                                    </button>
+                                </div>
                             </div>
                             <div v-if="form.errors.profile_photo" class="text-red-600 text-sm mt-1">{{ form.errors.profile_photo }}</div>
                         </div>
@@ -314,6 +375,39 @@ const submit = () => {
                 </form>
             </div>
         </Modal>
+            <Modal :show="showCameraModal" @close="cerrarCamara" max-width="2xl">
+                <div class="p-6 dark:bg-gray-800">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-medium text-gray-900 dark:text-white">
+                            Cámara: Captura de Foto de Afiliado
+                        </h2>
+                        <button @click="cerrarCamara" class="text-gray-400 hover:text-gray-500">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+
+                    <div class="relative bg-black rounded-lg overflow-hidden shadow-inner flex justify-center items-center" style="min-height: 400px;">
+                        <video ref="videoPlayer" autoplay playsinline class="w-full h-full object-cover"></video>
+                        
+                        <canvas ref="canvasElement" width="640" height="480" class="hidden"></canvas>
+                        
+                        <div class="absolute inset-0 border-2 border-white/20 pointer-events-none flex items-center justify-center">
+                            <div class="w-64 h-64 border border-white/40 rounded-full"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-between gap-4">
+                        <button type="button" @click="cerrarCamara" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded transition">
+                            Cerrar
+                        </button>
+                        
+                        <button type="button" @click="capturarFoto" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-8 rounded shadow-lg flex items-center gap-2 transition transform active:scale-95">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path></svg>
+                            CAPTURAR AHORA
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         <ViewCounter />
     </AppLayout>
 </template>

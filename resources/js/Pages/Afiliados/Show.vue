@@ -2,6 +2,8 @@
 import { Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ViewCounter from '@/Components/ViewCounter.vue';
+import { ref } from 'vue';
+
 
 const props = defineProps({
     afiliado: Object, // Trae afiliado con 'zona', 'requisitos', 'conexiones.zona', 'user', 'observacion'
@@ -40,6 +42,19 @@ const formatDate = (dateString) => {
         return date.toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch { return dateString; }
 };
+const showPhotoModal = ref(false); // Estado para el modal
+
+const toggleModal = () => {
+    showPhotoModal.value = !showPhotoModal.value;
+};
+
+// Función para descargar la imagen
+const downloadImage = (url, name) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `foto-${name}.jpg`;
+    link.click();
+};
 </script>
 
 <template>
@@ -55,7 +70,18 @@ const formatDate = (dateString) => {
                 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-xl sm:rounded-lg">
                     
                     <div class="p-6 md:p-8 border-b dark:border-gray-700 flex flex-col md:flex-row items-center gap-6">
-                        <img class="h-24 w-24 rounded-full object-cover" :src="getPhotoUrl(afiliado.profile_photo_path)" :alt="afiliado.nombre_completo">
+                        <div class="relative group cursor-pointer" @click="showPhotoModal = true">
+                            <img 
+                                class="h-24 w-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-lg hover:scale-105 transition-transform duration-200" 
+                                :src="getPhotoUrl(afiliado.profile_photo_path)" 
+                                :alt="afiliado.nombre_completo"
+                            >
+                            <div class="absolute inset-0 flex items-center justify-center rounded-full bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                </svg>
+                            </div>
+                        </div>
                         <div class="flex-1 text-center md:text-left">
                             <h3 class="text-2xl font-bold text-gray-900 dark:text-white">{{ afiliado.nombre_completo }}</h3>
                             <p class="text-sm text-gray-500 dark:text-gray-400">CI: {{ afiliado.ci }} | Código: {{ afiliado.codigo }}</p>
@@ -140,6 +166,34 @@ const formatDate = (dateString) => {
                     </div>
                 </div>
             </div>
+                    <div v-if="showPhotoModal" 
+                        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+                        @click.self="toggleModal">
+                        
+                        <div class="relative max-w-4xl w-full flex flex-col items-center">
+                            <div class="absolute -top-12 right-0 flex gap-4">
+                                <button @click="downloadImage(getPhotoUrl(afiliado.profile_photo_path), afiliado.nombre_completo)" 
+                                        class="text-white hover:text-blue-400 flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-lg transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Descargar
+                                </button>
+
+                                <button @click="toggleModal" class="text-white hover:text-red-400 transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <img :src="getPhotoUrl(afiliado.profile_photo_path)" 
+                                class="max-h-[80vh] max-w-full rounded-lg shadow-2xl object-contain border-4 border-white/10"
+                                alt="Foto grande">
+                            
+                            <p class="text-white mt-4 font-semibold text-lg">{{ afiliado.nombre_completo }}</p>
+                        </div>
+                    </div>
                 <ViewCounter />
         </div>
     </AppLayout>

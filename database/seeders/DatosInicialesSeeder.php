@@ -27,8 +27,6 @@ class DatosInicialesSeeder extends Seeder
             ['id' => 4, 'nombre' => 'B/ COMERCIAL'],
             ['id' => 3, 'nombre' => 'B/ FERROVIARIO'],
             ['id' => 5, 'nombre' => 'B/ SANTA CRUZ'],
-            ['id' => 11, 'nombre' => 'GUTIERREZ'],
-            ['id' => 6, 'nombre' => 'SANTA CRUZ DE LA SIERRA'],
         ]);
 
         // --- TARIFAS ---

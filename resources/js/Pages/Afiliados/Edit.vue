@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Modal from '@/Components/Modal.vue'; 
@@ -136,6 +136,51 @@ const submitForzandoBaja = () => {
     confirmarBajaModal.value = false;
     submit();
 };
+
+// --- LÓGICA DE CÁMARA PARA EDIT ---
+const showCameraModal = ref(false);
+const videoPlayer = ref(null);
+const canvasElement = ref(null);
+const stream = ref(null);
+
+const abrirCamara = async () => {
+    showCameraModal.value = true;
+    try {
+        stream.value = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: 1280, height: 720 }, 
+            audio: false 
+        });
+        videoPlayer.value.srcObject = stream.value;
+    } catch (err) {
+        alert("No se pudo acceder a la cámara. Revisa los permisos.");
+        showCameraModal.value = false;
+    }
+};
+
+const cerrarCamara = () => {
+    if (stream.value) {
+        stream.value.getTracks().forEach(track => track.stop());
+    }
+    showCameraModal.value = false;
+};
+
+const capturarFoto = () => {
+    const context = canvasElement.value.getContext('2d');
+    // Dibujamos el frame actual del video en el canvas (640x480 es buen tamaño)
+    context.drawImage(videoPlayer.value, 0, 0, 640, 480);
+    
+    canvasElement.value.toBlob((blob) => {
+        const file = new File([blob], "foto_actualizada.jpg", { type: "image/jpeg" });
+        
+        form.profile_photo = file;  // Metemos el archivo al form
+        form.clear_photo = false;   // Avisamos que NO queremos borrar la foto, sino poner esta nueva
+        photoPreview.value = URL.createObjectURL(blob); // Mostramos la vista previa
+        
+        cerrarCamara();
+    }, 'image/jpeg', 0.9);
+};
+
+onUnmounted(() => cerrarCamara());
 </script>
 
 <template>
@@ -166,18 +211,30 @@ const submitForzandoBaja = () => {
                         <div class="col-span-6 sm:col-span-4">
                             <input ref="photoInput" type="file" class="hidden" @change="updatePhotoPreview" accept="image/*">
                             <label class="block font-medium text-sm text-gray-700 dark:text-gray-300">Foto del Afiliado</label>
+                            
                             <div class="mt-2 flex items-center gap-4">
-                                <img v-if="photoPreview" :src="photoPreview" alt="Vista previa" class="w-20 h-20 rounded-full object-cover">
-                                <img v-else-if="existingPhotoUrl && !form.clear_photo" :src="existingPhotoUrl" :alt="form.nombre_completo" class="w-20 h-20 rounded-full object-cover">
-                                <span v-else class="block rounded-full w-20 h-20 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                <img v-if="photoPreview" :src="photoPreview" alt="Vista previa" class="w-20 h-20 rounded-full object-cover border-2 border-indigo-500">
+                                <img v-else-if="existingPhotoUrl && !form.clear_photo" :src="existingPhotoUrl" :alt="form.nombre_completo" class="w-20 h-20 rounded-full object-cover border-2 border-gray-300">
+                                <span v-else class="block rounded-full w-20 h-20 bg-gray-100 dark:bg-gray-700 flex items-center justify-center border-2 border-dashed border-gray-300">
                                     <svg class="h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
                                 </span>
-                                 <button @click.prevent="selectNewPhoto" type="button" class="bg-gray-200 dark:bg-gray-700 dark:text-gray-200 text-gray-700 py-2 px-4 rounded-md text-sm hover:bg-gray-300">
-                                    {{ existingPhotoUrl || photoPreview ? 'Cambiar Foto' : 'Seleccionar Foto' }}
-                                </button>
-                                <button v-if="existingPhotoUrl && !form.clear_photo || photoPreview" @click.prevent="clearPhoto" type="button" class="text-sm text-red-600 hover:underline">
-                                    Quitar Foto
-                                </button>
+
+                                <div class="flex flex-col gap-2">
+                                    <div class="flex gap-2">
+                                        <button @click.prevent="selectNewPhoto" type="button" class="bg-gray-200 dark:bg-gray-700 dark:text-gray-200 text-gray-700 py-2 px-4 rounded-md text-sm hover:bg-gray-300 transition">
+                                            {{ existingPhotoUrl || photoPreview ? 'Cambiar (Galería)' : 'Seleccionar (Galería)' }}
+                                        </button>
+                                        
+                                        <button @click.prevent="abrirCamara" type="button" class="bg-indigo-600 text-white py-2 px-4 rounded-md text-sm hover:bg-indigo-700 transition flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                            Tomar Foto
+                                        </button>
+                                    </div>
+
+                                    <button v-if="(existingPhotoUrl && !form.clear_photo) || photoPreview" @click.prevent="clearPhoto" type="button" class="text-xs text-red-600 hover:text-red-800 text-left font-bold uppercase tracking-wider">
+                                        × Eliminar Foto Actual
+                                    </button>
+                                </div>
                             </div>
                             <div v-if="form.errors.profile_photo" class="text-red-600 text-sm mt-1">{{ form.errors.profile_photo }}</div>
                         </div>
@@ -390,7 +447,31 @@ const submitForzandoBaja = () => {
                             </form>
                         </div>
                     </Modal>
+                    <Modal :show="showCameraModal" @close="cerrarCamara" max-width="2xl">
+                        <div class="p-6 dark:bg-gray-800">
+                            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4 text-center">
+                                Mirar a la Cámara para Actualizar Foto
+                            </h2>
 
+                            <div class="relative bg-black rounded-lg overflow-hidden flex justify-center items-center shadow-2xl" style="height: 450px;">
+                                <video ref="videoPlayer" autoplay playsinline class="w-full h-full object-cover"></video>
+                                <canvas ref="canvasElement" width="640" height="480" class="hidden"></canvas>
+                                
+                                <div class="absolute inset-0 border-2 border-white/10 pointer-events-none flex items-center justify-center">
+                                    <div class="w-72 h-72 border border-indigo-500/50 rounded-full shadow-[0_0_50px_rgba(79,70,229,0.3)]"></div>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 flex justify-between gap-4">
+                                <button type="button" @click="cerrarCamara" class="px-6 py-2 bg-gray-500 text-white rounded-lg font-bold">
+                                    Cancelar
+                                </button>
+                                <button type="button" @click="capturarFoto" class="px-10 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-lg transition transform active:scale-95">
+                                    CAPTURAR Y USAR
+                                </button>
+                            </div>
+                        </div>
+                    </Modal>
                 </div>
             </div>
             <ViewCounter />
