@@ -11,7 +11,7 @@ const props = defineProps({
 
 // Helper para la foto
 const getPhotoUrl = (path) => {
-    if (path) return `/storage/${path}`;
+    if (path) return `storage/${path}`;
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(props.afiliado.nombre_completo)}&color=7F9CF5&background=EBF4FF`;
 };
 
@@ -175,7 +175,7 @@ const downloadImage = (url, name) => {
                                 <button @click="downloadImage(getPhotoUrl(afiliado.profile_photo_path), afiliado.nombre_completo)" 
                                         class="text-white hover:text-blue-400 flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-lg transition">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                     </svg>
                                     Descargar
                                 </button>
