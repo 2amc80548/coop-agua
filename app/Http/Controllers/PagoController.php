@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\ProcesarPagoAction;
 use App\Models\Factura;
 use App\Models\Pago;
 use Illuminate\Http\Request;
@@ -14,14 +15,15 @@ use App\Services\PagoFacilService;
 
 class PagoController extends Controller
 {
-    // 1. Declaramos la variable para el servicio
-    protected $pagoService;
+    /**
+     * Inyectamos el servicio de PagoFácil y la acción centralizada de pagos.
+     * Laravel resuelve ambas dependencias automáticamente.
+     */
+    public function __construct(
+        protected PagoFacilService   $pagoService,
+        protected ProcesarPagoAction $procesarPago
+    ) {}
 
-    // 2. Creamos el constructor para inyectarlo
-    public function __construct(PagoFacilService $pagoService)
-    {
-        $this->pagoService = $pagoService;
-    }
     /**
      * Muestra el HISTORIAL de pagos, paginado y con filtros.
      */
@@ -31,73 +33,80 @@ class PagoController extends Controller
             'factura:id,periodo,conexion_id',
             'factura.conexion:id,codigo_medidor,afiliado_id',
             'factura.conexion.afiliado:id,nombre_completo,ci',
-            'usuarioRegistrado:id,name'
+            'usuarioRegistrado:id,name',
         ]);
 
         // Filtro por Rango de Fechas
-        $query->when($request->filled('fecha_inicio') && $request->filled('fecha_fin'), function ($q) use ($request) {
-             try {
-                $inicio = Carbon::parse($request->fecha_inicio)->startOfDay();
-                $fin = Carbon::parse($request->fecha_fin)->endOfDay();
-                $q->whereBetween('fecha_pago', [$inicio, $fin]);
-             } catch (\Exception $e) { /* Ignorar fechas inválidas */ }
-        });
+        $query->when(
+            $request->filled('fecha_inicio') && $request->filled('fecha_fin'),
+            function ($q) use ($request) {
+                try {
+                    $inicio = Carbon::parse($request->fecha_inicio)->startOfDay();
+                    $fin    = Carbon::parse($request->fecha_fin)->endOfDay();
+                    $q->whereBetween('fecha_pago', [$inicio, $fin]);
+                } catch (\Exception $e) {
+                    // Ignorar fechas inválidas silenciosamente
+                }
+            }
+        );
 
-        // Búsqueda por Afiliado/Medidor
+        // Búsqueda por Afiliado / Medidor
         $query->when($request->input('search'), function ($q, $search) {
-            $q->whereHas('factura.conexion.afiliado', function ($afilQuery) use ($search) {
-                $afilQuery->where('nombre_completo', 'like', "%{$search}%")
-                          ->orWhere('ci', 'like', "%{$search}%");
-            })->orWhereHas('factura.conexion', function ($conQuery) use ($search) {
-                $conQuery->where('codigo_medidor', 'like', "%{$search}%");
+            $q->whereHas('factura.conexion.afiliado', function ($aq) use ($search) {
+                $aq->where('nombre_completo', 'like', "%{$search}%")
+                   ->orWhere('ci', 'like', "%{$search}%");
+            })->orWhereHas('factura.conexion', function ($cq) use ($search) {
+                $cq->where('codigo_medidor', 'like', "%{$search}%");
             });
         });
-        
-        // Búsqueda por Forma de Pago
+
+        // Filtro por Forma de Pago
         $query->when($request->input('forma_pago'), function ($q, $forma) {
             $q->where('forma_pago', $forma);
         });
 
         return Inertia::render('Pagos/Index', [
-            'pagos' => $query->orderBy('fecha_pago', 'desc')
-                             ->orderBy('id', 'desc')
-                             ->paginate(10)
-                             ->withQueryString(),
+            'pagos'   => $query->orderBy('fecha_pago', 'desc')
+                               ->orderBy('id', 'desc')
+                               ->paginate(10)
+                               ->withQueryString(),
             'filters' => $request->only('fecha_inicio', 'fecha_fin', 'search', 'forma_pago'),
         ]);
     }
 
     /**
-     * Muestra el formulario para registrar un pago para UNA factura.
+     * Muestra el formulario para registrar un pago en Efectivo o QR.
      */
     public function create(Request $request)
     {
         $request->validate(['factura_id' => 'required|exists:facturas,id']);
         $factura = Factura::with('conexion.afiliado')->findOrFail($request->factura_id);
 
-        if ($factura->estado !== 'impaga') {
+        if ($factura->estado !== Factura::ESTADO_IMPAGA) {
             return redirect()->route('facturas.show', $factura->id)
-                           ->withErrors(['error_general' => 'Esta factura ya está '.$factura->estado.' y no admite más pagos.']);
+                ->withErrors(['error_general' => "Esta factura ya está '{$factura->estado}' y no admite más pagos."]);
         }
 
-        $saldoPendiente = $factura->deuda_pendiente;
+        // Calcular saldo real en caso de discrepancia
+        $saldoPendiente = (float) $factura->deuda_pendiente;
         if ($saldoPendiente <= 0) {
-             // Lógica de seguridad por si la deuda es 0 pero el estado es impago
-             $saldoPendiente = $factura->monto_total - $factura->pagos()->sum('monto_pagado');
-             if ($saldoPendiente <= 0) {
-                 $factura->update(['estado' => 'pagado', 'deuda_pendiente' => 0]);
-                 return redirect()->route('facturas.show', $factura->id)->with('info', 'La factura ya se encontraba pagada.');
-             }
+            $saldoPendiente = (float) $factura->monto_total - (float) $factura->pagos()->sum('monto_pagado');
+            if ($saldoPendiente <= 0) {
+                $factura->update(['estado' => Factura::ESTADO_PAGADO, 'deuda_pendiente' => 0]);
+                return redirect()->route('facturas.show', $factura->id)
+                    ->with('info', 'La factura ya se encontraba pagada.');
+            }
         }
 
         return Inertia::render('Pagos/Create', [
-            'factura' => $factura,
+            'factura'        => $factura,
             'saldoPendiente' => $saldoPendiente,
         ]);
     }
 
     /**
-     * Guarda el nuevo pago y actualiza la factura 
+     * Guarda un nuevo pago en Efectivo.
+     * Delega toda la lógica transaccional a ProcesarPagoAction.
      */
     public function store(Request $request)
     {
@@ -109,338 +118,277 @@ class PagoController extends Controller
         ]);
 
         try {
-            $pago = null;
-            DB::transaction(function () use ($validated, &$pago) {
-                
-                $factura = Factura::where('id', $validated['factura_id'])
-                                 ->lockForUpdate() 
-                                 ->first();
-
-                if ($factura->estado !== 'impaga') {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
-                        'factura_id' => 'Esta factura ya no está "impaga". (Estado actual: '.$factura->estado.')'
-                    ]);
-                }
-
-                // El monto a pagar es la deuda total )
-                $montoAPagar = $factura->deuda_pendiente;
-                
-                if ($montoAPagar <= 0) {
-                     throw \Illuminate\Validation\ValidationException::withMessages([
-                        'factura_id' => 'Esta factura no tiene deuda pendiente (Saldo: 0).'
-                    ]);
-                }
-
-                // 1. Crear el Pago
-                $pago = Pago::create([
-                    'factura_id' => $factura->id,
-                    'monto_pagado' => $montoAPagar, 
-                    'fecha_pago' => $validated['fecha_pago'],
-                    'forma_pago' => $validated['forma_pago'],
-                    'referencia' => $validated['referencia'],
-                    'registrado_por' => Auth::id(),
-                ]);
-
-                // 2. Actualizar la Factura
-                $factura->update([
-                    'estado' => 'pagado',
-                    'deuda_pendiente' => 0, 
-                    'fecha_pago' => $validated['fecha_pago']
-                ]);
-
-$facturaCheck = Factura::with('conexion')->find($validated['factura_id']);
-                if ($facturaCheck && $facturaCheck->conexion) {
-                     \App\Models\Afiliado::verificarEstadoFinanciero($facturaCheck->conexion->afiliado_id);
-                }
-                
-            }); 
-
+            $pago = $this->procesarPago->execute(
+                facturaId:  $validated['factura_id'],
+                formaPago:  $validated['forma_pago'],
+                referencia: $validated['referencia'] ?? null,
+                usuarioId:  Auth::id()
+            );
 
             return redirect()->route('facturas.show', $validated['factura_id'])
-                           ->with('success', '✅ Pago registrado por Bs '.number_format($pago->monto_pagado, 2).'. Factura actualizada a "pagado".');
+                ->with('success', '✅ Pago registrado por Bs ' . number_format($pago->monto_pagado, 2) . '. Factura marcada como pagada.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            Log::error('Error al registrar pago:', ['error' => $e->getMessage(), 'request' => $request->all()]);
+            Log::error('PagoController@store: Error al registrar pago.', [
+                'error'   => $e->getMessage(),
+                'request' => $request->all(),
+            ]);
             return redirect()->back()
-                           ->withErrors(['error_general' => 'Ocurrió un error inesperado al registrar el pago.'])
-                           ->withInput();
+                ->withErrors(['error_general' => 'Ocurrió un error inesperado al registrar el pago.'])
+                ->withInput();
         }
     }
 
     /**
-     * Muestra el detalle de un PAGO específico (historial).
+     * Muestra el detalle de un PAGO específico.
      */
     public function show($id)
     {
         $pago = Pago::with([
             'factura.conexion.afiliado',
-            'usuarioRegistrado'
+            'usuarioRegistrado',
         ])->findOrFail($id);
 
-        return Inertia::render('Pagos/Show', [ 
+        return Inertia::render('Pagos/Show', [
             'pago' => $pago,
         ]);
     }
-    
+
     /**
-     * Anula un pago (acción de Admin).
+     * Anula un pago y revierte la factura a estado 'impaga'.
      */
-    public function anular(Request $request, $id) 
+    public function anular(Request $request, $id)
     {
         $pago = Pago::findOrFail($id);
-        
+
         try {
             DB::transaction(function () use ($pago) {
                 $factura = $pago->factura;
-                
-                // 1. Revertir la Factura a 'impaga'
+
+                // Revertir la Factura
                 $factura->update([
-                    'estado' => 'impaga',
-                    'deuda_pendiente' => $factura->monto_total, // Restaura la deuda completa
-                    'fecha_pago' => null // Quita la fecha de pago
+                    'estado'          => Factura::ESTADO_IMPAGA,
+                    'deuda_pendiente' => $factura->monto_total,
+                    'fecha_pago'      => null,
                 ]);
-                
-                // 2. Eliminar el Pago
+
+                // Eliminar el Pago
                 $pago->delete();
             });
 
-            $facturaCheck = Factura::with('conexion')->find($pago->factura_id);
-        if ($facturaCheck && $facturaCheck->conexion) {
-             \App\Models\Afiliado::verificarEstadoFinanciero($facturaCheck->conexion->afiliado_id);
-        }
+            // Re-evaluar estado financiero del afiliado después de la transacción
+            $factura = Factura::with('conexion')->find($pago->factura_id);
+            if ($factura?->conexion?->afiliado_id) {
+                \App\Models\Afiliado::verificarEstadoFinanciero($factura->conexion->afiliado_id);
+            }
 
         } catch (\Exception $e) {
-             Log::error('Error al anular pago:', ['error' => $e->getMessage(), 'pago_id' => $id]);
-             return redirect()->back()->withErrors(['error_general' => 'Error al anular el pago.']);
+            Log::error('PagoController@anular: Error al anular pago.', [
+                'error'   => $e->getMessage(),
+                'pago_id' => $id,
+            ]);
+            return redirect()->back()->withErrors(['error_general' => 'Error al anular el pago.']);
         }
-        
-        // Redirige a la factura, que ahora está impaga de nuevo
+
         return redirect()->route('facturas.show', $pago->factura_id)
-                       ->with('success', '✅ Pago anulado. La factura ahora está "impaga" de nuevo.');
+            ->with('success', '✅ Pago anulado. La factura está "impaga" de nuevo.');
     }
 
-
-  public function miHistorial(Request $request)
+    /**
+     * Historial de pagos del afiliado autenticado (rol Usuario).
+     */
+    public function miHistorial(Request $request)
     {
         $user = Auth::user();
 
         if (!$user->afiliado_id) {
             return Inertia::render('Usuario/HistorialPagos', [
-                'pagos' => ['data' => []],
+                'pagos'   => ['data' => []],
                 'filters' => [],
-                'error' => 'Tu cuenta de usuario no está asociada a ningún afiliado.'
+                'error'   => 'Tu cuenta no está asociada a ningún afiliado.',
             ]);
         }
-        
-        $afiliadoId = $user->afiliado_id;
 
         $query = Pago::with([
             'factura:id,periodo,monto_total',
-            'usuarioRegistrado:id,name' 
-        ])
-        // Busca pagos donde la factura asociada...
-        ->whereHas('factura', function ($facturaQuery) use ($afiliadoId) {
-            // ...pertenece a una conexión...
-            $facturaQuery->whereHas('conexion', function ($conexionQuery) use ($afiliadoId) {
-                // ...que pertenece a ESTE afiliado.
-                $conexionQuery->where('afiliado_id', $afiliadoId);
+            'usuarioRegistrado:id,name',
+        ])->whereHas('factura', function ($fq) use ($user) {
+            $fq->whereHas('conexion', function ($cq) use ($user) {
+                $cq->where('afiliado_id', $user->afiliado_id);
             });
         });
 
-        return Inertia::render('Usuario/HistorialPagos', [ 
-            'pagos' => $query->orderBy('fecha_pago', 'desc')
-                             ->paginate(15)
-                             ->withQueryString(),
-            'filters' => $request->only([]), 
-            'error' => null
+        return Inertia::render('Usuario/HistorialPagos', [
+            'pagos'   => $query->orderBy('fecha_pago', 'desc')
+                               ->paginate(15)
+                               ->withQueryString(),
+            'filters' => $request->only([]),
+            'error'   => null,
         ]);
     }
 
-
-    // ... tus otras funciones (miHistorial, anular, etc) ...
-
-    /**
-     * ------------------------------------------------------------
-     * NUEVAS FUNCIONES PARA PAGO FÁCIL (QR)
-     * ------------------------------------------------------------
-     */
+    // ---------------------------------------------------------------
+    // Integración PagoFácil (QR)
+    // ---------------------------------------------------------------
 
     /**
-     * Genera la imagen QR y la devuelve al Frontend 
+     * Genera la imagen QR para una factura y la devuelve al Frontend.
      */
     public function generarQr(Request $request)
     {
         $request->validate(['factura_id' => 'required|exists:facturas,id']);
-        
-        // Cargar relaciones necesarias (conexion, afiliado)
+
         $factura = Factura::with('conexion.afiliado')->findOrFail($request->factura_id);
 
-        if ($factura->estado !== 'impaga') {
-            return response()->json(['status' => 'error', 'message' => 'Factura ya pagada.']);
+        if ($factura->estado !== Factura::ESTADO_IMPAGA) {
+            return response()->json(['status' => 'error', 'message' => 'La factura ya está pagada.']);
         }
 
-        $afiliado = $factura->conexion->afiliado; 
-
+        $afiliado  = $factura->conexion->afiliado;
         $resultado = $this->pagoService->generarQR($factura, $afiliado);
 
         if ($resultado['success']) {
             return response()->json([
-                'status' => 'ok',
-                'qr_image' => $resultado['qr_image'],
+                'status'         => 'ok',
+                'qr_image'       => $resultado['qr_image'],
                 'payment_number' => $resultado['payment_number'],
-                'monto' => $factura->deuda_pendiente
+                'monto'          => $factura->deuda_pendiente,
             ]);
-        } else {
-            return response()->json(['status' => 'error', 'message' => $resultado['message']]);
         }
+
+        return response()->json(['status' => 'error', 'message' => $resultado['message']]);
     }
 
+    /**
+     * Verifica el estado de un pago QR consultando a PagoFácil.
+     * Si fue pagado, delega el registro a ProcesarPagoAction.
+     */
     public function verificarQr(Request $request)
     {
         $paymentNumber = $request->payment_number;
+
         if (!$paymentNumber) {
-            return response()->json(['status' => 'error', 'message' => 'Falta payment_number']);
+            return response()->json(['status' => 'error', 'message' => 'Falta payment_number.']);
         }
 
-        $yaPagadoLocalmente = Pago::where('referencia', $paymentNumber)->exists();
-        
-        if ($yaPagadoLocalmente) {
+        // Si ya existe el pago en nuestra BD, responder de inmediato (idempotente)
+        if (Pago::where('referencia', $paymentNumber)->exists()) {
             return response()->json(['status' => 'pagado', 'origen' => 'local']);
         }
-        // 1. Consultar al Banco
+
+        // Consultar al banco
         $respuesta = $this->pagoService->consultarTransaccion($paymentNumber);
 
-        // Verificación de seguridad para que no crashee si el banco falla
         if (!isset($respuesta['values'])) {
-             return response()->json([
-                 'status' => 'error', 
-                 'message' => 'Respuesta inválida del banco',
-                 'debug' => $respuesta 
-             ]);
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Respuesta inválida del banco.',
+            ]);
         }
 
-        // Obtenemos el estado. Si no existe, asumimos 0 
         $estadoPago = $respuesta['values']['paymentStatus'] ?? 0;
-
-        // LOGICA DE ESTADOS:
-        // 1 = proceso 
-        // 5 = Error/Revisión (datos no coinciden)
-        // 2 = Éxito (Estándar PagoFácil al quitar el error del callback)
-        
-        $esPagado = ($estadoPago == 2);
-                       // || $estadoPago == 5
+        // Estado 2 = Pago exitoso en PagoFácil
+        $esPagado   = ($estadoPago == 2);
 
         if ($esPagado) {
             try {
+                // Extraer el ID de factura del formato: "prefijo_facturaId_suffix"
                 $partes = explode('_', $paymentNumber);
-                // Validación por si el paymentNumber no tiene el formato correcto
-                if (count($partes) < 2) throw new \Exception("Formato de referencia inválido");
-                
-                $facturaId = $partes[1];
+                if (count($partes) < 2) {
+                    throw new \RuntimeException("Formato de referencia inválido: {$paymentNumber}");
+                }
 
-                DB::transaction(function () use ($facturaId, $paymentNumber) {
-                    // Evitar duplicados
-                    if (Pago::where('referencia', $paymentNumber)->exists()) return;
+                $facturaId = (int) $partes[1];
 
-                    $factura = Factura::lockForUpdate()->find($facturaId);
-
-                    if ($factura && $factura->estado === 'impaga') {
-                        Pago::create([
-                            'factura_id'     => $factura->id,
-                            'monto_pagado'   => $factura->deuda_pendiente,
-                            'fecha_pago'     => Carbon::now(),
-                            'forma_pago'     => 'QR',
-                            'referencia'     => $paymentNumber,
-                            'registrado_por' => Auth::id() ?? 1, 
-                        ]);
-
-                        $factura->update([
-                            'estado'          => 'pagado',
-                            'deuda_pendiente' => 0,
-                            'fecha_pago'      => Carbon::now()
-                        ]);
-                    }
-                });
+                // ProcesarPagoAction maneja la idempotencia, transacción y bloqueo
+                $this->procesarPago->execute(
+                    facturaId:  $facturaId,
+                    formaPago:  'QR',
+                    referencia: $paymentNumber,
+                    usuarioId:  Auth::id()
+                );
 
                 return response()->json(['status' => 'pagado']);
 
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                // La factura ya estaba pagada por otro proceso (carrera resuelta)
+                return response()->json(['status' => 'pagado', 'origen' => 'ya_procesado']);
             } catch (\Exception $e) {
-                Log::error("Error guardando pago: " . $e->getMessage());
-                return response()->json(['status' => 'error', 'message' => 'Error interno']);
+                Log::error('PagoController@verificarQr: Error al guardar pago QR.', [
+                    'error'          => $e->getMessage(),
+                    'payment_number' => $paymentNumber,
+                ]);
+                return response()->json(['status' => 'error', 'message' => 'Error interno al registrar.']);
             }
         }
 
-        // Respuesta informativa para el frontend
-        $mensaje = 'Pendiente';
-        if ($estadoPago == 5) $mensaje = 'En Revisión (Datos no coinciden)';
-        if ($estadoPago == 1) $mensaje = 'Esperando pago...';
+        // Respuesta informativa para el Frontend mientras espera
+        $mensajeEstado = match ($estadoPago) {
+            1       => 'Esperando pago...',
+            5       => 'En Revisión (Datos no coinciden con el banco)',
+            default => 'Pendiente',
+        };
 
         return response()->json([
-            'status' => 'pendiente', 
-            'estado_banco' => $estadoPago, //  número en la consola del navegador
-            'mensaje' => $mensaje
+            'status'       => 'pendiente',
+            'estado_banco' => $estadoPago,
+            'mensaje'      => $mensajeEstado,
         ]);
     }
+
+    /**
+     * Webhook de PagoFácil: recibe confirmación automática del banco.
+     * Delega el registro a ProcesarPagoAction.
+     */
     public function callbackPagoFacil(Request $request)
     {
         try {
             $datos = $request->all();
-            Log::info('Callback PagoFácil Recibido:', $datos);
+            Log::info('Webhook PagoFácil recibido:', $datos);
 
-            $paymentNumber = $datos['PedidoID'] ?? null; 
-            $estado = $datos['Estado'] ?? null; 
+            $paymentNumber = $datos['PedidoID'] ?? null;
+            $estado        = $datos['Estado']   ?? null;
 
-            // Validamos que sea un pago exitoso (2 o COMPLETED)
-            if ($paymentNumber && ($estado == 2 || $estado == 'COMPLETED')) {
-                
-                $partes = explode('_', $paymentNumber);
-                $facturaId = $partes[1] ?? null;
+            // Solo procesamos pagos exitosos
+            if ($paymentNumber && ($estado == 2 || $estado === 'COMPLETED')) {
+                $partes    = explode('_', $paymentNumber);
+                $facturaId = isset($partes[1]) ? (int) $partes[1] : null;
 
                 if ($facturaId) {
-                    DB::transaction(function () use ($facturaId, $paymentNumber) {
-                        // Evitar duplicados
-                        if (Pago::where('referencia', $paymentNumber)->exists()) return;
-
-                        $factura = Factura::lockForUpdate()->find($facturaId);
-
-                        if ($factura && $factura->estado === 'impaga') {
-                            Pago::create([
-                                'factura_id'     => $factura->id,
-                                'monto_pagado'   => $factura->deuda_pendiente,
-                                'fecha_pago'     => Carbon::now(),
-                                'forma_pago'     => 'QR', // Marca distintiva
-                                'referencia'     => $paymentNumber,
-                                'registrado_por' => 1, 
-                            ]);
-
-                            $factura->update([
-                                'estado'          => 'pagado',
-                                'deuda_pendiente' => 0,
-                                'fecha_pago'      => Carbon::now()
-                            ]);
-                        }
-                    });
-                        $facturaCheck = Factura::with('conexion')->find($facturaId);
-                           if ($facturaCheck && $facturaCheck->conexion) {
-                      \App\Models\Afiliado::verificarEstadoFinanciero($facturaCheck->conexion->afiliado_id);
+                    try {
+                        // ProcesarPagoAction garantiza idempotencia y transacción segura
+                        $this->procesarPago->execute(
+                            facturaId:  $facturaId,
+                            formaPago:  'QR',
+                            referencia: $paymentNumber,
+                            usuarioId:  1 // Usuario sistema para webhooks
+                        );
+                    } catch (\Illuminate\Validation\ValidationException $e) {
+                        // Factura ya pagada = webhook llegó dos veces. Es normal, no es error.
+                        Log::info("Webhook: Factura #{$facturaId} ya estaba pagada. Se ignora duplicado.");
                     }
                 }
             }
 
             // Respuesta OBLIGATORIA para que PagoFácil sepa que recibimos el mensaje
             return response()->json([
-                "error" => 0,
-                "status" => 1,
-                "message" => "Pago recibido correctamente",
-                "values" => true
+                'error'   => 0,
+                'status'  => 1,
+                'message' => 'Pago recibido correctamente',
+                'values'  => true,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error Callback: ' . $e->getMessage());
-            return response()->json(["error" => 1, "status" => 1, "message" => "Error interno", "values" => false]);
+            Log::error('Webhook PagoFácil - Error inesperado:', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'error'   => 1,
+                'status'  => 1,
+                'message' => 'Error interno',
+                'values'  => false,
+            ]);
         }
     }
-
 }

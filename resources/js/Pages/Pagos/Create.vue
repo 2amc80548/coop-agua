@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onUnmounted, watch } from 'vue';
-import { useForm, Link, Head, router } from '@inertiajs/vue3';
+import { useForm, Link, Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import axios from 'axios'; // Asegúrate de tener axios instalado (viene por defecto en Laravel)
+import axios from 'axios';
 
 const props = defineProps({
-    factura: Object,
+    factura:        Object,
     saldoPendiente: Number,
-    errors: Object,
+    errors:         Object,
 });
 
 // --- LÓGICA DEL FORMULARIO (EFECTIVO) ---
@@ -19,88 +19,108 @@ const form = useForm({
 });
 
 const submitEfectivo = () => {
-    form.post(route('pagos.store'), {
-        onSuccess: () => {
-            // Opcional: Mostrar notificación
-        }
-    });
+    form.post(route('pagos.store'));
 };
 
 // --- LÓGICA DEL QR ---
-const qrImage = ref(null);
-const qrLoading = ref(false);
-const qrPaymentNumber = ref(null);
-const qrStatus = ref('espera'); // espera, procesando, pagado, error
-let pollingInterval = null;
+const qrImage          = ref(null);
+const qrLoading        = ref(false);
+const qrPaymentNumber  = ref(null);
+// Estados: 'espera' | 'procesando' | 'pagado' | 'error' | 'timeout'
+const qrStatus         = ref('espera');
+const pollingAttempts  = ref(0);
+
+// CORRECCIÓN 5.A: Un solo timeout ref para evitar fuga de memoria
 let pollingTimeout = null;
 
-// 1. Generar el QR
-const generarQr = async () => {
-    qrLoading.value = true;
-    qrStatus.value = 'procesando';
-    qrImage.value = null;
+// Límites del polling:
+// Máximo 150 intentos × 2 segundos = 5 minutos de espera máxima.
+// Pasado ese tiempo informamos al usuario en lugar de correr eternamente.
+const POLLING_MAX_ATTEMPTS  = 150;
+const POLLING_INTERVAL_MS   = 2000;
 
-    try {
-        const response = await axios.post(route('pagos.generarQr'), {
-            factura_id: props.factura.id
-        });
-
-        if (response.data.status === 'ok') {
-            qrImage.value = response.data.qr_image;
-            qrPaymentNumber.value = response.data.payment_number;
-            qrLoading.value = false;
-            iniciarPolling(); // ¡Arrancamos la vigilancia!
-        } else {
-            alert("Error al generar QR: " + response.data.message);
-            qrLoading.value = false;
-        }
-    } catch (error) {
-        console.error(error);
-        qrLoading.value = false;
-        alert("Error de conexión al generar QR");
+// Limpieza centralizada — una sola función para clearTimeout
+const detenerPolling = () => {
+    if (pollingTimeout) {
+        clearTimeout(pollingTimeout);
+        pollingTimeout = null;
     }
 };
 
-// 2. Vigilar si ya pagaron
-// 2. Vigilar si ya pagaron (Versión Inteligente)
+// CORRECCIÓN 5.A: Un solo onUnmounted que limpia todo
+onUnmounted(() => {
+    detenerPolling();
+});
+
+// Genera el QR llamando al backend
+const generarQr = async () => {
+    qrLoading.value       = true;
+    qrStatus.value        = 'procesando';
+    qrImage.value         = null;
+    pollingAttempts.value = 0;
+    detenerPolling(); // cancelar cualquier polling previo
+
+    try {
+        const response = await axios.post(route('pagos.generarQr'), {
+            factura_id: props.factura.id,
+        });
+
+        if (response.data.status === 'ok') {
+            qrImage.value         = response.data.qr_image;
+            qrPaymentNumber.value = response.data.payment_number;
+            qrLoading.value       = false;
+            iniciarPolling();
+        } else {
+            qrStatus.value  = 'error';
+            qrLoading.value = false;
+            alert('Error al generar QR: ' + response.data.message);
+        }
+    } catch (error) {
+        console.error(error);
+        qrStatus.value  = 'error';
+        qrLoading.value = false;
+        alert('Error de conexión al generar QR. Intente nuevamente.');
+    }
+};
+
+// Verifica si el pago fue procesado. Llama recursivamente con setTimeout
+// hasta que el pago sea confirmado, ocurra un error, o se agote el tiempo.
 const iniciarPolling = async () => {
-    // Si el usuario ya salió o ya pagó, no hacemos nada
     if (qrStatus.value === 'pagado') return;
+
+    // CORRECCIÓN 5.A: Límite de intentos — evita polling infinito
+    if (pollingAttempts.value >= POLLING_MAX_ATTEMPTS) {
+        qrStatus.value = 'timeout';
+        return;
+    }
+
+    pollingAttempts.value++;
 
     try {
         const res = await axios.post(route('pagos.verificarQr'), {
-            payment_number: qrPaymentNumber.value
+            payment_number: qrPaymentNumber.value,
         });
 
         if (res.data.status === 'pagado') {
             qrStatus.value = 'pagado';
-            // ¡Listo! No llamamos más a la función
-            return; 
+            return; // Detenemos el polling: pago confirmado
         }
     } catch (error) {
-        console.error("Error de red, reintentando...", error);
+        // Error de red puntual: continuamos intentando hasta el límite
+        console.warn(`Polling intento ${pollingAttempts.value}: Error de red, reintentando...`);
     }
 
-    // Si no ha pagado, esperamos 2 segundos y volvemos a preguntar
-    // Usamos setTimeout en lugar de setInterval para no saturar
-    pollingTimeout = setTimeout(iniciarPolling, 2000);
+    // Próximo intento luego del intervalo
+    pollingTimeout = setTimeout(iniciarPolling, POLLING_INTERVAL_MS);
 };
 
-// Asegúrate de limpiar esto al salir
-onUnmounted(() => {
-    if (pollingTimeout) clearTimeout(pollingTimeout);
-});
-
-// Limpiar intervalo si el usuario sale de la página
-onUnmounted(() => {
-    if (pollingInterval) clearInterval(pollingInterval);
-});
-
-// Si el usuario cambia de pestaña a Efectivo, detenemos el polling del QR
+// Detenemos el polling si el usuario cambia a método Efectivo
 watch(() => form.forma_pago, (newVal) => {
     if (newVal === 'Efectivo') {
-        if (pollingInterval) clearInterval(pollingInterval);
-        qrImage.value = null; // Opcional: Resetear QR
+        detenerPolling(); // CORRECCIÓN: ahora limpia correctamente el timeout
+        qrImage.value         = null;
+        qrStatus.value        = 'espera';
+        pollingAttempts.value = 0;
     }
 });
 
@@ -211,22 +231,45 @@ const formatCurrency = (amount) => (parseFloat(amount) || 0).toFixed(2);
                                     <p class="mt-4 text-gray-500">Conectando con el Banco...</p>
                                 </div>
 
-                                <div v-if="qrImage && qrStatus !== 'pagado'" class="flex flex-col items-center justify-center py-4">
+                                <div v-if="qrImage && qrStatus !== 'pagado' && qrStatus !== 'timeout'" class="flex flex-col items-center justify-center py-4">
                                     <div class="bg-white p-4 rounded-xl shadow-inner border border-gray-200 mb-4">
                                         <img :src="'data:image/png;base64,' + qrImage" alt="QR Pago" class="w-64 h-64 object-contain" />
                                     </div>
-                                    
-                                    <div class="flex items-center gap-2 text-purple-600 font-semibold animate-pulse mb-4">
+
+                                    <div class="flex items-center gap-2 text-purple-600 font-semibold animate-pulse mb-2">
                                         <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
                                         Esperando pago del cliente...
                                     </div>
-                                    
+                                    <p class="text-xs text-gray-400 mb-1">
+                                        Intento {{ pollingAttempts }} / {{ POLLING_MAX_ATTEMPTS }}
+                                    </p>
                                     <p class="text-xs text-gray-500 max-w-xs">
                                         El sistema detectará el pago automáticamente. No cierres esta ventana.
                                     </p>
+                                </div>
+
+                                <!-- Estado: Tiempo de espera agotado (5 min sin confirmación) -->
+                                <div v-if="qrStatus === 'timeout'" class="py-10 text-center">
+                                    <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-amber-100 mb-5">
+                                        <svg class="h-12 w-12 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-xl font-bold text-amber-700 mb-2">Tiempo de espera agotado</h3>
+                                    <p class="text-gray-500 text-sm mb-6 max-w-xs mx-auto">
+                                        No se recibió confirmación del banco en 5 minutos. Si el cliente ya escaneó y pagó, puede registrarlo manualmente.
+                                    </p>
+                                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                                        <button @click="generarQr" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-5 rounded-lg transition">
+                                            Generar nuevo QR
+                                        </button>
+                                        <button @click="form.forma_pago = 'Efectivo'" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-5 rounded-lg transition">
+                                            Registrar en Efectivo
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div v-if="qrStatus === 'pagado'" class="py-10 text-center animate-fade-in-down">
@@ -242,7 +285,7 @@ const formatCurrency = (amount) => (parseFloat(amount) || 0).toFixed(2);
                                         La transacción ha sido registrada correctamente.
                                     </p>
 
-                                      <<a :href="route('facturas.show', factura.id)" 
+                                      <a :href="route('facturas.show', factura.id)"
                                     class="inline-flex items-center px-6 py-3 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 transition ease-in-out duration-150">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                                             <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />

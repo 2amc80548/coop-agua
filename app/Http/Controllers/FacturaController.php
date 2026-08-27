@@ -2,25 +2,27 @@
 
 namespace App\Http\Controllers;
 
-// --- Imports ---
 use App\Models\Factura;
 use App\Models\Pago;
-use App\Models\Conexion; 
+use App\Models\Conexion;
+use App\Services\TarifaCalculatorService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Log; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
-use App\Models\Tarifa;
-; 
 
 class FacturaController extends Controller
 {
-
-
+    /**
+     * Inyectamos el servicio de cálculo de tarifas.
+     */
+    public function __construct(
+        protected TarifaCalculatorService $tarifaService
+    ) {}
     /**
      * 1. Muestra la lista  de facturas.
      * Con filtros, paginación y búsqueda.
@@ -227,77 +229,63 @@ class FacturaController extends Controller
      */
     public function imprimirFactura($id)
     {
-         $user = Auth::user();
-         $factura = Factura::with([
-                'conexion.afiliado', 
-                'lectura.usuarioRegistrado', // Quién leyó 
-                'pagos.usuarioRegistrado' // Quién cobró
-            ])->findOrFail($id);
+        $user    = Auth::user();
+        $factura = Factura::with([
+            'conexion.afiliado',
+            'lectura.usuarioRegistrado',
+            'pagos.usuarioRegistrado',
+        ])->findOrFail($id);
 
-         // --- ¡SEGURIDAD! ---
-         if ($user->hasRole('Usuario') && $factura->conexion->afiliado_id !== $user->afiliado_id) {
-             abort(403, 'No tiene permiso para ver esta factura.');
-         }
+        // Seguridad: el rol Usuario solo puede ver sus propias facturas
+        if ($user->hasRole('Usuario') && $factura->conexion->afiliado_id !== $user->afiliado_id) {
+            abort(403, 'No tiene permiso para ver esta factura.');
+        }
 
         $consumo = $factura->lectura
-            ? ($factura->lectura->lectura_actual - $factura->lectura->lectura_anterior)
-            : $factura->consumo_m3;
+            ? ((float) $factura->lectura->lectura_actual - (float) $factura->lectura->lectura_anterior)
+            : (float) $factura->consumo_m3;
 
         $totalPagado = $factura->pagos->sum('monto_pagado');
-        $saldo = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado);
-        $ultimoPago = $factura->pagos->sortByDesc('fecha_pago')->first();
+        $saldo       = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado);
+        $ultimoPago  = $factura->pagos->sortByDesc('fecha_pago')->first();
 
-        // cálculo estimado de subtotal y descuento (solo para mostrar) ---
-        $montoBase = null;
-        $descuentoEstimado = 0;
+        // Cálculo de detalle de tarifa mediante el servicio centralizado
+        $montoBase           = null;
+        $descuentoEstimado   = 0;
         $porcentajeDescuento = 0;
 
         try {
             $tipoConexion = $factura->conexion->tipo_conexion ?? null;
 
             if ($factura->lectura && $tipoConexion) {
-                $tarifa = Tarifa::where('activo', 1)
-                    ->where('tipo_conexion', $tipoConexion)
-                    ->orderBy('vigente_desde', 'desc')
-                    ->first();
+                $tarifa = $this->tarifaService->getTarifaActiva($tipoConexion);
 
                 if ($tarifa) {
-                    $calculoDirecto = $consumo * $tarifa->precio_m3;
-
-                    if ($consumo <= $tarifa->min_m3 && $tarifa->min_monto > $calculoDirecto) {
-                        $montoBase = $tarifa->min_monto;
-                    } else {
-                        $montoBase = $calculoDirecto;
-                    }
-
-                    $porcentajeDescuento = $tarifa->descuento_adulto_mayor_pct;
-
-                    if ($factura->conexion->afiliado?->adulto_mayor && $tarifa->descuento_adulto_mayor_pct > 0) {
-                        $descuentoEstimado = ($montoBase * $tarifa->descuento_adulto_mayor_pct) / 100;
-                    }
+                    $calculo             = $this->tarifaService->calcular($factura->lectura, $tarifa);
+                    $montoBase           = $calculo['monto_base'];
+                    $descuentoEstimado   = $calculo['descuento'];
+                    $porcentajeDescuento = $calculo['porcentaje_descuento'];
                 }
             }
-                    } catch (\Exception $e) {
-                        // Si algo falla, no rompemos la vista, solo dejamos los campos en null
-                        $montoBase = null;
-                        $descuentoEstimado = 0;
-                        $porcentajeDescuento = 0;
-                    }
+        } catch (\Exception $e) {
+            // Si algo falla en el cálculo, no rompemos la vista de impresión
+            Log::warning('FacturaController@imprimirFactura: No se pudo calcular detalle de tarifa.', [
+                'factura_id' => $id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
 
-                    // Renderizar la vista
-                    return View::make('impresiones.factura', [ 
-                        'factura' => $factura,
-                        'consumo' => $consumo,
-                        'totalPagado' => $totalPagado,
-                        'saldo' => $saldo,
-                        'ultimoPago' => $ultimoPago,
-                        'fechaImpresion' => Carbon::now('America/La_Paz')->format('d/m/Y H:i'),
-                        // nuevos datos para el detalle
-                        'montoBase' => $montoBase,
-                        'descuentoEstimado' => $descuentoEstimado,
-                        'porcentajeDescuento' => $porcentajeDescuento,
-                    ]);
-
+        return View::make('impresiones.factura', [
+            'factura'            => $factura,
+            'consumo'            => $consumo,
+            'totalPagado'        => $totalPagado,
+            'saldo'              => $saldo,
+            'ultimoPago'         => $ultimoPago,
+            'fechaImpresion'     => Carbon::now('America/La_Paz')->format('d/m/Y H:i'),
+            'montoBase'          => $montoBase,
+            'descuentoEstimado'  => $descuentoEstimado,
+            'porcentajeDescuento' => $porcentajeDescuento,
+        ]);
     }
 
 

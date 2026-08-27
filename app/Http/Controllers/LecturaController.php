@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers;
 
-// --- Imports (TODOS SON NECESARIOS) ---
 use App\Models\Lectura;
 use App\Models\Conexion;
-use App\Models\Tarifa;
-use App\Models\Zona; // ¡Importante!
+use App\Models\Zona;
+use App\Services\TarifaCalculatorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -14,10 +13,17 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
-use Illuminate\Validation\Rule; // Para validación
+use Illuminate\Validation\Rule;
 
 class LecturaController extends Controller
 {
+    /**
+     * Inyectamos el servicio de cálculo de tarifas.
+     * Eliminamos la dependencia directa de la clase Tarifa en este controlador.
+     */
+    public function __construct(
+        protected TarifaCalculatorService $tarifaService
+    ) {}
     /**
      * Muestra lista paginada y filtrable de lecturas.
      */
@@ -262,105 +268,118 @@ class LecturaController extends Controller
     // --- APIs --- 
 
     /**
-     * API: Busca conexiones 
+     * API: Busca conexiones por medidor, nombre o CI.
+     *
+     * OPTIMIZACIÓN N+1 (Hallazgo 2.1):
+     * La última lectura se resuelve con una subconsulta SQL en addSelect(),
+     * eliminando las N consultas individuales que existían dentro del map().
+     * Para 10 resultados: antes = 11 queries, ahora = 1 query.
      */
-    public function apiSearchConexiones(Request $request) 
+    public function apiSearchConexiones(Request $request)
     {
         $term = $request->input('term', '');
-        if (strlen($term) < 2) return response()->json([]);
+        if (strlen($term) < 2) {
+            return response()->json([]);
+        }
+
+        // Subconsulta: obtiene la lectura_actual más reciente de cada conexión
+        $ultimaLecturaSubquery = \App\Models\Lectura::select('lectura_actual')
+            ->whereColumn('conexion_id', 'conexiones.id')
+            ->orderBy('fecha_lectura', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit(1);
 
         $conexiones = Conexion::with([
-                'afiliado:id,nombre_completo,ci,adulto_mayor', 
-                'zona:id,nombre' 
-            ]) 
+            'afiliado:id,nombre_completo,ci,adulto_mayor',
+            'zona:id,nombre',
+        ])
+            ->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion')
+            ->addSelect(['lectura_anterior' => $ultimaLecturaSubquery]) // 1 query total
             ->where(function ($query) use ($term) {
                 $query->where('codigo_medidor', 'like', "%{$term}%")
-                      ->orWhereHas('afiliado', function ($q) use ($term) { 
-                          $q->where('nombre_completo', 'like', "%{$term}%")
-                            ->orWhere('ci', 'like', "%{$term}%");
-                      });
+                    ->orWhereHas('afiliado', function ($q) use ($term) {
+                        $q->where('nombre_completo', 'like', "%{$term}%")
+                          ->orWhere('ci', 'like', "%{$term}%");
+                    });
             })
-            ->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion')
             ->limit(10)
             ->get();
 
-        $results = $conexiones->map(function ($conexion) {
-             $ultimaLectura = Lectura::where('conexion_id', $conexion->id)
-                                     ->orderBy('fecha_lectura', 'desc')
-                                     ->orderBy('id', 'desc')
-                                     ->value('lectura_actual'); 
-
-             return [
-                 'id' => $conexion->id,
-                 'codigo_medidor' => $conexion->codigo_medidor,
-                 'direccion' => $conexion->direccion,
-                 'zona_nombre' => $conexion->zona?->nombre, // ¡Añadido!
-                 'afiliado_nombre' => $conexion->afiliado?->nombre_completo ?? 'N/A', // ¡'afiliado'!
-                 'afiliado_ci' => $conexion->afiliado?->ci ?? 'N/A',
-                 'afiliado_adulto_mayor' => $conexion->afiliado?->adulto_mayor ?? false, 
-                 'lectura_anterior' => $ultimaLectura ?? 0, 
-                  'tipo_conexion' => $conexion->tipo_conexion,
-             ];
-        });
+        $results = $conexiones->map(fn($conexion) => [
+            'id'                    => $conexion->id,
+            'codigo_medidor'        => $conexion->codigo_medidor,
+            'direccion'             => $conexion->direccion,
+            'zona_nombre'           => $conexion->zona?->nombre,
+            'afiliado_nombre'       => $conexion->afiliado?->nombre_completo ?? 'N/A',
+            'afiliado_ci'           => $conexion->afiliado?->ci ?? 'N/A',
+            'afiliado_adulto_mayor' => (bool) ($conexion->afiliado?->adulto_mayor ?? false),
+            'lectura_anterior'      => (float) ($conexion->lectura_anterior ?? 0),
+            'tipo_conexion'         => $conexion->tipo_conexion,
+        ]);
 
         return response()->json($results);
     }
 
     /**
-     * API: Devuelve conexiones pendientes 
+     * API: Devuelve conexiones pendientes de lectura para un período.
+     *
+     * OPTIMIZACIÓN N+1 (Hallazgo 2.1):
+     * La última lectura de cada conexión se resuelve con addSelect + subconsulta,
+     * en lugar de N consultas individuales dentro del map().
+     * Para 500 conexiones: antes = 501 queries, ahora = 3 queries.
      */
     public function apiGetPendientes(Request $request)
     {
         $periodo = $request->input('periodo', Carbon::now()->format('Y-m'));
-        $zonaId = $request->input('zona_id'); 
+        $zonaId  = $request->input('zona_id');
 
         if (!preg_match('/^\d{4}-\d{2}$/', $periodo)) {
             return response()->json(['error' => 'Formato de período inválido. Use YYYY-MM.'], 400);
         }
 
         try {
+            // IDs de conexiones que ya tienen lectura en este período
             $conexionesConLectura = DB::table('lecturas')
-                                    ->where('periodo', $periodo)
-                                    ->pluck('conexion_id'); 
+                ->where('periodo', $periodo)
+                ->pluck('conexion_id');
 
-            $query = Conexion::with([
+            // Subconsulta: última lectura_actual de cada conexión (sin N+1)
+            $ultimaLecturaSubquery = \App\Models\Lectura::select('lectura_actual')
+                ->whereColumn('conexion_id', 'conexiones.id')
+                ->orderBy('fecha_lectura', 'desc')
+                ->orderBy('id', 'desc')
+                ->limit(1);
+
+            $pendientes = Conexion::with([
                 'afiliado:id,nombre_completo,ci,adulto_mayor',
-                'zona:id,nombre' 
+                'zona:id,nombre',
             ])
-                ->where('estado', 'activo') 
-                ->whereNotIn('id', $conexionesConLectura);
+                ->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion')
+                ->addSelect(['lectura_anterior' => $ultimaLecturaSubquery]) // 1 subconsulta SQL
+                ->where('estado', 'activo')
+                ->whereNotIn('id', $conexionesConLectura)
+                ->when($zonaId, fn($q) => $q->where('zona_id', $zonaId))
+                ->orderBy('zona_id')
+                ->orderBy('direccion')
+                ->get();
 
-            //  Filtrar por la nueva columna 'zona_id'
-            $query->when($zonaId, function ($q, $zonaId) {
-                $q->where('zona_id', $zonaId);
-            });
-          
-
-            $pendientes = $query->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion')
-                                ->orderBy('zona_id')->orderBy('direccion')->get();
-                            
-            $results = $pendientes->map(function ($conexion) {
-                 $ultimaLectura = Lectura::where('conexion_id', $conexion->id)
-                                         ->orderBy('fecha_lectura', 'desc')->orderBy('id', 'desc')
-                                         ->value('lectura_actual');
-                 return [
-                     'id' => $conexion->id,
-                     'codigo_medidor' => $conexion->codigo_medidor,
-                     'direccion' => $conexion->direccion,
-                     'zona_nombre' => $conexion->zona?->nombre, 
-                     'afiliado_nombre' => $conexion->afiliado?->nombre_completo ?? 'N/A',
-                     'afiliado_ci' => $conexion->afiliado?->ci ?? 'N/A',
-                     'afiliado_adulto_mayor' => $conexion->afiliado?->adulto_mayor ?? false,
-                     'lectura_anterior' => $ultimaLectura ?? 0,
-                     'tipo_conexion' => $conexion->tipo_conexion, 
-                 ];
-            });
+            $results = $pendientes->map(fn($conexion) => [
+                'id'                    => $conexion->id,
+                'codigo_medidor'        => $conexion->codigo_medidor,
+                'direccion'             => $conexion->direccion,
+                'zona_nombre'           => $conexion->zona?->nombre,
+                'afiliado_nombre'       => $conexion->afiliado?->nombre_completo ?? 'N/A',
+                'afiliado_ci'           => $conexion->afiliado?->ci ?? 'N/A',
+                'afiliado_adulto_mayor' => (bool) ($conexion->afiliado?->adulto_mayor ?? false),
+                'lectura_anterior'      => (float) ($conexion->lectura_anterior ?? 0),
+                'tipo_conexion'         => $conexion->tipo_conexion,
+            ]);
 
             return response()->json($results);
-            
+
         } catch (\Exception $e) {
-            Log::error('Error en apiGetPendientes:', ['error' => $e->getMessage()]);
-            return response()->json(['error' => 'Error de servidor al buscar pendientes.'], 500);
+            Log::error('LecturaController@apiGetPendientes:', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error de servidor al buscar conexiones pendientes.'], 500);
         }
     }
 
@@ -402,54 +421,33 @@ class LecturaController extends Controller
     /**
      * Muestra la vista simple para el Aviso de Cobranza (para imprimir).
      */
-    public function showAviso($id) 
+    public function showAviso($id)
     {
         $lectura = Lectura::with([
-                        'conexion.afiliado', 
-                        'conexion',                 
-                        'usuarioRegistrado:id,name'
-                    ])->findOrFail($id);
-        
-        // 1) Tomar el tipo de conexión de la lectura
-        $tipo = $lectura->conexion->tipo_conexion; 
+            'conexion.afiliado',
+            'conexion',
+            'usuarioRegistrado:id,name',
+        ])->findOrFail($id);
 
-        // 2) Buscar la tarifa ACTIVA para ese tipo
-        $tarifa = Tarifa::where('activo', 1)
-                        ->where('tipo_conexion', $tipo)
-                        ->orderBy('vigente_desde', 'desc')
-                        ->first();
+        // El servicio obtiene la tarifa y lanza excepción si no existe
+        $tipo   = $lectura->conexion->tipo_conexion;
+        $tarifa = $this->tarifaService->getTarifaActiva($tipo);
 
         if (!$tarifa) {
-            abort(500, 'No hay tarifa activa para el tipo de conexión: ' . $tipo);
+            abort(500, "No hay tarifa activa para el tipo de conexión: '{$tipo}'. Configure una tarifa antes de imprimir avisos.");
         }
 
-        // 3) Cálculo de consumo
-        $consumo = $lectura->lectura_actual - $lectura->lectura_anterior;
-        $montoCalculado = 0;
+        // El servicio centraliza el cálculo (consumo, cobro mínimo, descuento adulto mayor)
+        $calculo = $this->tarifaService->calcular($lectura, $tarifa);
 
-        // 4) Regla de cálculo 
-        if ($consumo <= $tarifa->min_m3 && $tarifa->min_monto > ($consumo * $tarifa->precio_m3) ) {
-            $montoCalculado = $tarifa->min_monto;
-        } else {
-            $montoCalculado = $consumo * $tarifa->precio_m3;
-        }
-
-        // 5) Descuento adulto mayor 
-        $descuento = 0;
-        if ($lectura->conexion->afiliado?->adulto_mayor && $tarifa->descuento_adulto_mayor_pct > 0) {
-            $descuento = ($montoCalculado * $tarifa->descuento_adulto_mayor_pct) / 100;
-        }
-        $montoEstimado = $montoCalculado - $descuento;
-
-        // 6) Mandar todo al Blade 
-        return View::make('avisos.cobranza', [ 
-            'lectura' => $lectura,
-            'tarifa' => $tarifa,
-            'consumo' => $consumo,
-            'montoEstimado' => $montoEstimado,
-            'descuentoAplicado' => $descuento,
-            'fechaImpresion' => Carbon::now('America/La_Paz')->format('d/m/Y H:i')
-        ]); 
+        return View::make('avisos.cobranza', [
+            'lectura'           => $lectura,
+            'tarifa'            => $tarifa,
+            'consumo'           => $calculo['consumo'],
+            'montoEstimado'     => $calculo['total'],
+            'descuentoAplicado' => $calculo['descuento'],
+            'fechaImpresion'    => Carbon::now('America/La_Paz')->format('d/m/Y H:i'),
+        ]);
     }
 
 
