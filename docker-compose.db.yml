@@ -1,0 +1,23 @@
+services:
+  # Base de Datos compartida entre Blue y Green (se levanta una sola vez)
+  db:
+    image: postgres:16-alpine
+    container_name: coop_agua_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - coop_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  coop_network:
+    name: coop_network
+    driver: bridge

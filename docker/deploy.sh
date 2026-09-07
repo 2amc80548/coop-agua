@@ -4,12 +4,19 @@
 # Script de Despliegue Blue-Green con Cero Downtime y Rollback Automático
 # Proyecto: CoopAgua (Laravel + Vue + PostgreSQL + Docker)
 #
-# Flujo:
-#   1. Detecta cuál slot está ACTIVO (blue=8081 / green=8082)
-#   2. Despliega la nueva versión en el slot INACTIVO
-#   3. Hace Health Check en el nuevo slot
-#   4. Si OK → Nginx redirige el tráfico al nuevo slot (cero downtime)
-#   5. Si FALLA → el slot viejo sigue activo (rollback automático)
+# Arquitectura:
+#   Internet → Nginx host (puerto 80)
+#                  ↓
+#          🔵 Blue  (8080)  ←→  🟢 Green (8081)
+#                  ↓
+#         DB compartida (coop_agua_db — nunca se reinicia)
+#
+# Flujo de cada deploy:
+#   1. Detecta slot ACTIVO (blue=8080 / green=8081)
+#   2. Despliega nueva versión en slot INACTIVO
+#   3. Health Check en el slot nuevo
+#   4. OK → Nginx redirige tráfico (cero downtime) → apaga slot viejo
+#   5. FALLA → slot viejo sigue activo (rollback automático)
 # ==============================================================================
 
 set -e
@@ -22,75 +29,85 @@ RETRY_INTERVAL=4
 echo "🚀 Iniciando despliegue Blue-Green en: $APP_DIR"
 cd "$APP_DIR"
 
-# ─────────────────────────────────────────────
-# 1. Determinar slot activo e inactivo
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# 1. Asegurar que la base de datos compartida esté corriendo
+# ─────────────────────────────────────────────────────────────────
+echo "🗄️  Verificando base de datos compartida (coop_agua_db)..."
+docker compose -f docker-compose.db.yml -p coop_agua_db up -d
+
+# ─────────────────────────────────────────────────────────────────
+# 2. Determinar slot activo e inactivo
+# ─────────────────────────────────────────────────────────────────
 if [ -f "$ACTIVE_PORT_FILE" ]; then
     ACTIVE_PORT=$(cat "$ACTIVE_PORT_FILE")
 else
-    ACTIVE_PORT="8081"
+    ACTIVE_PORT="8080"
 fi
 
-if [ "$ACTIVE_PORT" = "8081" ]; then
+if [ "$ACTIVE_PORT" = "8080" ]; then
     ACTIVE_SLOT="blue"
     ACTIVE_COMPOSE="docker-compose.blue.yml"
     NEW_SLOT="green"
     NEW_COMPOSE="docker-compose.green.yml"
-    NEW_PORT="8082"
+    NEW_PORT="8081"
 else
     ACTIVE_SLOT="green"
     ACTIVE_COMPOSE="docker-compose.green.yml"
     NEW_SLOT="blue"
     NEW_COMPOSE="docker-compose.blue.yml"
-    NEW_PORT="8081"
+    NEW_PORT="8080"
 fi
 
 HEALTH_URL="http://localhost:${NEW_PORT}/api/health"
 
-echo "📊 Slot ACTIVO: ${ACTIVE_SLOT} (puerto ${ACTIVE_PORT})"
-echo "🎯 Desplegando en slot: ${NEW_SLOT} (puerto ${NEW_PORT})"
+echo "📊 Slot ACTIVO  : ${ACTIVE_SLOT} (puerto ${ACTIVE_PORT}) — recibe tráfico"
+echo "🎯 Desplegando en: ${NEW_SLOT} (puerto ${NEW_PORT})"
 
-# ─────────────────────────────────────────────
-# 2. Descargar los últimos cambios
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# 3. Descargar los últimos cambios
+# ─────────────────────────────────────────────────────────────────
 echo "📥 Descargando los últimos cambios del repositorio..."
 git fetch origin main
 git reset --hard origin/main
 
-# ─────────────────────────────────────────────
-# 3. Verificar/instalar Node.js y compilar frontend
-# ─────────────────────────────────────────────
+# Arreglar permisos si el contenedor anterior cambió el owner
+sudo chown -R "$USER":"$USER" storage bootstrap/cache 2>/dev/null || true
+sudo chmod -R 777 storage bootstrap/cache 2>/dev/null || true
+
+# ─────────────────────────────────────────────────────────────────
+# 4. Instalar Node.js si no existe y compilar frontend
+# ─────────────────────────────────────────────────────────────────
 if ! command -v node &> /dev/null; then
     echo "📦 Instalando Node.js 20 (LTS)..."
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt-get install -y nodejs
 fi
 
-echo "🎨 Compilando assets del frontend (Vite)..."
+echo "🎨 Compilando assets del frontend (Vite → public/build/manifest.json)..."
 npm ci --prefer-offline || npm install
 npm run build
 
-# ─────────────────────────────────────────────
-# 4. Levantar el nuevo slot (sin tocar el activo)
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# 5. Levantar el nuevo slot (sin tocar el activo)
+# ─────────────────────────────────────────────────────────────────
 echo "🐳 Levantando slot ${NEW_SLOT} en puerto ${NEW_PORT}..."
-docker compose -f "$NEW_COMPOSE" -p "coop_agua_${NEW_SLOT}" up -d --build --remove-orphans
+docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" up -d --build --remove-orphans
 
-echo "⏳ Esperando que el slot ${NEW_SLOT} inicialice..."
+echo "⏳ Esperando que el slot ${NEW_SLOT} inicialice (10s)..."
 sleep 10
 
 echo "📦 Ejecutando migraciones de base de datos..."
-docker compose -f "$NEW_COMPOSE" -p "coop_agua_${NEW_SLOT}" exec -T app php artisan migrate --force
+docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan migrate --force
 
 echo "⚡ Optimizando caché de Laravel..."
-docker compose -f "$NEW_COMPOSE" -p "coop_agua_${NEW_SLOT}" exec -T app php artisan config:cache
-docker compose -f "$NEW_COMPOSE" -p "coop_agua_${NEW_SLOT}" exec -T app php artisan route:cache
-docker compose -f "$NEW_COMPOSE" -p "coop_agua_${NEW_SLOT}" exec -T app php artisan view:cache
-docker compose -f "$NEW_COMPOSE" -p "coop_agua_${NEW_SLOT}" exec -T app php artisan storage:link || true
+docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan config:cache
+docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan route:cache
+docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan view:cache
+docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan storage:link || true
 
-# ─────────────────────────────────────────────
-# 5. Health Check en el nuevo slot
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# 6. Health Check en el nuevo slot
+# ─────────────────────────────────────────────────────────────────
 echo "🔍 Ejecutando Health Check en ${HEALTH_URL}..."
 
 ATTEMPT=0
@@ -110,21 +127,21 @@ while [ $ATTEMPT -lt $MAX_RETRIES ]; do
     sleep $RETRY_INTERVAL
 done
 
-# ─────────────────────────────────────────────
-# 6. Cambiar el tráfico (o hacer Rollback)
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# 7. Cambiar el tráfico (o hacer Rollback)
+# ─────────────────────────────────────────────────────────────────
 if [ "$HEALTH_OK" = true ]; then
     echo ""
     echo "✅ Slot ${NEW_SLOT} está saludable. Redirigiendo tráfico..."
 
-    # Reescribir la configuración de Nginx para apuntar al nuevo slot
+    # Reescribir Nginx para apuntar al nuevo slot
     sudo tee /etc/nginx/conf.d/coop-agua.conf > /dev/null <<EOF
 upstream coop_agua_active {
     server 127.0.0.1:${NEW_PORT};
 }
 
 server {
-    listen 8080;
+    listen 80;
     server_name _;
 
     location / {
@@ -139,7 +156,7 @@ server {
 }
 EOF
 
-    # Recargar Nginx sin cortar conexiones activas (cero downtime)
+    # Recargar Nginx SIN cortar conexiones activas
     sudo nginx -t && sudo nginx -s reload
 
     # Guardar el nuevo slot como activo
@@ -148,25 +165,24 @@ EOF
     echo ""
     echo "========================================================================"
     echo "🟢 ¡DESPLIEGUE BLUE-GREEN EXITOSO!"
-    echo "   Slot anterior : ${ACTIVE_SLOT} (puerto ${ACTIVE_PORT}) — apagando..."
-    echo "   Slot activo   : ${NEW_SLOT} (puerto ${NEW_PORT})"
-    echo "   La aplicación sigue respondiendo sin interrupción."
+    echo "   Tráfico redirigido: ${ACTIVE_SLOT}(${ACTIVE_PORT}) → ${NEW_SLOT}(${NEW_PORT})"
+    echo "   Apagando slot anterior (${ACTIVE_SLOT})..."
     echo "========================================================================"
 
-    # Apagar el slot viejo (DESPUÉS de redirigir el tráfico)
-    docker compose -f "$ACTIVE_COMPOSE" -p "coop_agua_${ACTIVE_SLOT}" down || true
+    # Apagar el slot viejo DESPUÉS de redirigir (cero downtime)
+    docker compose -f "$ACTIVE_COMPOSE" -p "coop_${ACTIVE_SLOT}" down || true
 
     exit 0
 else
     echo ""
     echo "========================================================================"
-    echo "🚨 ¡FALLO EN EL HEALTH CHECK del slot ${NEW_SLOT}!"
-    echo "⚠️  El tráfico sigue en el slot ${ACTIVE_SLOT} (puerto ${ACTIVE_PORT})."
-    echo "   Apagando el slot fallido..."
+    echo "🚨 FALLO en el Health Check del slot ${NEW_SLOT}!"
+    echo "⚠️  Tráfico sigue en ${ACTIVE_SLOT} (puerto ${ACTIVE_PORT}) — sin afectación."
+    echo "   Apagando slot fallido..."
     echo "========================================================================"
 
     # Apagar el slot nuevo que falló (el activo sigue intacto)
-    docker compose -f "$NEW_COMPOSE" -p "coop_agua_${NEW_SLOT}" down || true
+    docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" down || true
 
     exit 1
 fi
