@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # ==============================================================================
-# Script de Despliegue Seguro, Blue-Green & Rollback Automático para EC2
+# Script de Despliegue con Rollback Automático para EC2
 # Proyecto: CoopAgua (Laravel + Vue + PostgreSQL + Docker)
 # ==============================================================================
 
@@ -24,6 +24,17 @@ PREVIOUS_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "")
 echo "📥 Descargando los últimos cambios del repositorio..."
 git fetch origin main
 git reset --hard origin/main
+
+# Verificar e instalar Node.js si no existe en la EC2
+if ! command -v node &> /dev/null; then
+    echo "📦 Node.js no encontrado. Instalando Node.js 20 (LTS)..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+fi
+
+echo "🎨 Instalando dependencias Node y compilando assets del frontend..."
+npm ci --prefer-offline || npm install
+npm run build
 
 echo "🐳 Reconstruyendo y actualizando contenedores Docker..."
 docker compose up -d --build --remove-orphans
