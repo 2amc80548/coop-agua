@@ -13,7 +13,11 @@ abstract class TestCase extends BaseTestCase
         if (!file_exists(public_path('build/manifest.json'))) {
             @mkdir(public_path('build'), 0755, true);
             file_put_contents(public_path('build/manifest.json'), json_encode([
-                'resources/js/app.js' => ['file' => 'assets/app.js']
+                'resources/js/app.js' => [
+                    'file' => 'assets/app.js',
+                    'src' => 'resources/js/app.js',
+                    'isEntry' => true,
+                ],
             ]));
         }
     }
