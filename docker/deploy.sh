@@ -74,6 +74,13 @@ git reset --hard origin/main
 sudo chown -R "$USER":"$USER" storage bootstrap/cache 2>/dev/null || true
 sudo chmod -R 777 storage bootstrap/cache 2>/dev/null || true
 
+# Corregir DB_HOST en el .env si aún tiene el valor antiguo "db"
+# La DB se llama "coop_agua_db" (nombre del contenedor compartido)
+if [ -f ".env" ]; then
+    sed -i 's/^DB_HOST=db$/DB_HOST=coop_agua_db/' .env
+    echo "✅ .env verificado: DB_HOST=$(grep '^DB_HOST=' .env)"
+fi
+
 # ─────────────────────────────────────────────────────────────────
 # 4. Instalar Node.js si no existe y compilar frontend
 # ─────────────────────────────────────────────────────────────────
