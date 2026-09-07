@@ -20,36 +20,23 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        // Eliminar el índice único DUPLICADO en 'afiliados.ci'
-        // Se mantiene 'afiliados_ci_unique' (el primario, más descriptivo)
-        // Se elimina el redundante 'afiliados_uniq_afiliados_ci_unique'
-        Schema::table('afiliados', function (Blueprint $table) {
-            // Solo eliminamos el duplicado. Verificamos que exista antes para
-            // evitar errores si ya fue eliminado manualmente en algún entorno.
-            try {
-                $table->dropUnique('afiliados_uniq_afiliados_ci_unique');
-            } catch (\Exception $e) {
-                // Si no existe, continuamos sin lanzar error
-            }
-        });
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
+            Schema::table('afiliados', function (Blueprint $table) {
+                try {
+                    $table->dropUnique('afiliados_uniq_afiliados_ci_unique');
+                } catch (\Exception $e) {
+                    // Si no existe, continuamos sin lanzar error
+                }
+            });
 
-        // Eliminar la clave foránea duplicada en 'lecturas.conexion_id'
-        // La migración original creó dos FK apuntando a la misma columna:
-        //   - fk_lecturas_conexion     (con onUpdate cascade)
-        //   - lecturas_conexion_id_foreign (con onDelete cascade)
-        // Se consolida en una sola con ambas acciones correctas.
-        Schema::table('lecturas', function (Blueprint $table) {
-            try {
-                $table->dropForeign('fk_lecturas_conexion');
-            } catch (\Exception $e) {
-                // No existe en este entorno, continuamos
-            }
-
-            // Re-crear la única clave foránea necesaria con ambas acciones
-            // (onUpdate cascade ya estaba en la eliminada, así que la
-            // clave restante 'lecturas_conexion_id_foreign' con onDelete
-            // cascade es la que se preserva sin cambios).
-        });
+            Schema::table('lecturas', function (Blueprint $table) {
+                try {
+                    $table->dropForeign('fk_lecturas_conexion');
+                } catch (\Exception $e) {
+                    // No existe en este entorno, continuamos
+                }
+            });
+        }
     }
 
     public function down(): void

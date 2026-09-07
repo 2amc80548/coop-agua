@@ -4,7 +4,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "test:unit": "vitest run"
+        "test:unit": "LARAVEL_BYPASS_ENV_CHECK=1 vitest run"
     },
     "devDependencies": {
         "@inertiajs/vue3": "^2.0",

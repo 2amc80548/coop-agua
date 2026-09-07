@@ -29,6 +29,8 @@ jobs:
         run: npm ci
 
       - name: 🧪 Ejecutar Pruebas Unitarias Frontend (Vitest)
+        env:
+          LARAVEL_BYPASS_ENV_CHECK: 1
         run: npm run test:unit
 
       - name: 🏗️ Probar Compilación de Producción
@@ -77,9 +79,15 @@ jobs:
 
       - name: 🧪 Ejecutar Pruebas Backend
         env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
-        run: php artisan test
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: coop_agua_test
+          DB_USERNAME: coop_user
+          DB_PASSWORD: coop_password_secret
+        run: |
+          php artisan migrate --env=testing --force
+          php artisan test
 
   # ============================================================================
   # 🟢 JOB 3: Despliegue Continuo Seguro a AWS EC2 (CD + Blue-Green)
