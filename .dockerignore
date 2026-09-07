@@ -1,0 +1,14 @@
+.git
+.idea
+.vscode
+node_modules
+vendor
+public/build
+public/storage
+storage/*.key
+.env
+.env.*
+!.env.example
+docker-compose*.yml
+Dockerfile
+README.md

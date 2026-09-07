@@ -22,28 +22,28 @@ class AfiliadoController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Afiliado::with('zona:id,nombre'); 
+        $query = Afiliado::with('zona:id,nombre');
 
         $query->when($request->input('search'), function ($q, $search) {
-            $q->where('nombre_completo', 'like', "%{$search}%")
-              ->orWhere('ci', 'like', "%{$search}%")
-              ->orWhere('codigo', 'like', "%{$search}%");
+            $searchLower = mb_strtolower($search);
+            $q->where(DB::raw('LOWER(nombre_completo)'), 'like', "%{$searchLower}%")
+              ->orWhere(DB::raw('LOWER(ci)'), 'like', "%{$searchLower}%")
+              ->orWhere(DB::raw('LOWER(codigo)'), 'like', "%{$searchLower}%");
         });
         $query->when($request->input('tipo'), fn($q, $v) => $q->where('tipo', $v));
-        
-        $query->when($request->input('estado_servicio'), fn($q, $v) => $q->where('estado_servicio', $v)); 
 
-$query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
-    $q->where('adulto_mayor', $request->input('adulto_mayor') === '1');
-});
-        
+        $query->when($request->input('estado_servicio'), fn($q, $v) => $q->where('estado_servicio', $v));
+
+        $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
+            $q->where('adulto_mayor', $request->input('adulto_mayor') === '1');
+        });
+
         $query->when($request->input('zona_id'), fn($q, $v) => $q->where('zona_id', $v));
 
-        
         return Inertia::render('Afiliados/Index', [
             'afiliados' => $query->orderBy('nombre_completo')->paginate(10)->withQueryString(),
-            'filters' => $request->only(['search', 'tipo', 'estado_servicio', 'zona_id']),
-            'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']), 
+            'filters'   => $request->only(['search', 'tipo', 'estado_servicio', 'zona_id']),
+            'zonas'     => Zona::orderBy('nombre')->get(['id', 'nombre']),
         ]);
     }
 
@@ -313,7 +313,7 @@ $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
     }
 
 
-    public function apiSearch(Request $request) 
+    public function apiSearch(Request $request)
     {
         // Tomamos el término de búsqueda ('q' o 'term')
         $term = $request->input('q') ?: $request->input('term', '');
@@ -322,24 +322,27 @@ $query->when($request->filled('adulto_mayor'), function ($q) use ($request) {
             return response()->json([]);
         }
 
-        // Buscamos por CI, Nombre o Código
-        $afiliados = Afiliado::where(function ($query) use ($term) {
-                $query->where('ci', 'like', "%{$term}%")
-                      ->orWhere('nombre_completo', 'like', "%{$term}%")
-                      ->orWhere('codigo', 'like', "%{$term}%");
+        $termLower = mb_strtolower($term);
+
+        // Buscamos por CI, Nombre o Código (Insensible a mayúsculas/minúsculas y seguro para Postgres)
+        $afiliados = Afiliado::where(function ($query) use ($termLower) {
+                $query->where(DB::raw('LOWER(ci)'), 'like', "%{$termLower}%")
+                      ->orWhere(DB::raw('LOWER(nombre_completo)'), 'like', "%{$termLower}%")
+                      ->orWhere(DB::raw('LOWER(CAST(codigo AS TEXT))'), 'like', "%{$termLower}%");
             })
+            ->where('estado', '!=', 'baja')
             ->limit(10)
             ->get();
 
         // Formateamos la respuesta para que Vue/Inertia la reciba limpia
         $results = $afiliados->map(function ($a) {
             return [
-                'id' => $a->id,
+                'id'              => $a->id,
                 'nombre_completo' => $a->nombre_completo,
-                'ci' => $a->ci,
-                'codigo' => $a->codigo,
-                'direccion' => $a->direccion,
-                'zona_id' => $a->zona_id,
+                'ci'              => $a->ci,
+                'codigo'          => $a->codigo,
+                'direccion'       => $a->direccion,
+                'zona_id'         => $a->zona_id,
             ];
         });
 

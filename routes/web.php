@@ -22,10 +22,7 @@ use App\Http\Controllers\TarifaController;
 use App\Http\Controllers\TarifaConceptoController;
 use App\Http\Controllers\FacturacionController;
 use App\Http\Controllers\ZonaController;
-use App\Http\Controllers\ReclamoController;
-use App\Http\Controllers\ReclamoTipoController;
 use App\Http\Controllers\ReporteController;
-use App\Http\Controllers\BuscadorController;
 
 // ============================================================
 // RUTA PÚBLICA: Página de Bienvenida
@@ -93,6 +90,10 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
     // ----------------------------------------------------------
     Route::middleware(['role:Administrador|Secretaria'])->group(function () {
 
+        // Búsqueda rápida de afiliados (Typeahead) — DEBE ir antes de Route::resource('afiliados')
+        Route::get('/afiliados/buscar', [AfiliadoController::class, 'apiSearch'])
+            ->name('afiliados.buscar');
+
         Route::resource('afiliados', AfiliadoController::class);
         Route::resource('conexiones', ConexionController::class);
 
@@ -101,10 +102,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
             ->except(['show', 'create', 'store', 'edit', 'destroy']);
 
         Route::resource('pagos', PagoController::class);
-
-        // Búsqueda rápida de afiliados (Typeahead)
-        Route::get('/afiliados/buscar', [AfiliadoController::class, 'apiSearch'])
-            ->name('afiliados.buscar');
 
         // Facturación Masiva
         Route::get('/facturacion/generar',  [FacturacionController::class, 'showGenerador'])
@@ -120,11 +117,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         Route::get('/facturas/{factura}/pdf', [FacturaController::class, 'descargarPdf'])
             ->name('facturas.pdf')
             ->where('factura', '[0-9]+');
-
-        // Tipos de Reclamo
-        Route::post('/reclamo-tipos',                   [ReclamoTipoController::class, 'store'])->name('reclamoTipos.store');
-        Route::put('/reclamo-tipos/{reclamoTipo}',      [ReclamoTipoController::class, 'update'])->name('reclamoTipos.update');
-        Route::delete('/reclamo-tipos/{reclamoTipo}',   [ReclamoTipoController::class, 'destroy'])->name('reclamoTipos.destroy');
 
         // Reportes
         Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
@@ -178,11 +170,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         // Búsqueda de afiliado por CI (para formulario de lectura)
         Route::get('/afiliados/buscar-por-ci/{ci}', [AfiliadoController::class, 'buscarPorCI'])
             ->name('afiliados.buscarPorCI');
-
-        // Reclamos (gestión interna)
-        Route::get('/reclamos', [ReclamoController::class, 'index'])->name('reclamos.index');
-        Route::put('/reclamos/{reclamo}',         [ReclamoController::class, 'update'])->name('reclamos.update')->whereNumber('reclamo');
-        Route::put('/reclamos/{reclamo}/reabrir', [ReclamoController::class, 'reabrir'])->name('reclamos.reabrir')->whereNumber('reclamo');
     });
 
 
@@ -200,11 +187,6 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
             ->name('facturas.imprimir')
             ->where('factura', '[0-9]+');
 
-        // Reclamos: vista de un reclamo específico
-        Route::get('/reclamos/{reclamo}', [ReclamoController::class, 'show'])
-            ->name('reclamos.show')
-            ->whereNumber('reclamo');
-
         // Pago QR: generar y verificar código QR (accesible desde la pantalla de pago)
         Route::post('/pagos/generar-qr',  [PagoController::class, 'generarQr'])->name('pagos.generarQr');
         Route::post('/pagos/verificar-qr', [PagoController::class, 'verificarQr'])->name('pagos.verificarQr');
@@ -218,19 +200,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
         Route::get('/mi-cuenta',            [FacturaController::class, 'misFacturas'])->name('mi.cuenta');
         Route::get('/mi-historial-pagos',   [PagoController::class, 'miHistorial'])->name('pagos.mihistorial');
-        Route::get('/mis-reclamos',         [ReclamoController::class, 'usuarioIndex'])->name('reclamos.usuarioIndex');
-        Route::get('/reclamos/nuevo',       [ReclamoController::class, 'create'])->name('reclamos.create');
-        Route::post('/reclamos',            [ReclamoController::class, 'store'])->name('reclamos.store');
-
         Route::get('/pendiente-habilitacion', [UsuarioDashboardController::class, 'pendiente'])
             ->name('usuario.pendiente');
     });
-
-
-    // ----------------------------------------------------------
-    // BUSCADOR GLOBAL (todos los roles autenticados)
-    // ----------------------------------------------------------
-    Route::get('/buscar', [BuscadorController::class, 'buscar'])->name('buscar');
 
 }); // fin del grupo auth
 

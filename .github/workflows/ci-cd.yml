@@ -1,0 +1,103 @@
+name: CI/CD Pipeline CoopAgua
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  # ============================================================================
+  # 🟢 JOB 1: Pruebas y Compilación del Frontend (Vue 3 + Vitest)
+  # ============================================================================
+  test-frontend:
+    name: ⚡ Pruebas & Build Frontend (Vue 3)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout del Código
+        uses: actions/checkout@v4
+
+      - name: 🟢 Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Instalar Dependencias NPM
+        run: npm ci
+
+      - name: 🧪 Ejecutar Pruebas Unitarias Frontend (Vitest)
+        run: npm run test:unit
+
+      - name: 🏗️ Probar Compilación de Producción
+        run: npm run build
+
+  # ============================================================================
+  # 🟢 JOB 2: Pruebas Automatizadas Backend (Laravel + Pest/PHPUnit)
+  # ============================================================================
+  test-backend:
+    name: 🧪 Pruebas Backend (Laravel)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: coop_agua_test
+          POSTGRES_USER: coop_user
+          POSTGRES_PASSWORD: coop_password_secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: 📥 Checkout del Código
+        uses: actions/checkout@v4
+
+      - name: 🐘 Configurar PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo, pdo_pgsql, zip, gd, sqlite3, pdo_sqlite
+          coverage: none
+
+      - name: 📦 Instalar Dependencias de Composer
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: 📄 Preparar Entorno de Pruebas
+        run: |
+          cp .env.example .env.testing
+          php artisan key:generate --env=testing
+
+      - name: 🧪 Ejecutar Pruebas Backend (Unit)
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+        run: php artisan test tests/Unit
+
+  # ============================================================================
+  # 🟢 JOB 3: Despliegue Continuo Seguro a AWS EC2 (CD + Blue-Green)
+  # ============================================================================
+  deploy-ec2:
+    name: 🚀 Despliegue Seguro a AWS EC2
+    needs: [test-frontend, test-backend]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🔒 Ejecutar Script de Despliegue en AWS EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script: |
+            cd /var/www/coop-agua || cd ~/coop-agua
+            bash docker/deploy.sh

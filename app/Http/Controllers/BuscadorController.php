@@ -104,9 +104,9 @@ class BuscadorController extends Controller
                     ->leftJoin('afiliados', 'afiliados.id', '=', 'conexiones.afiliado_id')
                     ->whereRaw("LOWER(facturas.periodo) LIKE ?", ["%{$qLower}%"])
                     ->orWhereRaw("LOWER(facturas.estado) LIKE ?", ["%{$qLower}%"])
-                    ->orWhereRaw("facturas.monto_total LIKE ?", ["%{$query}%"])
-                    ->orWhereRaw("facturas.consumo_m3 LIKE ?", ["%{$query}%"])
-                    ->orWhereRaw("facturas.deuda_pendiente LIKE ?", ["%{$query}%"])
+                    ->orWhereRaw("CAST(facturas.monto_total AS TEXT) LIKE ?", ["%{$query}%"])
+                    ->orWhereRaw("CAST(facturas.consumo_m3 AS TEXT) LIKE ?", ["%{$query}%"])
+                    ->orWhereRaw("CAST(facturas.deuda_pendiente AS TEXT) LIKE ?", ["%{$query}%"])
                     ->orWhereRaw("LOWER(afiliados.nombre_completo) LIKE ?", ["%{$qLower}%"])
                     ->select(
                         'facturas.*',
@@ -138,10 +138,10 @@ class BuscadorController extends Controller
                     ->leftJoin('facturas', 'facturas.id', '=', 'pagos.factura_id')
                     ->leftJoin('conexiones', 'conexiones.id', '=', 'facturas.conexion_id')
                     ->leftJoin('afiliados', 'afiliados.id', '=', 'conexiones.afiliado_id')
-                    ->whereRaw("pagos.monto_pagado LIKE ?", ["%{$query}%"])
-                    ->orWhereRaw("LOWER(pagos.metodo_pago) LIKE ?", ["%{$qLower}%"])
+                    ->whereRaw("CAST(pagos.monto_pagado AS TEXT) LIKE ?", ["%{$query}%"])
+                    ->orWhereRaw("LOWER(pagos.forma_pago) LIKE ?", ["%{$qLower}%"])
                     ->orWhereRaw("LOWER(afiliados.nombre_completo) LIKE ?", ["%{$qLower}%"])
-                    ->orWhereRaw("pagos.fecha_pago LIKE ?", ["%{$query}%"])
+                    ->orWhereRaw("CAST(pagos.fecha_pago AS TEXT) LIKE ?", ["%{$query}%"])
                     ->select(
                         'pagos.*',
                         'afiliados.nombre_completo as afiliado_nombre'

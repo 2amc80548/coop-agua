@@ -49,12 +49,29 @@ const onSearchInput = () => {
     isSearching.value = true;
     searchTimeout = setTimeout(async () => {
         try {
-            const response = await axios.get(route('afiliados.buscar'), { 
+            let url = '/afiliados/buscar';
+            try {
+                if (typeof route === 'function') {
+                    url = route('afiliados.buscar');
+                }
+            } catch (e) {
+                url = '/afiliados/buscar';
+            }
+            const response = await axios.get(url, { 
                 params: { term: searchTerm.value } 
             });
             searchResults.value = response.data;
         } catch (error) {
             console.error("Error buscando:", error);
+            // Si falla por cualquier razón, intentar fallback a la URL relativa
+            try {
+                const response = await axios.get('/afiliados/buscar', { 
+                    params: { term: searchTerm.value } 
+                });
+                searchResults.value = response.data;
+            } catch (fallbackError) {
+                console.error("Error fallback buscando:", fallbackError);
+            }
         } finally {
             isSearching.value = false;
         }

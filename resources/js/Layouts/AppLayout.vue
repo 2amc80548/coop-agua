@@ -12,112 +12,13 @@ defineProps({ title: String })
 const isMobileMenuOpen = ref(false)
 const isSidebarHidden = ref(false)
 const darkMode = ref(false)
-const temaActual = ref('tema-jovenes')
 const currentTime = ref('')
 const isMobile = ref(false)
 
-/* =======================
- * BUSCADOR
- * ======================= */
-const textoBusqueda = ref('')
-const resultados = ref([])
-const buscadorCargando = ref(false)
-const buscadorError = ref('')
-
-let searchTimeout = null
-
-const buscar = () => {
-    const query = textoBusqueda.value.trim()
-
-    if (searchTimeout) {
-        clearTimeout(searchTimeout)
-    }
-
-    searchTimeout = setTimeout(async () => {
-        const q = textoBusqueda.value.trim()
-
-        if (q.length < 2) {
-            resultados.value = []
-            buscadorError.value = ''
-            return
-        }
-
-        buscadorCargando.value = true
-        buscadorError.value = ''
-
-        try {
-            // 1. Detectamos la carpeta del proyecto dinámicamente
-            let baseUrl = route('dashboard'); 
-            baseUrl = baseUrl.replace('/dashboard', ''); 
-
-            const url = `${baseUrl}/buscar?q=${encodeURIComponent(q)}`;
-
-            const res = await fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                },
-            })
-
-            if (!res.ok) {
-                buscadorError.value = `Error del servidor (${res.status})`
-                resultados.value = []
-                return
-            }
-
-            const data = await res.json()
-
-            resultados.value = data
-
-            if (!data.length) {
-                buscadorError.value = 'Sin resultados'
-            }
-        } catch (error) {
-            console.error(error);
-            buscadorError.value = 'Error de conexión'
-            resultados.value = []
-        } finally {
-            buscadorCargando.value = false
-        }
-    }, 300)
-}
-const irAlPrimero = () => {
-    if (resultados.value.length > 0) {
-        const url = resultados.value[0].url
-        router.visit(url)
-        textoBusqueda.value = ''
-        resultados.value = []
-        buscadorError.value = ''
-    }
-}
-
-const irA = (url) => {
-    if (!url) return
-    router.visit(url)
-    textoBusqueda.value = ''
-    resultados.value = []
-    buscadorError.value = ''
-}
-
-/* =======================
- * TEMAS, TIEMPO, ETC
- * ======================= */
-const aplicarTema = () => {
-    const tema = localStorage.getItem('tema') || 'tema-jovenes'
-    const oscuro = localStorage.getItem('dark') === 'true'
-    temaActual.value = tema
-    darkMode.value = oscuro
-    document.documentElement.className = oscuro ? `dark ${tema}` : tema
-}
-
-const cambiarTema = (nuevo) => {
-    localStorage.setItem('tema', nuevo)
-    aplicarTema()
-}
-
 const toggleDarkMode = () => {
-    localStorage.setItem('dark', !darkMode.value)
-    aplicarTema()
+    darkMode.value = !darkMode.value
+    localStorage.setItem('dark', darkMode.value)
+    document.documentElement.classList.toggle('dark', darkMode.value)
 }
 
 const updateTime = () => {
@@ -144,7 +45,8 @@ const closeMobileMenu = () => {
 }
 
 onMounted(() => {
-    aplicarTema()
+    darkMode.value = localStorage.getItem('dark') === 'true'
+    document.documentElement.classList.toggle('dark', darkMode.value)
     updateTime()
     setInterval(updateTime, 1000)
     checkMobile()
@@ -160,7 +62,7 @@ const logout = () => {
 </script>
 
 <template>
-<div :class="[darkMode ? 'dark' : '', temaActual]" class="min-h-screen bg-gray-50 dark:bg-gray-900">
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
 
     <Head :title="title" />
     <Banner />
@@ -276,12 +178,6 @@ const logout = () => {
                             <span v-if="!isSidebarHidden" class="font-medium">Reportes</span>
                         </NavLink>
 
-                        <NavLink :href="route('reclamos.index')" :active="route().current('reclamos.*')" class="group flex items-center text-gray-700 dark:text-gray-300 hover:bg-cyan-50 dark:hover:bg-gray-700 px-3 md:px-4 py-3 md:py-3.5 rounded-xl transition-all duration-200 text-sm md:text-base">
-                            <span class="mr-3 md:mr-4 text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform" title="Gestión Reclamos">
-                                <svg class="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" /></svg>
-                            </span>
-                            <span v-if="!isSidebarHidden" class="font-medium">Gestión Reclamos</span>
-                        </NavLink>
                     </template>
 
                     <template v-else-if="$page.props.auth.user.role_names?.includes('Secretaria')">
@@ -337,12 +233,6 @@ const logout = () => {
                             <span v-if="!isSidebarHidden" class="font-medium">Ver Lecturas</span>
                         </NavLink>
 
-                        <NavLink :href="route('reclamos.index')" :active="route().current('reclamos.*')" class="group flex items-center text-gray-700 dark:text-gray-300 hover:bg-cyan-50 dark:hover:bg-gray-700 px-3 md:px-4 py-3 md:py-3.5 rounded-xl transition-all duration-200 text-sm md:text-base">
-                            <span class="mr-3 md:mr-4 text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform" title="Gestión Reclamos">
-                                <svg class="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" /></svg>
-                            </span>
-                            <span v-if="!isSidebarHidden" class="font-medium">Gestión Reclamos</span>
-                        </NavLink>
                     </template>
 
                     <template v-else-if="$page.props.auth.user.role_names?.includes('Tecnico')">
@@ -387,12 +277,6 @@ const logout = () => {
                                 <span v-if="!isSidebarHidden" class="font-medium">Historial de Pagos</span>
                             </NavLink>
 
-                            <NavLink :href="route('reclamos.usuarioIndex')" :active="route().current('reclamos.usuarioIndex*') || route().current('reclamos.create')" class="group flex items-center text-gray-700 dark:text-gray-300 hover:bg-cyan-50 dark:hover:bg-gray-700 px-3 md:px-4 py-3 md:py-3.5 rounded-xl transition-all duration-200 text-sm md:text-base">
-                                <span class="mr-3 md:mr-4 text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform" title="Mis Reclamos">
-                                    <svg class="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" /></svg>
-                                </span>
-                                <span v-if="!isSidebarHidden" class="font-medium">Mis Reclamos</span>
-                            </NavLink>
                         </template>    
                     </template>          
             </nav>
@@ -414,70 +298,6 @@ const logout = () => {
 
 
                     <div class="flex-1 flex items-center justify-between px-4 md:px-6 relative z-50">
-
-                        <div
-                            class="relative max-w-sm w-full transition-all duration-300"
-                            :class="{
-                                'ml-20 md:ml-64': !isSidebarHidden,
-                                'ml-20': isSidebarHidden
-                            }"
-                        >
-                            <input
-                                v-model="textoBusqueda"
-                                @input="buscar"
-                                @keydown.enter.prevent="irAlPrimero"
-                                type="text"
-                                placeholder="Buscar afiliado, medidor, factura..."
-                                class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-shadow shadow-sm backdrop-blur-sm"
-                            />
-
-                            <svg
-                                class="absolute left-3 top-2.5 h-5 w-5 text-gray-500 pointer-events-none"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                />
-                            </svg>
-
-                            <div
-                                v-if="textoBusqueda.length >= 2"
-                                class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700 z-50 max-h-64 overflow-y-auto"
-                            >
-                                <div v-if="buscadorCargando" class="px-4 py-2 text-xs text-gray-500">
-                                    Buscando...
-                                </div>
-
-                                <div
-                                    v-else-if="buscadorError && !resultados.length"
-                                    class="px-4 py-2 text-xs text-red-500"
-                                >
-                                    {{ buscadorError }}
-                                </div>
-
-                                <template v-else>
-                                    <button
-                                        v-for="(r, i) in resultados"
-                                        :key="i"
-                                        @click="irA(r.url)"
-                                        class="w-full text-left px-4 py-2.5 hover:bg-cyan-50 dark:hover:bg-gray-700 text-sm flex items-center gap-3 border-b border-gray-100 dark:border-gray-700 last:border-0"
-                                    >
-                                        <span class="text-xl">{{ r.icon }}</span>
-                                        <div>
-                                            <div class="font-medium">{{ r.title }}</div>
-                                            <div class="text-xs text-gray-500 dark:text-gray-400">
-                                                {{ r.subtitle }}
-                                            </div>
-                                        </div>
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
 
                         <div class="hidden md:block text-right pr-4">
                             <div class="font-bold text-cyan-700 dark:text-cyan-300 text-sm">
@@ -513,33 +333,6 @@ const logout = () => {
                                     <input type="checkbox" :checked="darkMode" @change="toggleDarkMode" class="sr-only peer">
                                     <div class="w-11 h-6 bg-gray-300 peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
                                 </label>
-                            </div>
-
-                            <div class="border-t border-cyan-100 dark:border-gray-700 py-3">
-                                <div class="px-4 text-xs font-bold text-cyan-600 dark:text-cyan-400 mb-2">Estilo visual</div>
-                                <div class="space-y-2 px-4">
-                                    <button @click="cambiarTema('tema-ninos')" 
-                                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-cyan-50 dark:hover:bg-gray-700 transition text-sm">
-                                        <span>Niños</span>
-                                        <svg v-if="temaActual === 'tema-ninos'" class="h-5 w-5 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                    </button>
-                                    <button @click="cambiarTema('tema-jovenes')" 
-                                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-cyan-50 dark:hover:bg-gray-700 transition text-sm">
-                                        <span>Jóvenes</span>
-                                        <svg v-if="temaActual === 'tema-jovenes'" class="h-5 w-5 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                    </button>
-                                    <button @click="cambiarTema('tema-adultos')" 
-                                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-cyan-50 dark:hover:bg-gray-700 transition text-sm">
-                                        <span>Adultos</span>
-                                        <svg v-if="temaActual === 'tema-adultos'" class="h-5 w-5 text-cyan-600" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                        </svg>
-                                    </button>
-                                </div>
                             </div>
 
                             <div class="border-t border-cyan-100 dark:border-gray-700"></div>

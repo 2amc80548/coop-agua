@@ -23,14 +23,13 @@ class ConexionController extends Controller
         $query = Conexion::with(['afiliado:id,nombre_completo,ci', 'zona:id,nombre']); 
        // 1. Buscador (Código Medidor, CI o Nombre del Afiliado)
         $query->when($request->input('search'), function ($q, $search) {
-            $q->where(function ($w) use ($search) {
-
-                $w->where('codigo_medidor', 'like', "%{$search}%")
-                ->orWhereHas('afiliado', function ($afiliadoQuery) use ($search) {
-                    $afiliadoQuery->where('ci', 'like', "%{$search}%")
-                                    ->orWhere('nombre_completo', 'like', "%{$search}%");
-                });
-
+            $searchLower = mb_strtolower($search);
+            $q->where(function ($w) use ($searchLower) {
+                $w->where(DB::raw('LOWER(codigo_medidor)'), 'like', "%{$searchLower}%")
+                  ->orWhereHas('afiliado', function ($afiliadoQuery) use ($searchLower) {
+                      $afiliadoQuery->where(DB::raw('LOWER(ci)'), 'like', "%{$searchLower}%")
+                                    ->orWhere(DB::raw('LOWER(nombre_completo)'), 'like', "%{$searchLower}%");
+                  });
             });
         });
 

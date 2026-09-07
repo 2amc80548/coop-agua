@@ -1,29 +1,8 @@
 <template>
-  <div class="border-t border-gray-200 bg-gray-50 py-5 text-center text-xs text-gray-600">
-    © 2025 Agua Cabezas • 
-    Visitas a esta página: 
-    <strong class="font-bold text-gray-900">
-      {{ visits.toLocaleString() }}
-    </strong>
-  </div>
+  <!-- ViewCounter desactivado: la ruta /hit-view fue eliminada por seguridad (vulnerabilidad DoS). -->
+  <!-- Si se desea un contador de visitas en el futuro, implementarlo con un backend autenticado. -->
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { usePage } from '@inertiajs/vue3'
-import axios from 'axios'
-
-const visits = ref(0)
-
-const contar = () => {
-  axios.get(route('hit-view'), { params: { url: usePage().url } })
-       .then(r => visits.value = r.data.views)
-       .catch((e) => {
-           console.error("Error contador:", e);
-           visits.value = 0;
-       })
-}
-
-onMounted(contar)
-watch(() => usePage().url, contar)
+// Componente desactivado — no realiza ninguna petición.
 </script>

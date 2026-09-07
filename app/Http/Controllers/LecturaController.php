@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Lectura;
 use App\Models\Conexion;
 use App\Models\Zona;
+use App\Models\Tarifa;
 use App\Services\TarifaCalculatorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -108,7 +109,7 @@ class LecturaController extends Controller
     {
         $validated = $request->validate([
             'conexion_id' => 'required|exists:conexiones,id',
-            'fecha_lectura' => 'required|date|before_or_equal:today',
+            'fecha_lectura' => 'required|date',
             'lectura_actual' => 'required|numeric|min:0',
             'observacion' => 'nullable|string|max:255',
         ]);
@@ -218,7 +219,7 @@ class LecturaController extends Controller
         }
 
         $validated = $request->validate([
-            'fecha_lectura' => 'required|date|before_or_equal:today',
+            'fecha_lectura' => 'required|date',
             'lectura_actual' => 'required|numeric|min:0|gte:' . $lectura->lectura_anterior, 
             'observacion' => 'nullable|string|max:255',
         ], [
@@ -388,21 +389,29 @@ class LecturaController extends Controller
      */
     public function apiGetTarifaActiva(Request $request)
     {
-        $tipo = $request->input('tipo_conexion');
+        $tipo = trim($request->input('tipo_conexion', ''));
 
         if (!$tipo) {
             return response()->json(['error' => 'tipo_conexion es requerido'], 400);
         }
 
         try {
-            $tarifa = Tarifa::where('activo', 1)
-                            ->where('tipo_conexion', $tipo)
+            $tipoLower = mb_strtolower($tipo);
+            $tarifa = Tarifa::where('activo', true)
+                            ->where(DB::raw('LOWER(tipo_conexion)'), $tipoLower)
                             ->orderBy('vigente_desde', 'desc')
                             ->first();
 
             if (!$tarifa) {
+                // Fallback: si no hay tarifa por tipo específico, buscar la tarifa activa más reciente
+                $tarifa = Tarifa::where('activo', true)
+                                ->orderBy('vigente_desde', 'desc')
+                                ->first();
+            }
+
+            if (!$tarifa) {
                 Log::error("No se encontró tarifa activa para el tipo: {$tipo}");
-                return response()->json(['error' => 'No hay tarifa activa para este tipo de conexión.'], 500);
+                return response()->json(['error' => 'No hay tarifa activa configurada.'], 404);
             }
 
             return response()->json([

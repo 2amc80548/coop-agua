@@ -337,34 +337,31 @@ const conexionesZonaData = computed(() =>
             <p v-else class="text-xs text-gray-500 dark:text-gray-400">No hay deudas.</p>
           </div>
 
-          <!-- Últimos reclamos -->
+          <!-- Últimas facturas emitidas -->
           <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-amber-100 dark:border-gray-700 p-4">
             <h3 class="font-semibold text-gray-800 dark:text-gray-100 mb-3">
-              Últimos reclamos ingresados
+              Últimas facturas emitidas
             </h3>
 
-            <div v-if="recent.reclamos?.length" class="space-y-2">
-              <div v-for="r in recent.reclamos" :key="r.id" class="flex items-start justify-between border-b border-gray-100 dark:border-gray-700 pb-2 last:border-b-0">
+            <div v-if="recent.facturas?.length" class="space-y-2">
+              <div v-for="f in recent.facturas" :key="f.id" class="flex items-start justify-between border-b border-gray-100 dark:border-gray-700 pb-2 last:border-b-0">
                 <div class="flex-1 pr-2">
                   <p class="text-[12px] font-semibold text-gray-800 dark:text-gray-100">
-                    {{ r.titulo || 'Reclamo' }}
+                    {{ f.conexion?.afiliado?.nombre_completo || 'Sin afiliado' }}
                   </p>
-                  <p class="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-2">
-                    {{ r.descripcion }}
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400">
+                    Período: {{ f.periodo }}
                   </p>
                 </div>
 
                 <div class="text-right text-[11px] text-gray-500 dark:text-gray-400">
-                  <div>{{ r.estado }}</div>
-                  <div>{{ r.created_at?.substring(0, 10) }}</div>
-                  <div class="mt-1 text-gray-700 dark:text-gray-200">
-                    {{ r.afiliado?.nombre_completo }}
-                  </div>
+                  <div class="font-semibold text-cyan-600 dark:text-cyan-400">{{ f.monto_total ? 'Bs. ' + Number(f.monto_total).toFixed(2) : '—' }}</div>
+                  <div>{{ f.estado }}</div>
                 </div>
               </div>
             </div>
 
-            <p v-else class="text-xs text-gray-500 dark:text-gray-400">No hay reclamos recientes.</p>
+            <p v-else class="text-xs text-gray-500 dark:text-gray-400">No hay facturas recientes.</p>
           </div>
         </section>
 
@@ -394,8 +391,6 @@ const conexionesZonaData = computed(() =>
         </section>
 
       </div>
-
-      <ViewCounter />
     </div>
   </AppLayout>
 </template>
