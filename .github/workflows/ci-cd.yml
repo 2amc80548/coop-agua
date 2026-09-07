@@ -75,6 +75,8 @@ jobs:
       - name: 📄 Preparar Entorno de Pruebas
         run: |
           cp .env.example .env.testing
+          sed -i 's|APP_URL=.*|APP_URL=http://localhost|g' .env.testing
+          sed -i 's|APP_ENV=.*|APP_ENV=testing|g' .env.testing
           php artisan key:generate --env=testing
 
       - name: 🧪 Ejecutar Pruebas Backend
