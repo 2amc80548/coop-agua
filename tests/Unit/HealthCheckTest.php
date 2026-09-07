@@ -3,9 +3,12 @@
 namespace Tests\Unit;
 
 use Tests\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class HealthCheckTest extends TestCase
 {
+    use RefreshDatabase;
+
     /**
      * Verificar que el endpoint de salud responda 200 OK y estructura JSON correcta.
      */

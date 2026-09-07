@@ -20,6 +20,11 @@ export default defineConfig({
             },
         }),
     ],
+    resolve: {
+        alias: {
+            '../../vendor/tightenco/ziggy': 'ziggy-js',
+        },
+    },
     test: {
         globals: true,
         environment: 'happy-dom',
