@@ -10,12 +10,13 @@ class ExampleTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * A basic test example.
+     * Verificar que el sistema está en línea y la base de datos conectada.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_application_is_online(): void
     {
-        $response = $this->get('/');
+        $response = $this->getJson('/api/health');
 
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+                 ->assertJson(['status' => 'ok']);
     }
 }
