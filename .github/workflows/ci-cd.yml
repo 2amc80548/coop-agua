@@ -75,11 +75,11 @@ jobs:
           cp .env.example .env.testing
           php artisan key:generate --env=testing
 
-      - name: 🧪 Ejecutar Pruebas Backend (Unit)
+      - name: 🧪 Ejecutar Pruebas Backend
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
-        run: php artisan test tests/Unit
+        run: php artisan test
 
   # ============================================================================
   # 🟢 JOB 3: Despliegue Continuo Seguro a AWS EC2 (CD + Blue-Green)
