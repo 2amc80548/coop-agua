@@ -33,6 +33,22 @@ cd "$APP_DIR"
 # 1. Asegurar que la base de datos compartida esté corriendo
 # ─────────────────────────────────────────────────────────────────
 echo "🗄️  Verificando base de datos compartida (coop_agua_db)..."
+
+# Leer variables del .env para pasarlas a PostgreSQL
+_DB_DATABASE=$(grep '^DB_DATABASE=' .env | cut -d '=' -f2 | tr -d '"' | tr -d "'")
+_DB_USERNAME=$(grep '^DB_USERNAME=' .env | cut -d '=' -f2 | tr -d '"' | tr -d "'")
+_DB_PASSWORD=$(grep '^DB_PASSWORD=' .env | cut -d '=' -f2 | tr -d '"' | tr -d "'")
+
+# Valores por defecto si están vacíos
+_DB_DATABASE="${_DB_DATABASE:-coop_agua_db}"
+_DB_USERNAME="${_DB_USERNAME:-coop_user}"
+_DB_PASSWORD="${_DB_PASSWORD:-coop_password_secret}"
+
+echo "   → DB: $_DB_DATABASE | USER: $_DB_USERNAME"
+
+DB_DATABASE="$_DB_DATABASE" \
+DB_USERNAME="$_DB_USERNAME" \
+DB_PASSWORD="$_DB_PASSWORD" \
 docker compose -f docker-compose.db.yml -p coop_agua_db up -d
 
 # ─────────────────────────────────────────────────────────────────
