@@ -297,13 +297,12 @@ const logout = () => {
                         </button>
 
 
-                    <div class="flex-1 flex items-center justify-between px-4 md:px-6 relative z-50">
-
-                        <div class="hidden md:block text-right pr-4">
-                            <div class="font-bold text-cyan-700 dark:text-cyan-300 text-sm">
+                    <div class="flex-1 flex items-center justify-center px-4 md:px-6 relative z-50">
+                        <div class="text-center">
+                            <div class="font-bold text-cyan-700 dark:text-cyan-300 text-xs sm:text-sm md:text-base">
                                 Asociación de Beneficiarios de Agua Cabezas
                             </div>
-                            <div class="text-xs text-cyan-600 dark:text-cyan-400 mt-1">
+                            <div class="text-xs text-cyan-600 dark:text-cyan-400 mt-0.5">
                                 {{ currentTime }}
                             </div>
                         </div>
