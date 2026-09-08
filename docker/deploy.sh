@@ -180,6 +180,7 @@ upstream coop_agua_active {
 server {
     listen 80;
     server_name _;
+    client_max_body_size 64M;
 
     location / {
         proxy_pass http://coop_agua_active;
