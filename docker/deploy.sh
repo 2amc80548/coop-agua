@@ -140,6 +140,7 @@ echo "⚡ Optimizando caché de Laravel..."
 docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan config:cache
 docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan route:cache
 docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan view:cache
+mkdir -p storage/app/public/img 2>/dev/null || true
 docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan storage:link 2>/dev/null || true
 
 # ─────────────────────────────────────────────────────────────────

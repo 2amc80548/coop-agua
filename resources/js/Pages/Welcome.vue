@@ -1,6 +1,9 @@
 <script setup>
+import { ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3'
 import ViewCounter from '@/Components/ViewCounter.vue'
+
+const logoError = ref(false);
 
 // --- DATOS DE LA COOPERATIVA ---
 const cooperativa = {
@@ -58,7 +61,12 @@ defineProps({
           <div class="relative group mb-6 transition-transform hover:scale-105 duration-300">
               <div class="absolute -inset-3 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full blur-md opacity-50 group-hover:opacity-80 transition duration-500"></div>
               <div class="relative bg-white p-4 rounded-full shadow-2xl border-2 border-blue-50">
-                 <img :src="getLogoUrl()" alt="Logo Cabezas" class="w-28 h-28 object-contain" />
+                 <div v-if="logoError" class="w-28 h-28 flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-500 rounded-full text-white shadow-inner">
+                    <svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/>
+                    </svg>
+                 </div>
+                 <img v-else :src="getLogoUrl()" @error="logoError = true" alt="Logo Cabezas" class="w-28 h-28 object-contain" />
               </div>
           </div>
 
