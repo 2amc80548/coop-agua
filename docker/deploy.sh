@@ -23,7 +23,8 @@ set -e
 
 APP_DIR="${1:-/var/www/coop-agua}"
 ACTIVE_PORT_FILE="$APP_DIR/docker/active_port"
-MAX_RETRIES=15
+SEEDED_FLAG_FILE="$APP_DIR/docker/db_seeded"   # Flag para saber si ya se hizo seed
+MAX_RETRIES=20
 RETRY_INTERVAL=4
 
 echo "🚀 Iniciando despliegue Blue-Green en: $APP_DIR"
@@ -93,7 +94,9 @@ sudo chmod -R 777 storage bootstrap/cache 2>/dev/null || true
 # Corregir DB_HOST en el .env (la DB compartida se llama "coop_agua_db")
 if [ -f ".env" ]; then
     sed -i 's/^DB_HOST=.*/DB_HOST=coop_agua_db/' .env
-    echo "✅ .env verificado: DB_HOST=$(grep '^DB_HOST=' .env)"
+    # Mostrar solo el valor, sin duplicar el nombre de la variable
+    DB_HOST_VAL=$(grep '^DB_HOST=' .env | cut -d'=' -f2)
+    echo "✅ .env verificado: DB_HOST=$DB_HOST_VAL"
 fi
 
 # ─────────────────────────────────────────────────────────────────
@@ -121,11 +124,23 @@ sleep 10
 echo "📦 Ejecutando migraciones de base de datos..."
 docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan migrate --force
 
+# ─────────────────────────────────────────────────────────────────
+# Ejecutar Seeds solo en el PRIMER despliegue (si no existe la flag)
+# ─────────────────────────────────────────────────────────────────
+if [ ! -f "$SEEDED_FLAG_FILE" ]; then
+    echo "🌱 Primer despliegue detectado — ejecutando Seeds de datos iniciales..."
+    docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan db:seed --force
+    touch "$SEEDED_FLAG_FILE"
+    echo "✅ Seeds ejecutados. No se volverán a ejecutar en futuros deploys."
+else
+    echo "🌱 Seeds: ya ejecutados anteriormente (docker/db_seeded existe) — omitiendo."
+fi
+
 echo "⚡ Optimizando caché de Laravel..."
 docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan config:cache
 docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan route:cache
 docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan view:cache
-docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan storage:link || true
+docker compose -f "$NEW_COMPOSE" -p "coop_${NEW_SLOT}" exec -T app php artisan storage:link 2>/dev/null || true
 
 # ─────────────────────────────────────────────────────────────────
 # 6. Health Check en el nuevo slot
@@ -188,6 +203,7 @@ EOF
     echo "========================================================================"
     echo "🟢 ¡DESPLIEGUE BLUE-GREEN EXITOSO!"
     echo "   Tráfico redirigido: ${ACTIVE_SLOT}(${ACTIVE_PORT}) → ${NEW_SLOT}(${NEW_PORT})"
+    echo "   Slot activo ahora : ${NEW_SLOT} en puerto ${NEW_PORT}"
     echo "   Apagando slot anterior (${ACTIVE_SLOT})..."
     echo "========================================================================"
 
