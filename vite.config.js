@@ -25,6 +25,24 @@ export default defineConfig({
             '../../vendor/tightenco/ziggy': 'ziggy-js',
         },
     },
+    build: {
+        chunkSizeWarningLimit: 1000,
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('node_modules')) {
+                        if (id.includes('vue') || id.includes('@inertiajs')) {
+                            return 'vendor-core';
+                        }
+                        if (id.includes('chart.js') || id.includes('vue-chartjs')) {
+                            return 'vendor-charts';
+                        }
+                        return 'vendor-deps';
+                    }
+                },
+            },
+        },
+    },
     test: {
         globals: true,
         environment: 'happy-dom',
