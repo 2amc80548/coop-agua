@@ -23,6 +23,7 @@ use App\Http\Controllers\TarifaConceptoController;
 use App\Http\Controllers\FacturacionController;
 use App\Http\Controllers\ZonaController;
 use App\Http\Controllers\ReporteController;
+use App\Http\Controllers\ActivityLogController;
 
 // ============================================================
 // RUTA PÚBLICA: Página de Bienvenida
