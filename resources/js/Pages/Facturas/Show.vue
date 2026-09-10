@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ViewCounter from '@/Components/ViewCounter.vue';
