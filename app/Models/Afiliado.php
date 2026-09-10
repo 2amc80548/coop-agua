@@ -69,6 +69,30 @@ class Afiliado extends Model
     }
 
     /**
+     * Documentos digitalizados del afiliado.
+     */
+    public function documentos()
+    {
+        return $this->hasMany(AfiliadoDocumento::class, 'afiliado_id');
+    }
+
+    /**
+     * Traspasos recibidos (como nuevo titular).
+     */
+    public function traspasosEntrantes()
+    {
+        return $this->hasMany(TraspasoTitularidad::class, 'afiliado_nuevo_id');
+    }
+
+    /**
+     * Traspasos realizados (como antiguo titular).
+     */
+    public function traspasosSalientes()
+    {
+        return $this->hasMany(TraspasoTitularidad::class, 'afiliado_anterior_id');
+    }
+
+    /**
      * Un Afiliado puede tener una cuenta de Usuario.
      */
     public function user()

@@ -105,13 +105,48 @@ class LecturaController extends Controller
     /**
      * Guarda una nueva lectura en la base de datos.
      */
+    /**
+     * Calcula el promedio histórico de consumo (m³) de las últimas lecturas de una conexión.
+     */
+    public function calcularPromedioHistorico(int $conexionId): float
+    {
+        $lecturasRecientes = Lectura::where('conexion_id', $conexionId)
+            ->where('observacion', 'not like', '%inicial%')
+            ->orderBy('fecha_lectura', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit(6)
+            ->get();
+
+        if ($lecturasRecientes->isEmpty()) {
+            return 10.0; // Promedio base predeterminado si es nueva conexión
+        }
+
+        $consumos = [];
+        foreach ($lecturasRecientes as $lec) {
+            $c = (float) ($lec->lectura_actual - $lec->lectura_anterior);
+            if ($c >= 0) {
+                $consumos[] = $c;
+            }
+        }
+
+        if (empty($consumos)) {
+            return 10.0;
+        }
+
+        return round(array_sum($consumos) / count($consumos), 2);
+    }
+
+    /**
+     * Guarda una nueva lectura en la base de datos.
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'conexion_id' => 'required|exists:conexiones,id',
-            'fecha_lectura' => 'required|date',
-            'lectura_actual' => 'required|numeric|min:0',
-            'observacion' => 'nullable|string|max:255',
+            'conexion_id'          => 'required|exists:conexiones,id',
+            'fecha_lectura'        => 'required|date',
+            'lectura_actual'        => 'nullable|numeric|min:0',
+            'causal_inconveniente' => 'nullable|string|in:ninguno,medidor_tapado,perro_bravo,predio_cerrado,medidor_defectuoso,otro',
+            'observacion'          => 'nullable|string|max:255',
         ]);
         
         try {
@@ -124,14 +159,8 @@ class LecturaController extends Controller
                                         ->orderBy('fecha_lectura', 'desc')
                                         ->orderBy('id', 'desc')
                                         ->first();
-                $lecturaAnterior = $ultimaLectura ? $ultimaLectura->lectura_actual : 0;
+                $lecturaAnterior = $ultimaLectura ? (float)$ultimaLectura->lectura_actual : 0.0;
 
-                if ($validated['lectura_actual'] < $lecturaAnterior) {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
-                        'lectura_actual' => "La lectura actual ({$validated['lectura_actual']}) no puede ser menor que la anterior ({$lecturaAnterior})."
-                    ]);
-                }
-                
                 $existeLecturaPeriodo = Lectura::where('conexion_id', $conexionId)
                                              ->where('periodo', $periodo)
                                              ->exists();
@@ -140,21 +169,72 @@ class LecturaController extends Controller
                         'conexion_id' => 'Ya existe una lectura registrada para esta conexión en el período ' . $periodo . '.'
                     ]);
                 }
+
+                $promedio = $this->calcularPromedioHistorico($conexionId);
+                $causal = $validated['causal_inconveniente'] ?? 'ninguno';
+
+                if ($causal !== 'ninguno') {
+                    // --- LECTURA ESTIMADA POR INCONVENIENTE EN EL CAMPO ---
+                    $consumoEstimado = round($promedio);
+                    $lecturaActual = $lecturaAnterior + $consumoEstimado;
+                    $esEstimada = true;
+                    $anomalia = 'lectura_estimada';
+                    $causalTxt = str_replace('_', ' ', ucfirst($causal));
+                    $obsFinal = trim(($validated['observacion'] ?? '') . " [Lectura estimada: {$causalTxt}]");
+                } else {
+                    // --- LECTURA NORMAL INGRESADA ---
+                    if (!isset($validated['lectura_actual']) || $validated['lectura_actual'] === null) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'lectura_actual' => 'Debe ingresar el valor de la lectura actual o seleccionar una causa de inconveniente.'
+                        ]);
+                    }
+
+                    $lecturaActual = (float) $validated['lectura_actual'];
+
+                    if ($lecturaActual < $lecturaAnterior) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'lectura_actual' => "La lectura actual ({$lecturaActual}) no puede ser menor que la anterior ({$lecturaAnterior})."
+                        ]);
+                    }
+
+                    $esEstimada = false;
+                    $consumo = $lecturaActual - $lecturaAnterior;
+                    $obsFinal = $validated['observacion'] ?? null;
+
+                    // Detección de Anomalías
+                    if ($promedio > 0 && $consumo > ($promedio * 2.0) && $consumo > 15) {
+                        $anomalia = 'consumo_elevado';
+                    } elseif ($consumo == 0) {
+                        // Verificar si en la lectura anterior también hubo consumo 0
+                        $lecturaPrevia = Lectura::where('conexion_id', $conexionId)
+                                                ->where('id', '!=', $ultimaLectura?->id)
+                                                ->orderBy('fecha_lectura', 'desc')
+                                                ->first();
+                        $consumoPrev = $lecturaPrevia ? ($ultimaLectura->lectura_actual - $ultimaLectura->lectura_anterior) : 1;
+                        $anomalia = ($consumoPrev == 0) ? 'consumo_cero' : 'ninguna';
+                    } else {
+                        $anomalia = 'ninguna';
+                    }
+                }
                  
                 return Lectura::create([
-                   'conexion_id' => $conexionId,
-                   'fecha_lectura' => $fechaLectura->toDateString(),
-                   'periodo' => $periodo,
-                   'lectura_anterior' => $lecturaAnterior,
-                   'lectura_actual' => $validated['lectura_actual'],
-                   'observacion' => $validated['observacion'] ?? null,
-                   'registrado_por' => Auth::id(),
-                   'estado' => 'pendiente',
-               ]);
+                   'conexion_id'          => $conexionId,
+                   'fecha_lectura'        => $fechaLectura->toDateString(),
+                   'periodo'              => $periodo,
+                   'lectura_anterior'     => $lecturaAnterior,
+                   'lectura_actual'       => $lecturaActual,
+                   'observacion'          => $obsFinal,
+                   'anomalia'             => $anomalia,
+                   'causal_inconveniente' => $causal,
+                   'es_estimada'          => $esEstimada,
+                   'promedio_historico'   => $promedio,
+                   'registrado_por'       => Auth::id(),
+                   'estado'               => 'pendiente',
+                ]);
             });
 
             return redirect()->route('lecturas.index')
-                           ->with('success', '✅ Lectura registrada. Puede imprimir el aviso.')
+                           ->with('success', '✅ Lectura registrada exitosamente.')
                            ->with('lectura_id_reciente', $lectura->id);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -162,7 +242,7 @@ class LecturaController extends Controller
         } catch (\Exception $e) {
              Log::error('Error al guardar lectura:', ['error' => $e->getMessage(), 'request' => $request->all()]);
             return redirect()->back()
-                           ->withErrors(['error_general' => 'Ocurrió un error inesperado al guardar. Revise los logs.'])
+                           ->withErrors(['error_general' => 'Ocurrió un error inesperado al guardar la lectura: ' . $e->getMessage()])
                            ->withInput();
         }
     }
@@ -201,7 +281,6 @@ class LecturaController extends Controller
     
          return Inertia::render('Lecturas/Edit', [
              'lectura' => $lectura, 
-            
          ]);
     }
 
@@ -219,15 +298,14 @@ class LecturaController extends Controller
         }
 
         $validated = $request->validate([
-            'fecha_lectura' => 'required|date',
-            'lectura_actual' => 'required|numeric|min:0|gte:' . $lectura->lectura_anterior, 
-            'observacion' => 'nullable|string|max:255',
-        ], [
-            'lectura_actual.gte' => 'La lectura actual no puede ser menor que la anterior (' . $lectura->lectura_anterior . ').'
+            'fecha_lectura'        => 'required|date',
+            'lectura_actual'        => 'nullable|numeric|min:0',
+            'causal_inconveniente' => 'nullable|string|in:ninguno,medidor_tapado,perro_bravo,predio_cerrado,medidor_defectuoso,otro',
+            'observacion'          => 'nullable|string|max:255',
         ]);
-        
+
         $nuevoPeriodo = Carbon::parse($validated['fecha_lectura'])->format('Y-m');
-        
+
         if ($nuevoPeriodo !== $lectura->periodo) {
              $existeLecturaPeriodo = Lectura::where('conexion_id', $lectura->conexion_id)
                                           ->where('periodo', $nuevoPeriodo)
@@ -240,11 +318,53 @@ class LecturaController extends Controller
              }
         }
 
+        $promedio = $this->calcularPromedioHistorico($lectura->conexion_id);
+        $causal = $validated['causal_inconveniente'] ?? 'ninguno';
+
+        if ($causal !== 'ninguno') {
+            $consumoEstimado = round($promedio);
+            $lecturaActual = (float)$lectura->lectura_anterior + $consumoEstimado;
+            $esEstimada = true;
+            $anomalia = 'lectura_estimada';
+            $causalTxt = str_replace('_', ' ', ucfirst($causal));
+            $obsFinal = trim(($validated['observacion'] ?? '') . " [Lectura estimada: {$causalTxt}]");
+        } else {
+            if (!isset($validated['lectura_actual']) || $validated['lectura_actual'] === null) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'lectura_actual' => 'Debe ingresar el valor de la lectura actual o seleccionar una causa de inconveniente.'
+                ]);
+            }
+
+            $lecturaActual = (float) $validated['lectura_actual'];
+
+            if ($lecturaActual < (float)$lectura->lectura_anterior) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'lectura_actual' => 'La lectura actual no puede ser menor que la anterior (' . $lectura->lectura_anterior . ').'
+                ]);
+            }
+
+            $esEstimada = false;
+            $consumo = $lecturaActual - (float)$lectura->lectura_anterior;
+            $obsFinal = $validated['observacion'] ?? null;
+
+            if ($promedio > 0 && $consumo > ($promedio * 2.0) && $consumo > 15) {
+                $anomalia = 'consumo_elevado';
+            } elseif ($consumo == 0) {
+                $anomalia = 'consumo_cero';
+            } else {
+                $anomalia = 'ninguna';
+            }
+        }
+
         $lectura->update([
-             'fecha_lectura' => $validated['fecha_lectura'],
-             'periodo' => $nuevoPeriodo,
-             'lectura_actual' => $validated['lectura_actual'],
-             'observacion' => $validated['observacion'],
+             'fecha_lectura'        => $validated['fecha_lectura'],
+             'periodo'              => $nuevoPeriodo,
+             'lectura_actual'       => $lecturaActual,
+             'observacion'          => $obsFinal,
+             'anomalia'             => $anomalia,
+             'causal_inconveniente' => $causal,
+             'es_estimada'          => $esEstimada,
+             'promedio_historico'   => $promedio,
         ]);
 
         return redirect()->route('lecturas.index')
@@ -278,30 +398,23 @@ class LecturaController extends Controller
      */
     public function apiSearchConexiones(Request $request)
     {
-        $term = $request->input('term', '');
-        if (strlen($term) < 2) {
-            return response()->json([]);
-        }
-
-        // Subconsulta: obtiene la lectura_actual más reciente de cada conexión
+        $query = $request->input('q', '');
+        
         $ultimaLecturaSubquery = \App\Models\Lectura::select('lectura_actual')
             ->whereColumn('conexion_id', 'conexiones.id')
             ->orderBy('fecha_lectura', 'desc')
             ->orderBy('id', 'desc')
             ->limit(1);
 
-        $conexiones = Conexion::with([
-            'afiliado:id,nombre_completo,ci,adulto_mayor',
-            'zona:id,nombre',
-        ])
-            ->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion')
-            ->addSelect(['lectura_anterior' => $ultimaLecturaSubquery]) // 1 query total
-            ->where(function ($query) use ($term) {
-                $query->where('codigo_medidor', 'like', "%{$term}%")
-                    ->orWhereHas('afiliado', function ($q) use ($term) {
-                        $q->where('nombre_completo', 'like', "%{$term}%")
-                          ->orWhere('ci', 'like', "%{$term}%");
-                    });
+        $conexiones = Conexion::with(['afiliado:id,nombre_completo,ci,adulto_mayor', 'zona:id,nombre'])
+            ->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion', 'lectura_inicial')
+            ->addSelect(['lectura_anterior' => $ultimaLecturaSubquery])
+            ->where(function ($q) use ($query) {
+                $q->where('codigo_medidor', 'like', "%{$query}%")
+                  ->orWhereHas('afiliado', function ($q) use ($query) {
+                      $q->where('nombre_completo', 'like', "%{$query}%")
+                        ->orWhere('ci', 'like', "%{$query}%");
+                  });
             })
             ->limit(10)
             ->get();
@@ -314,7 +427,8 @@ class LecturaController extends Controller
             'afiliado_nombre'       => $conexion->afiliado?->nombre_completo ?? 'N/A',
             'afiliado_ci'           => $conexion->afiliado?->ci ?? 'N/A',
             'afiliado_adulto_mayor' => (bool) ($conexion->afiliado?->adulto_mayor ?? false),
-            'lectura_anterior'      => (float) ($conexion->lectura_anterior ?? 0),
+            'lectura_anterior'      => (float) ($conexion->lectura_anterior ?? $conexion->lectura_inicial ?? 0),
+            'promedio_historico'   => $this->calcularPromedioHistorico($conexion->id),
             'tipo_conexion'         => $conexion->tipo_conexion,
         ]);
 
@@ -332,7 +446,9 @@ class LecturaController extends Controller
     public function apiGetPendientes(Request $request)
     {
         $periodo = $request->input('periodo', Carbon::now()->format('Y-m'));
-        $zonaId  = $request->input('zona_id');
+        $user    = Auth::user();
+        // Si el usuario autenticado tiene una zona asignada (ej: lecturista de la Zona 1), usarla por defecto
+        $zonaId  = $request->input('zona_id') ?? ($user?->zona_id);
 
         if (!preg_match('/^\d{4}-\d{2}$/', $periodo)) {
             return response()->json(['error' => 'Formato de período inválido. Use YYYY-MM.'], 400);
@@ -355,7 +471,7 @@ class LecturaController extends Controller
                 'afiliado:id,nombre_completo,ci,adulto_mayor',
                 'zona:id,nombre',
             ])
-                ->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion')
+                ->select('id', 'codigo_medidor', 'afiliado_id', 'direccion', 'zona_id', 'tipo_conexion', 'lectura_inicial')
                 ->addSelect(['lectura_anterior' => $ultimaLecturaSubquery]) // 1 subconsulta SQL
                 ->where('estado', 'activo')
                 ->whereNotIn('id', $conexionesConLectura)
@@ -372,7 +488,8 @@ class LecturaController extends Controller
                 'afiliado_nombre'       => $conexion->afiliado?->nombre_completo ?? 'N/A',
                 'afiliado_ci'           => $conexion->afiliado?->ci ?? 'N/A',
                 'afiliado_adulto_mayor' => (bool) ($conexion->afiliado?->adulto_mayor ?? false),
-                'lectura_anterior'      => (float) ($conexion->lectura_anterior ?? 0),
+                'lectura_anterior'      => (float) ($conexion->lectura_anterior ?? $conexion->lectura_inicial ?? 0),
+                'promedio_historico'   => $this->calcularPromedioHistorico($conexion->id),
                 'tipo_conexion'         => $conexion->tipo_conexion,
             ]);
 

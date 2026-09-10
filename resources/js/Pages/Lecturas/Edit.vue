@@ -23,6 +23,7 @@ const form = useForm({
     fecha_lectura: formatDateForInput(props.lectura.fecha_lectura),
     lectura_anterior: props.lectura.lectura_anterior,
     lectura_actual: props.lectura.lectura_actual,
+    causal_inconveniente: props.lectura.causal_inconveniente || 'ninguno',
     observacion: props.lectura.observacion || '',
 });
 
@@ -86,6 +87,17 @@ const submit = () => {
                                    <input :value="form.lectura_anterior" type="number" step="0.01"
                                           class="border-gray-300 dark:border-gray-600 rounded-md shadow-sm block mt-1 w-full bg-gray-100 dark:bg-gray-900 cursor-not-allowed"
                                           disabled readonly />
+                             </div>
+                             <div class="mb-4">
+                                 <label for="causal_inconveniente" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Causal de Inconveniente en Campo (Opcional)</label>
+                                 <select id="causal_inconveniente" v-model="form.causal_inconveniente" class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block mt-1 w-full text-sm">
+                                     <option value="ninguno">Ninguno (Lectura Normal tomada del medidor)</option>
+                                     <option value="medidor_tapado">Medidor Tapado / Inaccesible</option>
+                                     <option value="perro_bravo">Perro Bravo / Riesgo de Seguridad</option>
+                                     <option value="predio_cerrado">Predio Cerrado / Inmueble Desocupado</option>
+                                     <option value="medidor_defectuoso">Medidor Trancado / Falla Mecánica</option>
+                                     <option value="otro">Otro Inconveniente</option>
+                                 </select>
                              </div>
                              <div class="mb-4">
                                 <label for="lectura_actual" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Lectura Actual (m³)</label>

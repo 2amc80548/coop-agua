@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule; 
 use Illuminate\Support\Facades\Auth; 
 use Illuminate\Support\Facades\Log; 
+use Carbon\Carbon; 
 
 class ConexionController extends Controller
 {
@@ -110,63 +111,72 @@ class ConexionController extends Controller
      * Guarda una nueva conexión.
      */
     public function store(Request $request)
-{
-    // 1. Validar estrictamente lo que llega de Vue
-    $validated = $request->validate([
-        'codigo_medidor'    => 'required|string|unique:conexiones,codigo_medidor|max:50',
-        'afiliado_id'       => 'required|exists:afiliados,id',
-        'estado'            => 'required|in:activo,suspendido,eliminado',
-        'direccion'         => 'required|string|max:255',
-        'zona_id'           => 'required|exists:zonas,id', 
-        'fecha_instalacion' => 'required|date',
-        'tipo_conexion'     => 'required|in:domiciliaria,comercial,institucional,otro',
-        // Estos son los campos nuevos del checkbox
-        'es_antiguo'        => 'nullable|boolean',
-        'lectura_anterior'  => 'nullable|numeric|min:0',
-    ]);
+    {
+        $validated = $request->validate([
+            'codigo_medidor'    => 'required|string|unique:conexiones,codigo_medidor|max:50',
+            'afiliado_id'       => 'required|exists:afiliados,id',
+            'estado'            => 'required|in:activo,suspendido,eliminado',
+            'direccion'         => 'required|string|max:255',
+            'zona_id'           => 'required|exists:zonas,id', 
+            'fecha_instalacion' => 'required|date',
+            'tipo_conexion'     => 'required|in:domiciliaria,comercial,institucional,otro',
+            'lectura_inicial'   => 'required|numeric|min:0',
+            'observacion'       => 'nullable|string|max:500',
+        ]);
 
-    try {
-        return DB::transaction(function () use ($request, $validated) {
-            
-            // 2. Crear la conexión
-            $conexion = \App\Models\Conexion::create($validated);
+        try {
+            return DB::transaction(function () use ($validated) {
+                
+                // 1. Crear la conexión de agua
+                $conexion = \App\Models\Conexion::create([
+                    'codigo_medidor'    => $validated['codigo_medidor'],
+                    'afiliado_id'       => $validated['afiliado_id'],
+                    'estado'            => $validated['estado'],
+                    'direccion'         => $validated['direccion'],
+                    'zona_id'           => $validated['zona_id'],
+                    'fecha_instalacion' => $validated['fecha_instalacion'],
+                    'tipo_conexion'     => $validated['tipo_conexion'],
+                    'lectura_inicial'   => $validated['lectura_inicial'],
+                ]);
 
-            // 3. Lógica de los 1100 (Lectura Semilla)
-            $montoArranque = $request->es_antiguo ? $request->lectura_anterior : 0;
+                // 2. Lectura Inicial de Instalación (Consumo 0 m³)
+                $lecturaInicialVal = (float) $validated['lectura_inicial'];
+                $periodoInstalacion = Carbon::parse($validated['fecha_instalacion'])->format('Y-m');
 
-            // IMPORTANTE: Ponemos periodo del mes pasado para NO bloquear el mes actual
-            $periodoBase = date('Y-m', strtotime("-1 month"));
+                \App\Models\Lectura::create([
+                    'conexion_id'      => $conexion->id,
+                    'fecha_lectura'    => $validated['fecha_instalacion'],
+                    'periodo'          => $periodoInstalacion, 
+                    'lectura_anterior' => $lecturaInicialVal,
+                    'lectura_actual'   => $lecturaInicialVal, // Mismo valor para que el consumo sea 0 m³
+                    'observacion'      => $validated['observacion'] ?? 'Lectura de instalación de medidor (Inicial)',
+                    'registrado_por'   => Auth::id(),
+                    'estado'           => 'facturado', // Marcado como facturado con monto 0 para no cobrar pero servir de base
+                ]);
 
-            \App\Models\Lectura::create([
-                'conexion_id'      => $conexion->id,
-                'fecha_lectura'    => $validated['fecha_instalacion'],
-                'periodo'          => $periodoBase, 
-                'lectura_anterior' => $montoArranque,
-                'lectura_actual'   => $montoArranque, // Iguales para que consumo sea 0
-                'observacion'      => 'Arranque de sistema',
-                'registrado_por'   => Auth::id(),
-                'estado'           => 'finalizado', // <--- IMPORTANTE: No aparecerá para facturar
-            ]);
+                // 3. Activar afiliado si estaba pendiente
+                $afiliado = \App\Models\Afiliado::find($validated['afiliado_id']);
+                if ($afiliado && $afiliado->estado_servicio === 'Pendiente') {
+                    $afiliado->update(['estado_servicio' => 'activo']);
+                }
 
-            // 4. Activar afiliado
-            $afiliado = \App\Models\Afiliado::find($validated['afiliado_id']);
-            if ($afiliado && $afiliado->estado_servicio === 'Pendiente') {
-                $afiliado->update(['estado_servicio' => 'activo']);
-            }
+                \App\Models\ActivityLog::log(
+                    accion: 'crear',
+                    modulo: 'conexiones',
+                    descripcion: "Conexión medidor #{$conexion->codigo_medidor} instalada con lectura inicial {$lecturaInicialVal} m³.",
+                    newValues: $conexion->toArray()
+                );
 
-            return redirect()->route('conexiones.index')->with('success', '✅ Conexión creada correctamente.');
-        });
+                return redirect()->route('conexiones.index')->with('success', '✅ Conexión creada correctamente con su lectura inicial.');
+            });
 
-    } catch (\Exception $e) {
-        // Esto te dirá el error real en el log
-        Log::error("Error al guardar conexión: " . $e->getMessage());
-        
-        // Devolvemos el error a la pantalla para que lo veas
-        return redirect()->back()
-            ->withInput()
-            ->withErrors(['error_general' => 'Fallo en la base de datos: ' . $e->getMessage()]);
+        } catch (\Exception $e) {
+            Log::error("Error al guardar conexión: " . $e->getMessage());
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error_general' => 'Fallo al registrar la conexión: ' . $e->getMessage()]);
+        }
     }
-}
 
     /**
      * Actualiza una conexión.
@@ -176,19 +186,29 @@ class ConexionController extends Controller
         $conexion = Conexion::findOrFail($id); 
 
         $validated = $request->validate([
-            'codigo_medidor'  => ['required','string','max:50', Rule::unique('conexiones')->ignore($conexion->id)],
-            'afiliado_id'     => 'required|exists:afiliados,id', 
-            'estado'          => 'required|in:activo,suspendido,eliminado',
-            'direccion'       => 'required|string|max:255',
-            'zona_id'         => 'required|exists:zonas,id', 
+            'codigo_medidor'    => ['required','string','max:50', Rule::unique('conexiones')->ignore($conexion->id)],
+            'afiliado_id'       => 'required|exists:afiliados,id', 
+            'estado'            => 'required|in:activo,suspendido,eliminado',
+            'direccion'         => 'required|string|max:255',
+            'zona_id'           => 'required|exists:zonas,id', 
             'fecha_instalacion' => 'required|date',
-            'tipo_conexion'   => 'required|in:domiciliaria,comercial,institucional,otro',
+            'tipo_conexion'     => 'required|in:domiciliaria,comercial,institucional,otro',
+            'lectura_inicial'   => 'required|numeric|min:0',
         ]);
 
         try {
-            $conexion->update($validated); 
+            $oldValues = $conexion->toArray();
+            $conexion->update($validated);
+
+            \App\Models\ActivityLog::log(
+                accion: 'editar',
+                modulo: 'conexiones',
+                descripcion: "Conexión medidor #{$conexion->codigo_medidor} actualizada.",
+                oldValues: $oldValues,
+                newValues: $conexion->fresh()->toArray()
+            );
         } catch (\Exception $e) {
-             Log::error('Error al actualizar conexión:', ['error' => $e->getMessage(), 'request' => $request->all()]);
+            Log::error('Error al actualizar conexión:', ['error' => $e->getMessage(), 'request' => $request->all()]);
             return redirect()->back()->withInput()->withErrors(['error_general' => 'Error al actualizar la conexión.']);
         }
         
@@ -202,12 +222,32 @@ class ConexionController extends Controller
     {
         $conexion = Conexion::findOrFail($id); 
 
-        // Regla: No borrar si tiene lecturas o facturas
-        if ($conexion->lecturas()->exists() || $conexion->facturas()->exists()) {
-             return redirect()->back()->withErrors(['error_general' => 'No se puede eliminar. La conexión tiene lecturas o facturas asociadas.']);
+        // Regla: No borrar si tiene lecturas operativas (excluyendo la inicial) o facturas
+        $lecturasOperativas = $conexion->lecturas()->where('observacion', 'not like', '%inicial%')->where('observacion', 'not like', '%arranque%')->exists();
+
+        if ($lecturasOperativas || $conexion->facturas()->exists()) {
+             return redirect()->back()->withErrors(['error_general' => 'No se puede eliminar. La conexión ya tiene lecturas o facturas registradas.']);
+        }
+
+        try {
+            DB::transaction(function () use ($conexion) {
+                $conValues = $conexion->toArray();
+                $medidor   = $conexion->codigo_medidor;
+                $conexion->lecturas()->delete();
+                $conexion->delete();
+
+                \App\Models\ActivityLog::log(
+                    accion: 'eliminar',
+                    modulo: 'conexiones',
+                    descripcion: "Conexión medidor #{$medidor} eliminada.",
+                    oldValues: $conValues
+                );
+            });
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar conexión:', ['error' => $e->getMessage()]);
+            return redirect()->back()->withErrors(['error_general' => 'Error al eliminar la conexión.']);
         }
         
-        $conexion->delete();
         return redirect()->back()->with('success', '🗑️ Conexión eliminada correctamente.');
     }
 }

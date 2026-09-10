@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Spatie\Permission\Models\Role;
 use App\Models\User;
 use App\Models\Afiliado;
+use App\Models\Zona;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
@@ -19,7 +21,7 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::with(['afiliado:id,nombre_completo,ci', 'roles:id,name']);
+        $query = User::with(['afiliado:id,nombre_completo,ci', 'roles:id,name', 'zona:id,nombre']);
 
         // Búsqueda
         $query->when($request->input('search'), function ($q, $search) {
@@ -57,6 +59,7 @@ class UserController extends Controller
         return Inertia::render('Users/Create', [
             'rolesPersonal' => Role::whereIn('name', ['Administrador', 'Secretaria', 'Tecnico'])->get(['id', 'name']),
             'roleUsuario' => Role::where('name', 'Usuario')->first(['id', 'name']),
+            'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']),
             'searchAfiliadosUrl' => route('afiliados.buscarPorCI', ['ci' => '__CI_PLACEHOLDER__']),
         ]);
     }
@@ -72,22 +75,21 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:8|confirmed',
             'role_id' => 'required|exists:roles,id',
-            'afiliado_id' => 'nullable|exists:afiliados,id', 
+            'afiliado_id' => 'nullable|exists:afiliados,id',
+            'is_active' => 'nullable|boolean',
+            'zona_id' => 'nullable|exists:zonas,id',
         ]);
 
         $afiliadoId = $validated['afiliado_id'] ?? null;
         $role = Role::find($validated['role_id']);
 
-        // Si el rol es 'afiliado' (Usuario) y se seleccionó un afiliado...
         if ($role->name === 'Usuario' && $afiliadoId) {
-            // Validamos el límite de 2 usuarios
             $count = User::where('afiliado_id', $afiliadoId)->count();
             if ($count >= 2) {
-                return back()->withErrors(['afiliado_id' => 'Este afiliado ya tiene 2 usuarios (cuentas) asignados.'])->withInput();
+                return back()->withErrors(['afiliado_id' => 'Este afiliado ya tiene 2 usuarios asignados.'])->withInput();
             }
         }
         
-        // Si el rol es 'personal', nos aseguramos de desvincular
         if ($role->name !== 'Usuario') {
             $afiliadoId = null;
         }
@@ -97,9 +99,18 @@ class UserController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'afiliado_id' => $afiliadoId,
+            'is_active' => $request->boolean('is_active', true),
+            'zona_id' => $validated['zona_id'] ?? null,
         ]);
 
         $user->assignRole($role);
+
+        ActivityLog::log(
+            accion: 'crear',
+            modulo: 'usuarios',
+            descripcion: "Usuario '{$user->name}' ({$user->email}) creado con rol {$role->name}.",
+            newValues: $user->toArray()
+        );
 
         return redirect()->route('users.index')->with('success', '✅ Usuario creado correctamente.');
     }
@@ -109,12 +120,12 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
-        $user->load('afiliado:id,nombre_completo,ci', 'roles:id,name');
+        $user->load('afiliado:id,nombre_completo,ci', 'roles:id,name', 'zona:id,nombre');
         
         return Inertia::render('Users/Edit', [
             'user' => $user,
             'allRoles' => Role::all(['id', 'name']),
-            // Pasa la URL de la API para el buscador
+            'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']),
             'searchAfiliadosUrl' => route('afiliados.buscarPorCI', ['ci' => '__CI_PLACEHOLDER__']),
         ]);
     }
@@ -129,43 +140,51 @@ class UserController extends Controller
             'email' => 'required|email|' . Rule::unique('users')->ignore($user->id),
             'password' => 'nullable|min:8|confirmed',
             'role_id' => 'required|exists:roles,id',
-            'afiliado_id' => 'nullable|exists:afiliados,id', 
+            'afiliado_id' => 'nullable|exists:afiliados,id',
+            'is_active' => 'required|boolean',
+            'zona_id' => 'nullable|exists:zonas,id',
         ]);
         
+        $oldValues = $user->toArray();
         $role = Role::find($validated['role_id']);
         $afiliadoId = $validated['afiliado_id'] ?? null;
         
-        // Si el rol es "Usuario"
         if ($role->name === 'Usuario') {
             if ($afiliadoId) {
-                 // Si se asignó uno, validamos el límite (excluyéndonos a nosotros mismos)
                 $count = User::where('afiliado_id', $afiliadoId)
                              ->where('id', '!=', $user->id) 
                              ->count();
                 if ($count >= 2) {
-                    return back()->withErrors(['afiliado_id' => 'Este afiliado ya tiene 2 usuarios (cuentas) asignados.'])->withInput();
+                    return back()->withErrors(['afiliado_id' => 'Este afiliado ya tiene 2 usuarios asignados.'])->withInput();
                 }
             }
-            // Si $afiliadoId es null, no pasa nada (es un usuario "Pendiente")
         } else {
-            // Si el rol es Admin, Sec, Tec, nos aseguramos que no esté vinculado
             $afiliadoId = null;
         }
 
-        // Actualizar el usuario
         $user->update([
             'name' => $validated['name'], 
             'email' => $validated['email'],
-            'afiliado_id' => $afiliadoId, 
+            'afiliado_id' => $afiliadoId,
+            'is_active' => $request->boolean('is_active'),
+            'zona_id' => $validated['zona_id'] ?? null,
         ]);
 
         if (!empty($validated['password'])) {
             $user->update(['password' => Hash::make($validated['password'])]);
         }
         
-        $user->syncRoles([$role->name]); 
+        $user->syncRoles([$role->name]);
 
-        return redirect()->route('users.index')->with('success', 'Usuario actualizado.');
+        ActivityLog::log(
+            accion: 'editar',
+            modulo: 'usuarios',
+            descripcion: "Usuario '{$user->name}' (ID #{$user->id}) actualizado.",
+            oldValues: $oldValues,
+            newValues: $user->fresh()->toArray()
+        );
+
+        return redirect()->route('users.index')->with('success', '✅ Usuario actualizado correctamente.');
     }
 
     /**
@@ -173,13 +192,24 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        // Regla de Seguridad: No permitir borrar el usuario ID 1 (super admin) o a uno mismo
         if ($user->id === 1 || $user->id === Auth::id()) {
              return redirect()->route('users.index')
                 ->withErrors(['error_general' => 'No se puede eliminar a este usuario administrador o a usted mismo.']);
         }
+
+        $userValues = $user->toArray();
+        $userName = $user->name;
+        $userId = $user->id;
         
         $user->delete();
+
+        ActivityLog::log(
+            accion: 'eliminar',
+            modulo: 'usuarios',
+            descripcion: "Usuario '{$userName}' (ID #{$userId}) eliminado.",
+            oldValues: $userValues
+        );
+
         return redirect()->route('users.index')->with('success', 'Usuario eliminado.');
     }
 }

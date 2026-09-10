@@ -18,6 +18,10 @@ class Lectura extends Model
         'lectura_anterior',
         'lectura_actual',
         'observacion',
+        'anomalia',
+        'causal_inconveniente',
+        'es_estimada',
+        'promedio_historico',
         'registrado_por',
         'estado',
     ];
@@ -27,6 +31,8 @@ class Lectura extends Model
         'fecha_lectura' => 'date:Y-m-d', 
         'lectura_anterior' => 'decimal:2', 
         'lectura_actual' => 'decimal:2',
+        'es_estimada' => 'boolean',
+        'promedio_historico' => 'decimal:2',
     ];
    
 

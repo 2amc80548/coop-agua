@@ -41,36 +41,67 @@ class TarifaCalculatorService
         $consumo = max(0, (float) $lectura->lectura_actual - (float) $lectura->lectura_anterior);
 
         // ---------------------------------------------------------------
-        // Regla 1: Cobro mínimo vs. consumo real
+        // Regla 1: Tarifas Escalonadas por Bloques de Consumo (m³)
         // ---------------------------------------------------------------
-        $calculoDirecto = $consumo * (float) $tarifa->precio_m3;
+        $minM3          = (int) $tarifa->min_m3;
+        $minMonto       = (float) $tarifa->min_monto;
+        $precioB1       = (float) $tarifa->precio_m3;
+        $bloque2Limite  = (int) ($tarifa->bloque2_limite_m3 ?: 25);
+        $precioB2       = ((float) $tarifa->bloque2_precio_m3 > 0) ? (float) $tarifa->bloque2_precio_m3 : $precioB1;
+        $precioB3       = ((float) $tarifa->bloque3_precio_m3 > 0) ? (float) $tarifa->bloque3_precio_m3 : $precioB2;
+        $cargoMant      = (float) ($tarifa->cargo_fijo_mantenimiento ?? 0);
 
-        $montoBase = ($consumo <= $tarifa->min_m3 && (float) $tarifa->min_monto > $calculoDirecto)
-            ? (float) $tarifa->min_monto
-            : $calculoDirecto;
+        if ($consumo <= $minM3) {
+            $m3Bloque1 = $consumo;
+            $m3Bloque2 = 0;
+            $m3Bloque3 = 0;
+            $montoConsumo = $minMonto;
+        } else {
+            $m3Bloque1 = $minM3;
+            $m3Restante = $consumo - $minM3;
+            $capacidadB2 = max(0, $bloque2Limite - $minM3);
+            
+            $m3Bloque2 = min($m3Restante, $capacidadB2);
+            $m3Bloque3 = max(0, $m3Restante - $m3Bloque2);
+
+            $montoConsumo = $minMonto + ($m3Bloque2 * $precioB2) + ($m3Bloque3 * $precioB3);
+        }
+
+        $montoBase = $montoConsumo + $cargoMant;
 
         // ---------------------------------------------------------------
         // Regla 2: Descuento Adulto Mayor (Ley N° 1886 Bolivia)
         // ---------------------------------------------------------------
-        $descuento          = 0.00;
+        $descuento           = 0.00;
         $porcentajeDescuento = (float) $tarifa->descuento_adulto_mayor_pct;
-
-        // Accedemos al afiliado de forma segura usando el operador nullsafe
-        $esAdultoMayor = $lectura->conexion?->afiliado?->adulto_mayor ?? false;
+        $limiteLeyM3         = (int) ($tarifa->descuento_ley_m3_limite ?: 15);
+        $esAdultoMayor       = (bool) ($lectura->conexion?->afiliado?->adulto_mayor ?? false);
 
         if ($esAdultoMayor && $porcentajeDescuento > 0) {
-            $descuento = round(($montoBase * $porcentajeDescuento) / 100, 2);
+            // Ley 1886: Descuento del 20% aplica sobre los primeros m³ (hasta limiteLeyM3)
+            if ($consumo <= $limiteLeyM3) {
+                $montoElegible = $montoConsumo;
+            } else {
+                $m3Excedente = max(0, $limiteLeyM3 - $minM3);
+                $montoElegible = $minMonto + ($m3Excedente * $precioB2);
+            }
+            $descuento = round(($montoElegible * $porcentajeDescuento) / 100, 2);
         }
 
-        // El total nunca puede ser negativo
+        // El total final nunca puede ser negativo
         $totalFinal = max(0, $montoBase - $descuento);
 
         return [
-            'consumo'             => round($consumo, 2),
-            'monto_base'          => round($montoBase, 2),
-            'descuento'           => round($descuento, 2),
+            'consumo'              => round($consumo, 2),
+            'm3_bloque1'           => $m3Bloque1,
+            'm3_bloque2'           => $m3Bloque2,
+            'm3_bloque3'           => $m3Bloque3,
+            'monto_consumo'        => round($montoConsumo, 2),
+            'cargo_mantenimiento'  => round($cargoMant, 2),
+            'monto_base'           => round($montoBase, 2),
+            'descuento'            => round($descuento, 2),
             'porcentaje_descuento' => $porcentajeDescuento,
-            'total'               => round($totalFinal, 2),
+            'total'                => round($totalFinal, 2),
         ];
     }
 

@@ -1,12 +1,65 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ViewCounter from '@/Components/ViewCounter.vue';
 import { ref } from 'vue';
 
 const props = defineProps({
     afiliado: Object,
+    resumenFinanciero: Object,
 });
+
+const page = usePage();
+const activeTab = ref('resumen'); // 'resumen', 'conexiones', 'documentos', 'traspasos'
+
+// --- Formulario para Subir Documento ---
+const docForm = useForm({
+    tipo_documento: 'CI',
+    archivo: null,
+    observacion: '',
+});
+
+const submitDoc = () => {
+    docForm.post(route('afiliados.documentos.store', props.afiliado.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            docForm.reset();
+        },
+    });
+};
+
+const eliminarDocumento = (docId) => {
+    if (confirm('¿Desea eliminar este documento del expediente?')) {
+        useForm({}).delete(route('afiliados.documentos.destroy', docId), {
+            preserveScroll: true,
+        });
+    }
+};
+
+// --- Formulario para Traspaso de Titularidad ---
+const showTraspasoModal = ref(false);
+const selectedConexion = ref(null);
+const traspasoForm = useForm({
+    nuevo_afiliado_id: '',
+    motivo: '',
+});
+
+const openTraspasoModal = (conexion) => {
+    selectedConexion.value = conexion;
+    traspasoForm.reset();
+    showTraspasoModal.value = true;
+};
+
+const submitTraspaso = () => {
+    if (!selectedConexion.value) return;
+    traspasoForm.post(route('conexiones.traspasar', selectedConexion.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showTraspasoModal.value = false;
+            traspasoForm.reset();
+        },
+    });
+};
 
 const getPhotoUrl = (path) => {
     if (path) {
@@ -35,6 +88,15 @@ const estadoServicioClass = (estado) => {
     }
 };
 
+const estadoFinancieroBadgeClass = (estado) => {
+    switch (estado) {
+        case 'Al Día': return 'bg-green-500 text-white';
+        case 'En Mora': return 'bg-yellow-500 text-white';
+        case 'Con Orden de Corte': return 'bg-red-600 text-white font-bold animate-pulse';
+        default: return 'bg-gray-500 text-white';
+    }
+};
+
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
@@ -45,32 +107,31 @@ const formatDate = (dateString) => {
 };
 
 const showPhotoModal = ref(false);
-
-const toggleModal = () => {
-    showPhotoModal.value = !showPhotoModal.value;
-};
-
-const downloadImage = (url, name) => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `foto-${name}.jpg`;
-    link.click();
-};
 </script>
 
 <template>
     <AppLayout :title="afiliado.nombre_completo">
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                Perfil del Afiliado
+                Expediente del Socio / Afiliado
             </h2>
         </template>
 
         <div class="py-12">
-            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+            <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-6">
+                
+                <div v-if="page.props.flash.success" class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-sm">
+                    <p class="font-bold">Éxito</p>
+                    <p>{{ page.props.flash.success }}</p>
+                </div>
+                <div v-if="page.props.errors && Object.keys(page.props.errors).length > 0" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-sm">
+                    <p class="font-bold">Atención</p>
+                    <ul class="list-disc ml-5 text-sm"><li v-for="(err, k) in page.props.errors" :key="k">{{ err }}</li></ul>
+                </div>
+
                 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-xl sm:rounded-lg">
                     
-                    <!-- Encabezado con Foto y Datos Principales -->
+                    <!-- Encabezado del Afiliado -->
                     <div class="p-6 md:p-8 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row items-center gap-6">
                         <div class="relative group cursor-pointer" @click="showPhotoModal = true">
                             <img 
@@ -78,15 +139,10 @@ const downloadImage = (url, name) => {
                                 :src="getPhotoUrl(afiliado.profile_photo_path)" 
                                 :alt="afiliado.nombre_completo"
                             >
-                            <div class="absolute inset-0 flex items-center justify-center rounded-full bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                </svg>
-                            </div>
                         </div>
                         <div class="flex-1 text-center md:text-left">
                             <h3 class="text-2xl font-bold text-gray-900 dark:text-white">{{ afiliado.nombre_completo }}</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">CI: {{ afiliado.ci }} | Código: {{ afiliado.codigo }}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">CI: {{ afiliado.ci }} | Código Socio: {{ afiliado.codigo }}</p>
                             <div class="flex flex-wrap gap-2 mt-3 justify-center md:justify-start">
                                  <span class="px-3 py-1 text-xs font-semibold rounded-full" :class="estadoClass(afiliado.estado)">
                                     Estado: {{ afiliado.estado }}
@@ -95,133 +151,218 @@ const downloadImage = (url, name) => {
                                     Servicio: {{ afiliado.estado_servicio }}
                                  </span>
                                  <span v-if="afiliado.adulto_mayor" class="px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
-                                    Adulto Mayor
+                                    Adulto Mayor (Descuento 20%)
                                  </span>
                             </div>
                         </div>
                         <div class="flex-shrink-0">
                             <Link :href="route('afiliados.edit', afiliado.id)" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded transition shadow">
-                                Editar Afiliado
+                                Editar Datos
                             </Link>
                         </div>
                     </div>
-                    
-                    <div class="p-6 md:p-8 space-y-8">
-                        
-                        <!-- Información de Contacto -->
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                Información de Contacto
-                            </h3>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                                <div><strong class="text-gray-500 dark:text-gray-400">Celular:</strong> <span class="text-gray-700 dark:text-gray-300 ml-1">{{ afiliado.celular || 'No registrado' }}</span></div>
-                                <div><strong class="text-gray-500 dark:text-gray-400">Calle:</strong> <span class="text-gray-700 dark:text-gray-300 ml-1">{{ afiliado.direccion || '—' }}</span></div>
-                                <div><strong class="text-gray-500 dark:text-gray-400">Barrio:</strong> <span class="text-gray-700 dark:text-gray-300 ml-1">{{ afiliado.zona?.nombre || 'No registrado' }}</span></div>
-                                <div v-if="afiliado.user"><strong class="text-gray-500 dark:text-gray-400">Email (Usuario):</strong> <span class="text-gray-700 dark:text-gray-300 ml-1">{{ afiliado.user.email }}</span></div>
-                            </div>
-                        </div>
 
-                        <!-- Datos de Afiliación -->
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                Datos de Afiliación
-                            </h3>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                                <div><strong class="text-gray-500 dark:text-gray-400">Tipo:</strong> <span class="text-gray-700 dark:text-gray-300 ml-1 capitalize">{{ afiliado.tipo }}</span></div>
-                                <div><strong class="text-gray-500 dark:text-gray-400">Tenencia:</strong> <span class="text-gray-700 dark:text-gray-300 ml-1 capitalize">{{ afiliado.tenencia }}</span></div>
-                                <div><strong class="text-gray-500 dark:text-gray-400">Fecha Afiliación:</strong> <span class="text-gray-700 dark:text-gray-300 ml-1">{{ formatDate(afiliado.fecha_afiliacion) }}</span></div>
-                                <div v-if="afiliado.fecha_baja"><strong class="text-gray-500 dark:text-gray-400">Fecha Baja:</strong> <span class="text-red-500 ml-1">{{ formatDate(afiliado.fecha_baja) }}</span></div>
-                            </div>
+                    <!-- Tarjetas de Resumen Financiero Consolidado -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700">
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Estado Financiero</p>
+                            <span class="mt-2 inline-block px-3 py-1 text-xs font-bold rounded-full" :class="estadoFinancieroBadgeClass(resumenFinanciero?.estado_financiero)">
+                                {{ resumenFinanciero?.estado_financiero || 'Al Día' }}
+                            </span>
                         </div>
-
-                        <!-- Observaciones -->
-                        <div v-if="afiliado.observacion">
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                Observaciones (Uso Interno)
-                            </h3>
-                            <p class="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-4 rounded-md whitespace-pre-wrap border border-gray-200 dark:border-gray-700">
-                                {{ afiliado.observacion }}
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Deuda Total Pendiente</p>
+                            <p class="text-xl font-bold" :class="resumenFinanciero?.deuda_total_pendiente > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
+                                Bs {{ resumenFinanciero?.deuda_total_pendiente?.toFixed(2) || '0.00' }}
                             </p>
                         </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Facturas Impagas</p>
+                            <p class="text-xl font-bold text-gray-800 dark:text-gray-200">
+                                {{ resumenFinanciero?.total_facturas_impagas || 0 }} factura(s)
+                            </p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Conexiones Asignadas</p>
+                            <p class="text-xl font-bold text-blue-600 dark:text-blue-400">
+                                {{ resumenFinanciero?.total_conexiones || 0 }} medidor(es)
+                            </p>
+                        </div>
+                    </div>
 
-                        <!-- Requisitos Entregados -->
+                    <!-- Navegación por Pestañas -->
+                    <div class="border-b border-gray-200 dark:border-gray-700 px-6 pt-4 flex gap-4 text-sm font-medium">
+                        <button @click="activeTab = 'resumen'" class="pb-3 border-b-2 transition" :class="activeTab === 'resumen' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'">
+                            Información General
+                        </button>
+                        <button @click="activeTab = 'conexiones'" class="pb-3 border-b-2 transition" :class="activeTab === 'conexiones' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'">
+                            Medidores / Conexiones ({{ afiliado.conexiones?.length || 0 }})
+                        </button>
+                        <button @click="activeTab = 'documentos'" class="pb-3 border-b-2 transition" :class="activeTab === 'documentos' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'">
+                            📁 Expediente Digital ({{ afiliado.documentos?.length || 0 }})
+                        </button>
+                        <button @click="activeTab = 'traspasos'" class="pb-3 border-b-2 transition" :class="activeTab === 'traspasos' ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'">
+                            🔄 Historial Traspasos
+                        </button>
+                    </div>
+
+                    <!-- Pestaña 1: Información General -->
+                    <div v-if="activeTab === 'resumen'" class="p-6 md:p-8 space-y-6">
                         <div>
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                Requisitos Entregados
-                            </h3>
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Contacto y Ubicación</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-gray-50 dark:bg-gray-900/50 p-4 rounded-md">
+                                <div><strong class="text-gray-500 dark:text-gray-400">Celular:</strong> {{ afiliado.celular || 'No registrado' }}</div>
+                                <div><strong class="text-gray-500 dark:text-gray-400">Dirección:</strong> {{ afiliado.direccion || '—' }}</div>
+                                <div><strong class="text-gray-500 dark:text-gray-400">Barrio / Zona:</strong> {{ afiliado.zona?.nombre || 'No registrado' }}</div>
+                                <div v-if="afiliado.user"><strong class="text-gray-500 dark:text-gray-400">Email Portal:</strong> {{ afiliado.user.email }}</div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-2">Requisitos de Registro</h4>
                             <ul v-if="afiliado.requisitos && afiliado.requisitos.length > 0" class="list-disc list-inside space-y-1 text-sm">
                                 <li v-for="req in afiliado.requisitos" :key="req.id" class="text-green-600 dark:text-green-400">
                                     <span class="text-gray-700 dark:text-gray-300">{{ req.nombre }}</span>
-                                    <span v-if="req.pivot.fecha_entrega" class="text-xs text-gray-500 dark:text-gray-400"> (Entregado el: {{ formatDate(req.pivot.fecha_entrega) }})</span>
+                                    <span v-if="req.pivot?.fecha_entrega" class="text-xs text-gray-500"> ({{ formatDate(req.pivot.fecha_entrega) }})</span>
                                 </li>
                             </ul>
-                            <p v-else class="text-sm text-gray-500 dark:text-gray-400 italic">Este afiliado no tiene requisitos registrados.</p>
+                            <p v-else class="text-sm text-gray-500 italic">No hay requisitos registrados.</p>
                         </div>
-                        
-                        <!-- Conexiones (Medidores) -->
-                        <div>
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                                Conexiones (Medidores)
-                            </h3>
-                            <ul v-if="afiliado.conexiones && afiliado.conexiones.length > 0" class="divide-y divide-gray-200 dark:divide-gray-700 border rounded-md dark:border-gray-700">
-                                <li v-for="con in afiliado.conexiones" :key="con.id" class="p-3 flex justify-between items-center text-sm">
-                                    <div>
-                                        <p class="font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
-                                            <Link :href="route('conexiones.show', con.id)">Medidor: {{ con.codigo_medidor }}</Link>
-                                        </p>
-                                        <p class="text-xs text-gray-600 dark:text-gray-400">{{ con.direccion }} ({{ con.zona?.nombre || 'Zona N/A' }})</p>
-                                    </div>
-                                    <span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full" 
-                                          :class="con.estado === 'activo' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'">
-                                        {{ con.estado }}
-                                    </span>
-                                </li>
-                            </ul>
-                            <p v-else class="text-sm text-gray-500 dark:text-gray-400 italic">Este afiliado no tiene conexiones registradas.</p>
-                        </div>
-
                     </div>
 
-                    <!-- Botones de Pie -->
-                    <div class="flex justify-between items-center p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                        <Link :href="route('afiliados.index')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition shadow">
-                            Volver al Listado
-                        </Link>
-                        <Link :href="route('afiliados.edit', afiliado.id)" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded transition shadow">
-                            Editar Afiliado
-                        </Link>
+                    <!-- Pestaña 2: Conexiones & Traspaso -->
+                    <div v-if="activeTab === 'conexiones'" class="p-6 md:p-8 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-200">Medidores Asignados</h4>
+                        </div>
+                        <div v-if="afiliado.conexiones && afiliado.conexiones.length > 0" class="divide-y divide-gray-200 dark:divide-gray-700 border rounded-md dark:border-gray-700">
+                            <div v-for="con in afiliado.conexiones" :key="con.id" class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm">
+                                <div>
+                                    <p class="font-bold text-indigo-600 dark:text-indigo-400">Medidor: #{{ con.codigo_medidor }}</p>
+                                    <p class="text-xs text-gray-600 dark:text-gray-400">{{ con.direccion }} ({{ con.zona?.nombre || 'Zona N/A' }})</p>
+                                    <p class="text-xs text-gray-500 mt-1">Tipo: {{ con.tipo_conexion }} | Instalado: {{ formatDate(con.fecha_instalacion) }}</p>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="px-2.5 py-1 text-xs font-semibold rounded-full" :class="con.estado === 'activo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                                        {{ con.estado }}
+                                    </span>
+                                    <button @click="openTraspasoModal(con)" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded shadow transition">
+                                        Traspasar Titularidad
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <p v-else class="text-sm text-gray-500 italic">Este socio no tiene conexiones de agua asignadas.</p>
+                    </div>
+
+                    <!-- Pestaña 3: Expediente Digital (Documentos) -->
+                    <div v-if="activeTab === 'documentos'" class="p-6 md:p-8 space-y-6">
+                        <!-- Formulario Subir Documento -->
+                        <form @submit.prevent="submitDoc" class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700 space-y-4">
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 text-sm">Cargar Nuevo Documento al Expediente</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo Documento</label>
+                                    <select v-model="docForm.tipo_documento" class="text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 rounded-md w-full">
+                                        <option value="CI">Cédula de Identidad (CI)</option>
+                                        <option value="Titulo_Propiedad">Título de Propiedad / Minuta</option>
+                                        <option value="Croquis_Ubicacion">Croquis de Ubicación</option>
+                                        <option value="Contrato">Contrato de Servicios</option>
+                                        <option value="Otro">Otro Documento</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Archivo (PDF, PNG, JPG max 5MB)</label>
+                                    <input type="file" @change="e => docForm.archivo = e.target.files[0]" class="text-xs border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 rounded-md w-full p-1.5" required />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Observación</label>
+                                    <input v-model="docForm.observacion" type="text" placeholder="Ej. Copia legible 2026" class="text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 rounded-md w-full" />
+                                </div>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" :disabled="docForm.processing" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded shadow transition">
+                                    {{ docForm.processing ? 'Subiendo...' : 'Subir Documento' }}
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Lista de Documentos Subidos -->
+                        <div v-if="afiliado.documentos && afiliado.documentos.length > 0" class="space-y-3">
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 text-sm">Documentos Almacenados</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div v-for="doc in afiliado.documentos" :key="doc.id" class="p-4 border rounded-lg dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-start text-sm shadow-sm">
+                                    <div>
+                                        <span class="px-2 py-0.5 text-xs font-bold rounded bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                                            {{ doc.tipo_documento }}
+                                        </span>
+                                        <p class="font-medium text-gray-900 dark:text-white mt-1">{{ doc.nombre_archivo }}</p>
+                                        <p v-if="doc.observacion" class="text-xs text-gray-500 italic mt-0.5">{{ doc.observacion }}</p>
+                                        <p class="text-xs text-gray-400 mt-2">Subido por: {{ doc.usuario_subio?.name || 'Sistema' }} el {{ formatDate(doc.created_at) }}</p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <a :href="`/storage/${doc.archivo_path}`" target="_blank" class="text-blue-600 hover:underline text-xs font-semibold">Ver / Descargar</a>
+                                        <button @click="eliminarDocumento(doc.id)" class="text-red-600 hover:text-red-800 text-xs font-semibold ml-2">Eliminar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p v-else class="text-sm text-gray-500 italic">No hay documentos digitalizados adjuntos a este expediente.</p>
+                    </div>
+
+                    <!-- Pestaña 4: Historial de Traspasos -->
+                    <div v-if="activeTab === 'traspasos'" class="p-6 md:p-8 space-y-6">
+                        <div>
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-3 text-sm">Traspasos Recibidos (Nuevos Medidores Adquiridos)</h4>
+                            <ul v-if="afiliado.traspasos_entrantes && afiliado.traspasos_entrantes.length > 0" class="divide-y divide-gray-200 dark:divide-gray-700 border rounded-md dark:border-gray-700">
+                                <li v-for="t in afiliado.traspasos_entrantes" :key="t.id" class="p-3 text-sm">
+                                    <p class="font-medium">Medidor #{{ t.conexion?.codigo_medidor }} recivido de: {{ t.afiliado_anterior?.nombre_completo }} (CI: {{ t.afiliado_anterior?.ci }})</p>
+                                    <p class="text-xs text-gray-500">Fecha: {{ formatDate(t.fecha_traspaso) }} | Motivo: {{ t.motivo }}</p>
+                                </li>
+                            </ul>
+                            <p v-else class="text-sm text-gray-500 italic">No ha recibido traspasos de medidores.</p>
+                        </div>
+
+                        <div>
+                            <h4 class="font-semibold text-gray-800 dark:text-gray-200 mb-3 text-sm">Traspasos Salientes (Medidores Transferidos a Otros Socios)</h4>
+                            <ul v-if="afiliado.traspasos_salientes && afiliado.traspasos_salientes.length > 0" class="divide-y divide-gray-200 dark:divide-gray-700 border rounded-md dark:border-gray-700">
+                                <li v-for="t in afiliado.traspasos_salientes" :key="t.id" class="p-3 text-sm">
+                                    <p class="font-medium">Medidor #{{ t.conexion?.codigo_medidor }} transferido a: {{ t.afiliado_nuevo?.nombre_completo }} (CI: {{ t.afiliado_nuevo?.ci }})</p>
+                                    <p class="text-xs text-gray-500">Fecha: {{ formatDate(t.fecha_traspaso) }} | Motivo: {{ t.motivo }}</p>
+                                </li>
+                            </ul>
+                            <p v-else class="text-sm text-gray-500 italic">No ha transferido medidores a otros socios.</p>
+                        </div>
                     </div>
 
                 </div>
             </div>
 
-            <!-- Modal para Foto Grande -->
-            <div v-if="showPhotoModal" 
-                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-                @click.self="toggleModal">
-                
-                <div class="relative max-w-4xl w-full flex flex-col items-center">
-                    <div class="absolute -top-12 right-0 flex gap-4">
-                        <button @click="downloadImage(getPhotoUrl(afiliado.profile_photo_path), afiliado.nombre_completo)" 
-                                class="text-white hover:text-blue-400 flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-md text-sm transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                            Descargar
-                        </button>
-
-                        <button @click="toggleModal" class="text-white hover:text-red-400 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <img :src="getPhotoUrl(afiliado.profile_photo_path)" 
-                        class="max-h-[80vh] max-w-full rounded-lg shadow-2xl object-contain border-4 border-white/10"
-                        alt="Foto del Afiliado">
+            <!-- Modal Traspaso de Titularidad -->
+            <div v-if="showTraspasoModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+                <div class="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 space-y-4 shadow-xl">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Traspasar Medidor #{{ selectedConexion?.codigo_medidor }}</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Esta acción cambiará el titular del medidor hacia otro socio de la cooperativa.</p>
                     
-                    <p class="text-white mt-4 font-semibold text-lg">{{ afiliado.nombre_completo }}</p>
+                    <form @submit.prevent="submitTraspaso" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">ID o Código del Nuevo Socio *</label>
+                            <input v-model="traspasoForm.nuevo_afiliado_id" type="number" placeholder="Ingrese el ID del nuevo socio..." class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md text-sm" required />
+                            <div v-if="traspasoForm.errors.nuevo_afiliado_id" class="text-red-600 text-xs mt-1">{{ traspasoForm.errors.nuevo_afiliado_id }}</div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Motivo del Traspaso *</label>
+                            <textarea v-model="traspasoForm.motivo" rows="3" placeholder="Ej. Compra-venta del inmueble o cesión de derecho de agua" class="w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md text-sm" required></textarea>
+                        </div>
+
+                        <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <button type="button" @click="showTraspasoModal = false" class="px-4 py-2 bg-gray-500 text-white rounded text-xs font-bold hover:bg-gray-600">Cancelar</button>
+                            <button type="submit" :disabled="traspasoForm.processing" class="px-4 py-2 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 disabled:opacity-50">
+                                {{ traspasoForm.processing ? 'Procesando...' : 'Confirmar Traspaso' }}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
 

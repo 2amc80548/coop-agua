@@ -104,6 +104,16 @@ const abrirAviso = (id) => {
                                     {{ lectura.estado }}
                                 </span>
                             </p>
+                            <p class="mt-1"><strong class="text-gray-600 dark:text-gray-400">Anomalía / Validación:</strong>
+                                <span v-if="!lectura.anomalia || lectura.anomalia === 'ninguna'" class="text-gray-700 dark:text-gray-300 ml-1">Ninguna</span>
+                                <span v-else-if="lectura.anomalia === 'consumo_elevado'" class="px-2 py-0.5 rounded-full text-xs font-semibold ml-2 bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300">⚠️ Consumo Elevado (+200%)</span>
+                                <span v-else-if="lectura.anomalia === 'lectura_estimada'" class="px-2 py-0.5 rounded-full text-xs font-semibold ml-2 bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">⚡ Lectura Estimada</span>
+                                <span v-else-if="lectura.anomalia === 'consumo_cero'" class="px-2 py-0.5 rounded-full text-xs font-semibold ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">ℹ️ Consumo 0 m³</span>
+                            </p>
+                            <p v-if="lectura.causal_inconveniente && lectura.causal_inconveniente !== 'ninguno'" class="mt-1">
+                                <strong class="text-gray-600 dark:text-gray-400">Causal en Campo:</strong> 
+                                <span class="text-indigo-600 dark:text-indigo-400 font-semibold ml-1 capitalize">{{ lectura.causal_inconveniente.replace('_', ' ') }}</span>
+                            </p>
                             <p class="mt-1"><strong class="text-gray-600 dark:text-gray-400">Registrado por:</strong> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ lectura.usuarioRegistrado?.name || 'N/A' }}</span></p>
                             <p v-if="lectura.observacion" class="sm:col-span-2 mt-1"><strong class="text-gray-600 dark:text-gray-400">Observación:</strong> <span class="text-gray-900 dark:text-gray-100 ml-1">{{ lectura.observacion }}</span></p>
                         </div>

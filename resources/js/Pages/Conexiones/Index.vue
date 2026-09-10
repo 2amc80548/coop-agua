@@ -149,7 +149,10 @@ const formatDate = (dateString) => {
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               <tr v-if="!conexiones.data.length"> <td colspan="6" class="py-4 px-4 text-center text-sm text-gray-500 dark:text-gray-300">No se encontraron conexiones.</td> </tr>
               <tr v-for="c in conexiones.data" :key="c.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
-                <td class="px-4 py-2 whitespace-nowrap font-medium text-gray-900 dark:text-white">{{ c.codigo_medidor }}</td>
+                <td class="px-4 py-2 whitespace-nowrap">
+                    <div class="font-medium text-gray-900 dark:text-white">{{ c.codigo_medidor }}</div>
+                    <div class="text-xs text-blue-600 dark:text-blue-400">L. Inicial: {{ c.lectura_inicial ?? 0 }} m³</div>
+                </td>
                 <td class="px-4 py-2 whitespace-nowrap">
                     <div class="font-medium text-gray-900 dark:text-white">{{ c.afiliado?.nombre_completo }}</div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">CI: {{ c.afiliado?.ci }}</div>

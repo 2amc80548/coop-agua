@@ -33,6 +33,7 @@ class Conexion extends Model
         'zona_id',
         'fecha_instalacion',
         'tipo_conexion',
+        'lectura_inicial',
     ];
 
     /**
@@ -42,6 +43,7 @@ class Conexion extends Model
      */
     protected $casts = [
         'fecha_instalacion' => 'date:Y-m-d',
+        'lectura_inicial'   => 'float',
     ];
 
     // ---------------------------------------------------------------
@@ -66,6 +68,11 @@ class Conexion extends Model
     public function facturas(): HasMany
     {
         return $this->hasMany(Factura::class, 'conexion_id');
+    }
+
+    public function traspasos(): HasMany
+    {
+        return $this->hasMany(TraspasoTitularidad::class, 'conexion_id');
     }
 
     // NOTA: La relación accesosAutorizados() fue eliminada (Hallazgo 2.2).

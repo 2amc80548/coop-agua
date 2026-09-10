@@ -99,7 +99,8 @@ class FacturaController extends Controller
         $factura = Factura::with([
             'conexion.afiliado', 
             'lectura',          
-            'pagos' => fn($q) => $q->orderBy('fecha_pago', 'desc')
+            'pagos' => fn($q) => $q->orderBy('fecha_pago', 'desc'),
+            'usuarioAnulacion:id,name',
         ])->findOrFail($id);
 
         // --- ¡SEGURIDAD! ---
@@ -134,22 +135,43 @@ class FacturaController extends Controller
              return redirect()->back()->with('info', 'Esta factura ya se encontraba anulada.');
         }
 
+        $validated = $request->validate([
+            'motivo_anulacion' => 'required|string|min:5|max:255',
+        ], [
+            'motivo_anulacion.required' => 'Debe ingresar el motivo de anulación de la factura.',
+            'motivo_anulacion.min' => 'El motivo de anulación debe contener al menos 5 caracteres.',
+        ]);
+
         try {
-            DB::transaction(function () use ($factura) {
+            DB::transaction(function () use ($factura, $validated) {
                 $factura->estado = 'anulada';
                 $factura->deuda_pendiente = 0; 
+                $factura->motivo_anulacion = $validated['motivo_anulacion'];
+                $factura->anulado_por = Auth::id();
+                $factura->fecha_anulacion = now();
                 $factura->save();
 
                 if ($factura->lectura && $factura->lectura->estado === 'facturado') {
                     $factura->lectura->update(['estado' => 'pendiente']);
                 }
             });
+
+            \App\Models\ActivityLog::log(
+                'Anulación Factura',
+                "Se anuló la factura F-".str_pad($factura->id, 6, '0', STR_PAD_LEFT)." por motivo: {$validated['motivo_anulacion']}",
+                $factura
+            );
+
+            if ($factura->conexion?->afiliado_id) {
+                \App\Models\Afiliado::verificarEstadoFinanciero($factura->conexion->afiliado_id);
+            }
+
         } catch (\Exception $e) {
             Log::error('Error al anular factura:', ['error' => $e->getMessage(), 'factura_id' => $id]);
             return redirect()->back()->withErrors(['error_general' => 'Error al anular la factura. Revise los logs.']);
         }
 
-        return redirect()->route('facturas.index')->with('success', 'Factura F-'.str_pad($id, 6, '0', STR_PAD_LEFT).' anulada. La lectura asociada está pendiente de nuevo.');
+        return redirect()->route('facturas.index')->with('success', 'Factura F-'.str_pad($id, 6, '0', STR_PAD_LEFT).' anulada correctamente. La lectura asociada volvió a estar pendiente.');
     }
     
     /**

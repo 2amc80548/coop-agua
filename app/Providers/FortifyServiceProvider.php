@@ -48,5 +48,18 @@ class FortifyServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(RegisterResponseContract::class, CustomRegisterResponse::class);
+
+        Fortify::authenticateUsing(function (Request $request) {
+            $user = \App\Models\User::where('email', $request->email)->first();
+
+            if ($user && \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+                if (!$user->is_active) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        Fortify::username() => __('Su cuenta ha sido desactivada por la administración de la cooperativa.'),
+                    ]);
+                }
+                return $user;
+            }
+        });
     }
 }

@@ -26,10 +26,11 @@ const form = useForm({
     afiliado_id: props.conexion.afiliado_id,
     codigo_medidor: props.conexion.codigo_medidor,
     direccion: props.conexion.direccion,
-    zona_id: props.conexion.zona_id, // ¡Actualizado!
+    zona_id: props.conexion.zona_id,
     estado: props.conexion.estado,
-    fecha_instalacion: formatFechafield(props.conexion.fecha_instalacion), // ¡Corregido!
+    fecha_instalacion: formatFechafield(props.conexion.fecha_instalacion),
     tipo_conexion: props.conexion.tipo_conexion,
+    lectura_inicial: props.conexion.lectura_inicial ?? 0,
 });
 
 // --- Lógica de Buscador de Afiliado ---
@@ -120,9 +121,16 @@ const submit = () => {
                             <legend class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-2">2. Datos de la Conexión (Medidor)</legend>
                             
                             <div>
-                                <label for="codigo_medidor" class="block font-medium text-sm ...">Código del Medidor *</label>
-                                <input id="codigo_medidor" v-model="form.codigo_medidor" type="text" class="mt-1 block w-full ..." required />
+                                <label for="codigo_medidor" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Código del Medidor *</label>
+                                <input id="codigo_medidor" v-model="form.codigo_medidor" type="text" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required />
                                 <div v-if="form.errors.codigo_medidor" class="text-red-600 text-sm mt-1">{{ form.errors.codigo_medidor }}</div>
+                            </div>
+
+                            <div class="p-3 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900">
+                                <label for="lectura_inicial_edit" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Lectura Inicial de Instalación (m³)</label>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Valor base de arranque de la conexión.</p>
+                                <input id="lectura_inicial_edit" v-model="form.lectura_inicial" type="number" step="0.01" min="0" class="mt-1 block w-full md:w-1/3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm" required />
+                                <div v-if="form.errors.lectura_inicial" class="text-red-600 text-sm mt-1">{{ form.errors.lectura_inicial }}</div>
                             </div>
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

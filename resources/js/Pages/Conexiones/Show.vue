@@ -69,6 +69,10 @@ const estadoClass = (estado) => {
                                     <dt class="font-medium text-gray-500 dark:text-gray-400">Tipo de Conexión:</dt>
                                     <dd class="text-gray-900 dark:text-gray-100 capitalize">{{ conexion.tipo_conexion }}</dd>
                                 </div>
+                                <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
+                                    <dt class="font-medium text-gray-500 dark:text-gray-400">Lectura Inicial Instalación:</dt>
+                                    <dd class="font-semibold text-blue-600 dark:text-blue-400">{{ conexion.lectura_inicial ?? 0 }} m³</dd>
+                                </div>
                                 <div class="flex justify-between py-1">
                                     <dt class="font-medium text-gray-500 dark:text-gray-400">Fecha de Instalación:</dt>
                                     <dd class="text-gray-900 dark:text-gray-100">{{ formatDate(conexion.fecha_instalacion) }}</dd>

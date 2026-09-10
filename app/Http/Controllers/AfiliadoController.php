@@ -144,15 +144,156 @@ class AfiliadoController extends Controller
     }
 
     /**
-     * Muestra el detalle de un afiliado.
+     * Muestra el detalle de un afiliado con su resumen financiero, documentos e historial de traspasos.
      */
     public function show(Afiliado $afiliado)
     {
-        $afiliado->load(['zona', 'requisitos', 'conexiones.zona', 'user']); 
-        
-        return Inertia::render('Afiliados/Show', [
-            'afiliado' => $afiliado
+        $afiliado->load([
+            'zona:id,nombre',
+            'requisitos',
+            'conexiones.zona:id,nombre',
+            'conexiones.facturas' => fn($q) => $q->where('estado', 'impaga'),
+            'documentos.usuarioSubio:id,name',
+            'traspasosEntrantes.afiliadoAnterior:id,nombre_completo,ci',
+            'traspasosEntrantes.conexion:id,codigo_medidor',
+            'traspasosSalientes.afiliadoNuevo:id,nombre_completo,ci',
+            'traspasosSalientes.conexion:id,codigo_medidor',
+            'user:id,afiliado_id,email,is_active',
         ]);
+
+        // Cálculo de Resumen Financiero Consolidado
+        $totalConexiones = $afiliado->conexiones->count();
+        $facturasImpagas = $afiliado->conexiones->flatMap(fn($c) => $c->facturas);
+        $totalFacturasImpagas = $facturasImpagas->count();
+        $deudaTotalPendiente  = (float) $facturasImpagas->sum('deuda_pendiente');
+
+        $estadoFinanciero = match (true) {
+            $totalFacturasImpagas >= 3 => 'Con Orden de Corte',
+            $totalFacturasImpagas > 0  => 'En Mora',
+            default                    => 'Al Día',
+        };
+
+        return Inertia::render('Afiliados/Show', [
+            'afiliado' => $afiliado,
+            'resumenFinanciero' => [
+                'total_conexiones'       => $totalConexiones,
+                'total_facturas_impagas' => $totalFacturasImpagas,
+                'deuda_total_pendiente'  => $deudaTotalPendiente,
+                'estado_financiero'      => $estadoFinanciero,
+            ],
+        ]);
+    }
+
+    /**
+     * Sube y registra un documento digitalizado del afiliado.
+     */
+    public function subirDocumento(Request $request, Afiliado $afiliado)
+    {
+        $validated = $request->validate([
+            'tipo_documento' => 'required|string|in:CI,Titulo_Propiedad,Croquis_Ubicacion,Contrato,Otro',
+            'archivo'        => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120', // Máximo 5MB
+            'observacion'    => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $file = $request->file('archivo');
+            $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $extension    = $file->getClientOriginalExtension();
+            $filename     = $originalName . '_' . now()->format('Ymd_His') . '.' . $extension;
+            $path         = $file->storeAs('documentos_afiliados', $filename, 'public');
+
+            $doc = \App\Models\AfiliadoDocumento::create([
+                'afiliado_id'    => $afiliado->id,
+                'tipo_documento' => $validated['tipo_documento'],
+                'nombre_archivo' => $file->getClientOriginalName(),
+                'archivo_path'   => $path,
+                'observacion'    => $validated['observacion'] ?? null,
+                'subido_por'     => Auth::id(),
+            ]);
+
+            \App\Models\ActivityLog::log(
+                accion: 'crear',
+                modulo: 'afiliados',
+                descripcion: "Documento '{$doc->tipo_documento}' subido para el socio {$afiliado->nombre_completo}.",
+                newValues: $doc->toArray()
+            );
+
+            return redirect()->back()->with('success', '✅ Documento subido e incorporado al expediente.');
+        } catch (\Exception $e) {
+            Log::error('Error al subir documento de afiliado:', ['error' => $e->getMessage()]);
+            return redirect()->back()->withErrors(['error_general' => 'Error al subir archivo: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Elimina un documento digitalizado.
+     */
+    public function eliminarDocumento(\App\Models\AfiliadoDocumento $documento)
+    {
+        try {
+            if ($documento->archivo_path && Storage::disk('public')->exists($documento->archivo_path)) {
+                Storage::disk('public')->delete($documento->archivo_path);
+            }
+
+            $docData = $documento->toArray();
+            $documento->delete();
+
+            \App\Models\ActivityLog::log(
+                accion: 'eliminar',
+                modulo: 'afiliados',
+                descripcion: "Documento ID #{$documento->id} eliminado.",
+                oldValues: $docData
+            );
+
+            return redirect()->back()->with('success', '🗑️ Documento eliminado.');
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar documento:', ['error' => $e->getMessage()]);
+            return redirect()->back()->withErrors(['error_general' => 'Error al eliminar documento.']);
+        }
+    }
+
+    /**
+     * Realiza el traspaso de titularidad de una conexión hacia otro socio.
+     */
+    public function traspasarTitularidad(Request $request, \App\Models\Conexion $conexion)
+    {
+        $validated = $request->validate([
+            'nuevo_afiliado_id' => 'required|exists:afiliados,id|different:' . $conexion->afiliado_id,
+            'motivo'            => 'required|string|min:5|max:1000',
+        ], [
+            'nuevo_afiliado_id.different' => 'El nuevo titular debe ser una persona distinta al socio actual.',
+        ]);
+
+        try {
+            DB::transaction(function () use ($conexion, $validated) {
+                $afiliadoAnteriorId = $conexion->afiliado_id;
+                $afiliadoNuevoId    = $validated['nuevo_afiliado_id'];
+
+                $traspaso = \App\Models\TraspasoTitularidad::create([
+                    'conexion_id'          => $conexion->id,
+                    'afiliado_anterior_id' => $afiliadoAnteriorId,
+                    'afiliado_nuevo_id'    => $afiliadoNuevoId,
+                    'fecha_traspaso'       => Carbon::now()->toDateString(),
+                    'motivo'               => $validated['motivo'],
+                    'registrado_por'       => Auth::id(),
+                ]);
+
+                // Actualizamos el dueño actual de la conexión
+                $conexion->update(['afiliado_id' => $afiliadoNuevoId]);
+
+                \App\Models\ActivityLog::log(
+                    accion: 'traspaso_titularidad',
+                    modulo: 'conexiones',
+                    descripcion: "Conexión medidor #{$conexion->codigo_medidor} traspasada de socio #{$afiliadoAnteriorId} a socio #{$afiliadoNuevoId}.",
+                    newValues: $traspaso->toArray()
+                );
+            });
+
+            return redirect()->back()->with('success', '✅ Traspaso de titularidad completado y registrado exitosamente.');
+        } catch (\Exception $e) {
+            Log::error('Error en traspasarTitularidad:', ['error' => $e->getMessage()]);
+            return redirect()->back()->withErrors(['error_general' => 'Error al procesar traspaso de titularidad.']);
+        }
     }
 
     /**

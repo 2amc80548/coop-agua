@@ -6,9 +6,10 @@ import axios from 'axios';
 import ViewCounter from '@/Components/ViewCounter.vue';
 // --- Props ---
 const props = defineProps({
-    user: Object, // El usuario a editar
-    allRoles: Array, // Lista de todos los roles
-    searchAfiliadosUrl: String, //  API para buscar
+    user: Object,
+    allRoles: Array,
+    zonas: Array,
+    searchAfiliadosUrl: String,
     errors: Object,
 });
 
@@ -20,7 +21,9 @@ const form = useForm({
     password: '',
     password_confirmation: '',
     role_id: props.user.roles.length > 0 ? props.user.roles[0].id : '', 
-    afiliado_id: props.user.afiliado_id, 
+    afiliado_id: props.user.afiliado_id,
+    is_active: props.user.is_active ?? true,
+    zona_id: props.user.zona_id ?? null,
 });
 
 // --- Lógica del Buscador de Afiliados 
@@ -124,7 +127,24 @@ const submit = () => {
                                         {{ role.name }}
                                     </option>
                                 </select>
-                                 <div v-if="form.errors.role_id" class="text-red-600 text-sm mt-1">{{ form.errors.role_id }}</div>
+                                  <div v-if="form.errors.role_id" class="text-red-600 text-sm mt-1">{{ form.errors.role_id }}</div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                <div>
+                                    <label for="zona_id" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Zona Asignada (Opcional para Técnicos/Lecturistas)</label>
+                                    <select id="zona_id" v-model="form.zona_id" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm">
+                                        <option :value="null">Todas las Zonas (Acceso Completo)</option>
+                                        <option v-for="zona in zonas" :key="zona.id" :value="zona.id">{{ zona.nombre }}</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Si asigna una zona, el lecturista verá solo las lecturas de esa zona.</p>
+                                </div>
+                                <div class="flex items-center mt-4">
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="checkbox" v-model="form.is_active" class="rounded text-blue-600 focus:ring-blue-500 h-5 w-5 dark:bg-gray-700 dark:border-gray-600" />
+                                        <span class="ml-2 font-medium text-sm text-gray-700 dark:text-gray-300">Cuenta de Usuario Activa</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 

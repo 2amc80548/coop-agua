@@ -102,13 +102,14 @@ const esRolUsuario = (user) => {
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Solicitante (Nombre)</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Email</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Rol(es)</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado / Zona</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Afiliado Vinculado</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
             </tr>
           </thead>
           <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             <tr v-if="!users.data.length"> 
-                <td colspan="5" class="py-4 px-4 text-center text-sm text-gray-500 dark:text-gray-300">No se encontraron usuarios con los filtros seleccionados.</td> 
+                <td colspan="6" class="py-4 px-4 text-center text-sm text-gray-500 dark:text-gray-300">No se encontraron usuarios con los filtros seleccionados.</td> 
             </tr>
             <tr v-for="user in users.data" :key="user.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
               <td class="px-4 py-3 whitespace-nowrap">
@@ -133,6 +134,22 @@ const esRolUsuario = (user) => {
                   }"
                 >
                   {{ role.name }}
+                </span>
+              </td>
+
+              <!-- Estado / Zona -->
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span
+                  class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full mr-2"
+                  :class="user.is_active ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'"
+                >
+                  {{ user.is_active ? 'Activo' : 'Inactivo' }}
+                </span>
+                <span v-if="user.zona" class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded">
+                  📍 {{ user.zona.nombre }}
+                </span>
+                <span v-else class="text-xs text-gray-400 italic">
+                  Todas las zonas
                 </span>
               </td>
               

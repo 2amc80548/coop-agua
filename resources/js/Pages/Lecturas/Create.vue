@@ -24,6 +24,7 @@ const form = useForm({
     fecha_lectura: new Date().toISOString().split('T')[0],
     lectura_anterior: 0,
     lectura_actual: '',
+    causal_inconveniente: 'ninguno',
     observacion: '',
     _afiliado_adulto_mayor: false, 
     _conexion_info: null,
@@ -140,7 +141,26 @@ const resetSeleccion = () => {
 };
 
 
-const handleBlur = () => { setTimeout(() => { showSearchDropdown.value = false; }, 300); };
+// Watch para auto-calcular lectura estimada al elegir una causal
+watch(() => form.causal_inconveniente, (newCausal) => {
+    if (newCausal !== 'ninguno') {
+        const prom = form._conexion_info?.promedio_historico ?? 10;
+        const est = Math.round(prom);
+        form.lectura_actual = Number(form.lectura_anterior) + est;
+    }
+});
+
+const esConsumoElevado = computed(() => {
+    if (form.causal_inconveniente !== 'ninguno') return false;
+    const prom = form._conexion_info?.promedio_historico ?? 0;
+    const cons = consumo.value;
+    return prom > 0 && cons > (prom * 2) && cons > 15;
+});
+
+const esConsumoCero = computed(() => {
+    if (form.causal_inconveniente !== 'ninguno') return false;
+    return form.lectura_actual !== '' && consumo.value === 0;
+});
 
 // --- 8. Cálculos en Vivo (Computed) ---
 const periodoCalculado = computed(() => {
@@ -272,10 +292,39 @@ const submit = () => {
                                 </div>
 
                                 <div>
+                                    <label for="causal_inconveniente" class="block font-medium text-sm text-gray-700 dark:text-gray-300">
+                                        Causal de Inconveniente en Campo (Opcional)
+                                    </label>
+                                    <select id="causal_inconveniente" v-model="form.causal_inconveniente" 
+                                            class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block mt-1 w-full text-sm">
+                                        <option value="ninguno">Ninguno (Lectura Normal tomada del medidor)</option>
+                                        <option value="medidor_tapado">Medidor Tapado / Inaccesible</option>
+                                        <option value="perro_bravo">Perro Bravo / Riesgo de Seguridad</option>
+                                        <option value="predio_cerrado">Predio Cerrado / Inmueble Desocupado</option>
+                                        <option value="medidor_defectuoso">Medidor Trancado / Falla Mecánica</option>
+                                        <option value="otro">Otro Inconveniente</option>
+                                    </select>
+                                    <p v-if="form.causal_inconveniente !== 'ninguno'" class="text-xs text-blue-600 dark:text-blue-400 mt-1 font-semibold">
+                                        ⚡ Lectura Estimada Automática: Se calculará en base al promedio histórico del afiliado ({{ form._conexion_info?.promedio_historico ?? 10 }} m³).
+                                    </p>
+                                </div>
+
+                                <div>
                                     <label for="lectura_actual" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Lectura Actual (m³)</label>
                                     <input id="lectura_actual" v-model.number="form.lectura_actual" type="number" step="0.01" :min="form.lectura_anterior"
-                                           class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block mt-1 w-full disabled:bg-gray-100 text-lg p-2" required />
+                                           :readonly="form.causal_inconveniente !== 'ninguno'"
+                                           class="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm block mt-1 w-full text-lg p-2" 
+                                           :class="{'bg-gray-100 dark:bg-gray-900 cursor-not-allowed': form.causal_inconveniente !== 'ninguno'}"
+                                           required />
                                     <div v-if="form.errors.lectura_actual" class="text-red-600 text-sm mt-1">{{ form.errors.lectura_actual }}</div>
+                                </div>
+
+                                <!-- Insignias de Alertas de Anomalía -->
+                                <div v-if="esConsumoElevado" class="p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300 rounded text-xs font-semibold">
+                                    ⚠️ ALERTA DE ANOMALÍA: El consumo de {{ consumo.toFixed(2) }} m³ sobrepasa el 200% del promedio histórico ({{ form._conexion_info?.promedio_historico ?? 10 }} m³). Por favor verifique el dial del medidor.
+                                </div>
+                                <div v-if="esConsumoCero" class="p-3 bg-blue-100 border-l-4 border-blue-500 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 rounded text-xs font-semibold">
+                                    ℹ️ Consumo 0.00 m³ registrado para este período.
                                 </div>
 
                                 <div v-if="form.lectura_actual && form.lectura_actual >= form.lectura_anterior" 
@@ -308,10 +357,10 @@ const submit = () => {
                             <div class="flex justify-end gap-3 mt-8 border-t dark:border-gray-700 pt-4">
                                 <Link :href="route('lecturas.index')" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition">Cancelar</Link>
                                 <button type="submit"
-                                        :disabled="form.processing || !form.conexion_id || !form.lectura_actual || form.lectura_actual < form.lectura_anterior"
+                                        :disabled="form.processing || !form.conexion_id || (form.causal_inconveniente === 'ninguno' && (!form.lectura_actual || form.lectura_actual < form.lectura_anterior))"
                                         class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 transition"
-                                        :class="{'cursor-not-allowed': !form.conexion_id || !form.lectura_actual || form.lectura_actual < form.lectura_anterior}">
-                                    {{ form.processing ? 'Guardando...' : 'Registrar Lectura' }}
+                                        :class="{'cursor-not-allowed': !form.conexion_id || (form.causal_inconveniente === 'ninguno' && (!form.lectura_actual || form.lectura_actual < form.lectura_anterior))}">
+                                    {{ form.processing ? 'Guardando...' : (form.causal_inconveniente !== 'ninguno' ? 'Registrar Lectura Estimada' : 'Registrar Lectura') }}
                                 </button>
                             </div>
                         </form>

@@ -123,10 +123,15 @@ const confirmDelete = (tarifa) => {
               </td>
 
               <td class="px-4 py-2 whitespace-nowrap">
-                <div class="text-gray-900 dark:text-white">Min: {{ t.min_m3 }}m³ / {{ t.min_monto }}Bs</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">Precio: {{ t.precio_m3 }}Bs/m³</div>
-                <div v-if="t.descuento_adulto_mayor_pct > 0" class="text-xs text-green-600 font-bold">
-                    Desc. Adulto Mayor: {{ t.descuento_adulto_mayor_pct }}%
+                <div class="text-gray-900 dark:text-white font-semibold">Min: {{ t.min_m3 }}m³ / Bs {{ t.min_monto }}</div>
+                <div class="text-xs text-gray-600 dark:text-gray-400">
+                  B2 ({{ t.min_m3 }}-{{ t.bloque2_limite_m3 || 25 }}m³): Bs {{ t.bloque2_precio_m3 || t.precio_m3 }}/m³
+                </div>
+                <div v-if="t.bloque3_precio_m3 > 0" class="text-xs text-purple-600 dark:text-purple-400 font-semibold">
+                  B3 (>{{ t.bloque2_limite_m3 || 25 }}m³): Bs {{ t.bloque3_precio_m3 }}/m³
+                </div>
+                <div v-if="t.descuento_adulto_mayor_pct > 0" class="text-xs text-green-600 dark:text-green-400 font-bold mt-0.5">
+                    Desc. Ley (A. Mayor): {{ t.descuento_adulto_mayor_pct }}% (máx {{ t.descuento_ley_m3_limite || 15 }}m³)
                 </div>
               </td>
 

@@ -174,6 +174,11 @@ const abrirAviso = (id) => {
                       }" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full">
                       {{ l.estado }}
                   </span>
+                  <div v-if="l.anomalia && l.anomalia !== 'ninguna'" class="mt-1">
+                      <span v-if="l.anomalia === 'consumo_elevado'" class="px-1.5 py-0.5 text-[10px] bg-yellow-200 text-yellow-900 dark:bg-yellow-800 dark:text-yellow-100 rounded font-bold block w-max">⚠️ Elevado</span>
+                      <span v-else-if="l.anomalia === 'lectura_estimada'" class="px-1.5 py-0.5 text-[10px] bg-purple-200 text-purple-900 dark:bg-purple-800 dark:text-purple-100 rounded font-bold block w-max">⚡ Estimada</span>
+                      <span v-else-if="l.anomalia === 'consumo_cero'" class="px-1.5 py-0.5 text-[10px] bg-blue-200 text-blue-900 dark:bg-blue-800 dark:text-blue-100 rounded font-bold block w-max">ℹ️ Consumo 0</span>
+                  </div>
               </td>
               <td class="px-4 py-2 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">{{ l.usuarioRegistrado?.name }}</td>
               <td class="px-4 py-2 whitespace-nowrap text-sm font-medium space-x-2">

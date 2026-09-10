@@ -9,6 +9,7 @@ import ViewCounter from '@/Components/ViewCounter.vue';
 const props = defineProps({
     rolesPersonal: Array,
     roleUsuario: Object,
+    zonas: Array,
     searchAfiliadosUrl: String,
     errors: Object,
 });
@@ -16,12 +17,14 @@ const props = defineProps({
 // --- Formulario ---
 const form = useForm({
     tipo: 'personal',
-    name: '', // ¡El nombre siempre está aquí!
+    name: '',
     email: '',
     password: '',
     password_confirmation: '',
     role_id: '',
     afiliado_id: null,
+    is_active: true,
+    zona_id: null,
 });
 
 // --- Lógica de Roles Dinámicos ---
@@ -153,6 +156,23 @@ const submit = () => {
                                     <option v-for="role in roleOptions" :key="role.id" :value="role.id">{{ role.name }}</option>
                                 </select>
                                 <div v-if="form.errors.role_id" class="text-red-600 text-sm mt-1">{{ form.errors.role_id }}</div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                <div>
+                                    <label for="zona_id" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Zona Asignada (Opcional para Técnicos/Lecturistas)</label>
+                                    <select id="zona_id" v-model="form.zona_id" class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm">
+                                        <option :value="null">Todas las Zonas (Acceso Completo)</option>
+                                        <option v-for="zona in zonas" :key="zona.id" :value="zona.id">{{ zona.nombre }}</option>
+                                    </select>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Si asigna una zona, el lecturista vera solo las lecturas de esa zona.</p>
+                                </div>
+                                <div class="flex items-center mt-4">
+                                    <label class="flex items-center cursor-pointer">
+                                        <input type="checkbox" v-model="form.is_active" class="rounded text-blue-600 focus:ring-blue-500 h-5 w-5 dark:bg-gray-700 dark:border-gray-600" />
+                                        <span class="ml-2 font-medium text-sm text-gray-700 dark:text-gray-300">Cuenta de Usuario Activa</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 

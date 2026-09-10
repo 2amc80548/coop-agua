@@ -21,10 +21,12 @@ class User extends Authenticatable
     use TwoFactorAuthenticatable;
  
     protected $fillable = [
-       'name',
+        'name',
         'email',
         'password',
         'afiliado_id',
+        'is_active',
+        'zona_id',
     ];
 
     protected $hidden = [
@@ -34,24 +36,29 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_active'         => 'boolean',
     ];
 
     protected $appends = [
         'profile_photo_url',
     ];
+
     public function getRoleNamesAttribute()
     {
         return $this->roles->pluck('name');
     }
 
-public function afiliado()
-{
-    return $this->belongsTo(Afiliado::class);
-}
+    public function afiliado()
+    {
+        return $this->belongsTo(Afiliado::class);
+    }
 
-public function lecturasRegistradas() {
-    return $this->hasMany(Lectura::class, 'registrado_por');
-}
+    public function zona()
+    {
+        return $this->belongsTo(Zona::class);
+    }
 
-
+    public function lecturasRegistradas() {
+        return $this->hasMany(Lectura::class, 'registrado_por');
+    }
 }

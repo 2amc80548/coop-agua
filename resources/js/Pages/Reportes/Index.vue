@@ -28,6 +28,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  zonas: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 // Formulario de filtros (GET)
@@ -35,7 +39,7 @@ const filterForm = useForm({
   fecha_inicio: props.filters.fecha_inicio ?? '',
   fecha_fin: props.filters.fecha_fin ?? '',
   estado_servicio: props.filters.estado_servicio ?? '',
-  // Si luego quieres zona_id, se agrega aquí
+  zona_id: props.filters.zona_id ?? '',
 });
 
 // Enviar filtros
@@ -64,6 +68,10 @@ const rangoTexto = computed(() => {
   if (!props.resumen?.rango) return '';
   return `${props.resumen.rango.inicio} al ${props.resumen.rango.fin}`;
 });
+
+const imprimirReporte = () => {
+  window.print();
+};
 </script>
 
 <template>
@@ -75,11 +83,16 @@ const rangoTexto = computed(() => {
             Gestión
           </p>
           <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            Reportes
+            Reportes Generales del Sistema
           </h2>
           <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-            Resumen de facturación, pagos, afiliados, lecturas y reclamos
+            Resumen de facturación, recaudación, afiliados, lecturas y reclamos
           </p>
+        </div>
+        <div>
+          <button @click="imprimirReporte" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-xl shadow transition text-xs md:text-sm flex items-center gap-2 print:hidden">
+            🖨️ Imprimir / Exportar Reporte
+          </button>
         </div>
       </div>
     </template>
@@ -90,7 +103,7 @@ const rangoTexto = computed(() => {
         <!-- ===========================
              FILTROS
              =========================== -->
-        <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-cyan-100 dark:border-gray-700 p-4 md:p-5">
+        <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-cyan-100 dark:border-gray-700 p-4 md:p-5 print:hidden">
           <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
             <div class="space-y-2 text-sm md:text-base">
               <h3 class="font-semibold text-gray-800 dark:text-gray-100">
@@ -101,7 +114,7 @@ const rangoTexto = computed(() => {
               </p>
             </div>
 
-            <form @submit.prevent="submitFilters" class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full md:w-auto text-xs md:text-sm">
+            <form @submit.prevent="submitFilters" class="grid grid-cols-1 sm:grid-cols-4 gap-3 w-full md:w-auto text-xs md:text-sm">
               <!-- Fecha inicio -->
               <div>
                 <label for="fecha_inicio" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">
@@ -128,10 +141,25 @@ const rangoTexto = computed(() => {
                 >
               </div>
 
+              <!-- Zona (opcional) -->
+              <div>
+                <label for="zona_id" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">
+                  Zona
+                </label>
+                <select
+                  id="zona_id"
+                  v-model="filterForm.zona_id"
+                  class="w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-cyan-400 focus:ring focus:ring-cyan-200 focus:ring-opacity-50"
+                >
+                  <option value="">Todas las zonas</option>
+                  <option v-for="z in zonas" :key="z.id" :value="z.id">{{ z.nombre }}</option>
+                </select>
+              </div>
+
               <!-- Estado servicio (opcional) -->
               <div>
                 <label for="estado_servicio" class="block font-medium mb-1 text-gray-700 dark:text-gray-300">
-                  Estado servicio afiliado
+                  Estado Afiliado
                 </label>
                 <select
                   id="estado_servicio"
@@ -146,7 +174,7 @@ const rangoTexto = computed(() => {
               </div>
 
               <!-- Botones -->
-              <div class="sm:col-span-3 flex flex-wrap gap-2 justify-end pt-1">
+              <div class="sm:col-span-4 flex flex-wrap gap-2 justify-end pt-1">
                 <button
                   type="button"
                   class="px-3 py-1.5 rounded-md text-xs md:text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition"

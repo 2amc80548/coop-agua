@@ -329,6 +329,7 @@ class ReporteController extends Controller
                 'zona_id'         => $zonaId,
                 'estado_servicio' => $estadoServicio,
             ],
+            'zonas' => Zona::orderBy('nombre')->get(['id', 'nombre']),
         ]);
     }
 

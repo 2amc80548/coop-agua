@@ -58,18 +58,47 @@ const estadoClass = (estado) => {
 };
 
 // --- Acciones ---
-const anularFactura = (factura) => {
-    if (!confirm(`¿Estás seguro de ANULAR la factura F-${String(factura.id).padStart(6, '0')} por Bs ${formatCurrency(factura.monto_total)}? \n\n¡Esta acción no se puede deshacer y la lectura asociada volverá a estado 'pendiente'!`)) {
+const showAnularModal = ref(false);
+const facturaParaAnular = ref(null);
+const motivoAnulacion = ref('');
+const errorAnulacion = ref('');
+const anulando = ref(false);
+
+const abrirModalAnular = (factura) => {
+    facturaParaAnular.value = factura;
+    motivoAnulacion.value = '';
+    errorAnulacion.value = '';
+    showAnularModal.value = true;
+};
+
+const cerrarModalAnular = () => {
+    showAnularModal.value = false;
+    facturaParaAnular.value = null;
+    motivoAnulacion.value = '';
+    errorAnulacion.value = '';
+};
+
+const confirmarAnularFactura = () => {
+    if (!motivoAnulacion.value || motivoAnulacion.value.trim().length < 5) {
+        errorAnulacion.value = 'Debe ingresar un motivo de al menos 5 caracteres.';
         return;
     }
-    router.post(route('facturas.anular', factura.id), {}, {
+
+    anulando.value = true;
+    router.post(route('facturas.anular', facturaParaAnular.value.id), {
+        motivo_anulacion: motivoAnulacion.value
+    }, {
         preserveScroll: true,
+        onSuccess: () => {
+            anulando.value = false;
+            cerrarModalAnular();
+        },
         onError: (errors) => {
-            alert('Error al anular: ' + (errors.error_general || 'Verifique los logs.'));
+            anulando.value = false;
+            errorAnulacion.value = errors.motivo_anulacion || errors.error_general || 'Error al anular la factura.';
         }
     });
 };
-
 
 const imprimirFactura = (facturaId) => {
   const url = route('facturas.imprimir', facturaId);
@@ -176,11 +205,10 @@ const imprimirFactura = (facturaId) => {
               <td class="px-4 py-2 whitespace-nowrap text-sm font-medium space-x-2">
                 <Link :href="route('facturas.show', f.id)" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200" title="Ver Detalles y Pagos">Ver</Link>
                 <Link v-if="f.estado === 'impaga'" :href="route('pagos.create', { factura_id: f.id })" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200" title="Registrar Pago">Pagar</Link>
-                 <button v-if="f.estado === 'impaga'" @click="anularFactura(f)" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200" title="Anular Factura">Anular</button>
-                <button @click="imprimirFactura(f.id)"class="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-200" title="Imprimir Factura">
+                <button v-if="f.estado === 'impaga'" @click="abrirModalAnular(f)" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200" title="Anular Factura">Anular</button>
+                <button @click="imprimirFactura(f.id)" class="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-200" title="Imprimir Factura">
                   🖨️
                 </button>
-
               </td>
             </tr>
           </tbody>
@@ -210,6 +238,61 @@ const imprimirFactura = (facturaId) => {
           />
         </div>
       </div>
+
+      <!-- MODAL DE ANULACIÓN CONTROLADA -->
+      <div v-if="showAnularModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6 border dark:border-gray-700">
+          <div class="flex justify-between items-center border-b dark:border-gray-700 pb-3 mb-4">
+            <h3 class="text-lg font-bold text-red-600 dark:text-red-400 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Anulación de Factura
+            </h3>
+            <button @click="cerrarModalAnular" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 font-bold">&times;</button>
+          </div>
+
+          <p class="text-sm text-gray-600 dark:text-gray-300 mb-3">
+            Está por anular la factura <strong>F-{{ String(facturaParaAnular?.id).padStart(6, '0') }}</strong> por un monto de <strong>Bs {{ formatCurrency(facturaParaAnular?.monto_total) }}</strong>.
+          </p>
+          <p class="text-xs text-amber-600 dark:text-amber-400 font-semibold mb-4 bg-amber-50 dark:bg-amber-900/30 p-2 rounded border border-amber-200 dark:border-amber-800">
+            ⚠️ La lectura asociada volverá a estado "pendiente" para permitir una nueva facturación o corrección.
+          </p>
+
+          <div class="mb-4">
+            <label for="motivo_anulacion" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1">
+              Motivo de Anulación *
+            </label>
+            <textarea
+              id="motivo_anulacion"
+              v-model="motivoAnulacion"
+              rows="3"
+              placeholder="Escriba el motivo detallado de la anulación (Ej: error en lectura, factura duplicada)..."
+              class="w-full text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
+            ></textarea>
+            <p v-if="errorAnulacion" class="text-xs text-red-600 mt-1 font-semibold">{{ errorAnulacion }}</p>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-2 border-t dark:border-gray-700">
+            <button
+              @click="cerrarModalAnular"
+              :disabled="anulando"
+              class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition"
+            >
+              Cancelar
+            </button>
+            <button
+              @click="confirmarAnularFactura"
+              :disabled="anulando"
+              class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow transition flex items-center gap-2 disabled:opacity-50"
+            >
+              <span v-if="anulando" class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+              {{ anulando ? 'Anulando...' : 'Confirmar Anulación' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <ViewCounter />
     </div>
   </AppLayout>

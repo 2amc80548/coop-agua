@@ -97,6 +97,16 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         Route::resource('afiliados', AfiliadoController::class);
         Route::resource('conexiones', ConexionController::class);
 
+        // Documentos de Afiliado (Fase 2)
+        Route::post('/afiliados/{afiliado}/documentos', [AfiliadoController::class, 'subirDocumento'])
+            ->name('afiliados.documentos.store');
+        Route::delete('/afiliados/documentos/{documento}', [AfiliadoController::class, 'eliminarDocumento'])
+            ->name('afiliados.documentos.destroy');
+
+        // Traspaso de Titularidad de Conexión (Fase 2)
+        Route::post('/conexiones/{conexion}/traspasar', [AfiliadoController::class, 'traspasarTitularidad'])
+            ->name('conexiones.traspasar');
+
         // Facturas: CRUD parcial (sin show/imprimir — acceso compartido más abajo)
         Route::resource('facturas', FacturaController::class)
             ->except(['show', 'create', 'store', 'edit', 'destroy']);
@@ -130,7 +140,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
         Route::resource('users', UserController::class);
         Route::resource('tarifas', TarifaController::class);
+        Route::post('/tarifas/simular', [TarifaController::class, 'simular'])->name('tarifas.simular');
         Route::resource('tarifasConceptos', TarifaConceptoController::class);
+        Route::get('/bitacora', [ActivityLogController::class, 'index'])->name('bitacora.index');
 
         // Modificaciones monetarias y eliminación de facturas
         Route::put('/facturas/{factura}/update-monto', [FacturaController::class, 'updateMonto'])

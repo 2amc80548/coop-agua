@@ -57,6 +57,9 @@ class Factura extends Model
         'fecha_vencimiento',
         'fecha_pago',
         'justificacion_modificacion',
+        'motivo_anulacion',
+        'anulado_por',
+        'fecha_anulacion',
 
         // --- Bloque SIAT: Identificadores Fiscales ---
         'cuf',
@@ -125,6 +128,11 @@ class Factura extends Model
     public function pagos()
     {
         return $this->hasMany(Pago::class, 'factura_id');
+    }
+
+    public function usuarioAnulacion()
+    {
+        return $this->belongsTo(User::class, 'anulado_por');
     }
 
     // ---------------------------------------------------------------

@@ -22,9 +22,8 @@ const form = useForm({
     estado: 'activo',
     fecha_instalacion: new Date().toISOString().split('T')[0], 
     tipo_conexion: 'domiciliaria',
-
-    es_antiguo: false,      // El checkbox (true/false)
-    lectura_anterior: 0,    // El número que se guardará
+    lectura_inicial: 0,
+    observacion: '',
 });
 
 // --- Lógica de Buscador de Afiliado (ESTILO LECTURA) ---
@@ -193,30 +192,25 @@ const handleBlur = () => {
                                        class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" required />
                                 <div v-if="form.errors.codigo_medidor" class="text-red-600 text-sm mt-1">{{ form.errors.codigo_medidor }}</div>
                             </div>
-                             <div class="mt-4 p-4 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900">
-                        <div class="flex items-center">
-                            <input 
-                                id="check_antiguo" 
-                                v-model="form.es_antiguo" 
-                                type="checkbox" 
-                                class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            >
-                            <label for="check_antiguo" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                ¿Es una conexión con lectura anterior? (Medidor antiguo)
-                            </label>
-                        </div>
-
-                        <div v-if="form.es_antiguo" class="mt-3">
-                            <label class="block font-medium text-xs text-gray-600 dark:text-gray-400">Lectura Anterior Acumulada *</label>
-                            <input 
-                                v-model="form.lectura_anterior" 
-                                type="number" 
-                                class="mt-1 block w-full md:w-1/4 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Ej: 540"
-                                required
-                            >
-                        </div>
-                    </div>
+                             <div class="mt-4 p-4 border border-blue-200 dark:border-blue-800 rounded-md bg-blue-50/50 dark:bg-gray-900">
+                                <label for="lectura_inicial" class="block font-semibold text-sm text-gray-800 dark:text-gray-200">
+                                    Lectura Inicial del Medidor (m³) *
+                                </label>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 mb-2">
+                                    Ingrese la marca o número con el que se instala el medidor. Si es un medidor nuevo comenzará en 0; si es un medidor reemplazado o antiguo inserte la lectura actual del dial. Esta será la base para el primer consumo sin generar cargos acumulados.
+                                </p>
+                                <input 
+                                    id="lectura_inicial" 
+                                    v-model="form.lectura_inicial" 
+                                    type="number" 
+                                    step="0.01"
+                                    min="0"
+                                    class="mt-1 block w-full md:w-1/3 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="0.00"
+                                    required
+                                />
+                                <div v-if="form.errors.lectura_inicial" class="text-red-600 text-sm mt-1">{{ form.errors.lectura_inicial }}</div>
+                            </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label for="direccion" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Dirección de Instalación *</label>
