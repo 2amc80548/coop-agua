@@ -40,12 +40,9 @@ class CreateAdminUser extends Command
         // Asegurar que el rol Administrador exista
         $adminRole = Role::firstOrCreate(['id' => 1, 'name' => 'Administrador']);
 
-        $user = User::withTrashed()->where('email', $email)->first();
+        $user = User::where('email', $email)->first();
 
         if ($user) {
-            if ($user->trashed()) {
-                $user->restore();
-            }
             $user->name = $name;
             $user->password = Hash::make($password);
             $user->is_active = true;
