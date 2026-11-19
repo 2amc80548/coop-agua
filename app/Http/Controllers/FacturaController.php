@@ -31,7 +31,7 @@ class FacturaController extends Controller
     {
         $query = Factura::with([
             'conexion:id,codigo_medidor,afiliado_id',
-            'conexion.afiliado:id,nombre_completo,ci' 
+            'conexion.afiliado:id,nombre_completo,ci'
         ]);
 
         // --- Filtros ---
@@ -40,7 +40,7 @@ class FacturaController extends Controller
             $q->where('id', 'like', "%{$search}%")
               ->orWhereHas('conexion', function ($conQuery) use ($search) {
                   $conQuery->where('codigo_medidor', 'like', "%{$search}%")
-                           ->orWhereHas('afiliado', function ($afilQuery) use ($search) { 
+                           ->orWhereHas('afiliado', function ($afilQuery) use ($search) {
                                $afilQuery->where('ci', 'like', "%{$search}%")
                                          ->orWhere('nombre_completo', 'like', "%{$search}%");
                            });
@@ -78,8 +78,8 @@ class FacturaController extends Controller
             'facturas' => $query->orderBy('fecha_emision', 'desc')
                                 ->orderBy('id', 'desc')
                                 ->paginate(10) //  PAGINACIÓN
-                                ->withQueryString(), 
-            'filters' => [ 
+                                ->withQueryString(),
+            'filters' => [
                 'search' => $request->input('search'),
                 'periodo' => $request->input('periodo'),
                 'estado' => $estadoFiltro,
@@ -97,8 +97,8 @@ class FacturaController extends Controller
     public function show($id)
     {
         $factura = Factura::with([
-            'conexion.afiliado', 
-            'lectura',          
+            'conexion.afiliado',
+            'lectura',
             'pagos' => fn($q) => $q->orderBy('fecha_pago', 'desc'),
             'usuarioAnulacion:id,name',
         ])->findOrFail($id);
@@ -112,9 +112,9 @@ class FacturaController extends Controller
 
         // Calcular saldo
         $totalPagado = $factura->pagos->sum('monto_pagado');
-        $saldo = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado); 
+        $saldo = $factura->deuda_pendiente ?? max(0, $factura->monto_total - $totalPagado);
 
-        return Inertia::render('Facturas/Show', [ 
+        return Inertia::render('Facturas/Show', [
             'factura' => $factura,
             'totalPagado' => $totalPagado,
             'saldoPendiente' => max(0, $saldo),
@@ -145,7 +145,7 @@ class FacturaController extends Controller
         try {
             DB::transaction(function () use ($factura, $validated) {
                 $factura->estado = 'anulada';
-                $factura->deuda_pendiente = 0; 
+                $factura->deuda_pendiente = 0;
                 $factura->motivo_anulacion = $validated['motivo_anulacion'];
                 $factura->anulado_por = Auth::id();
                 $factura->fecha_anulacion = now();
@@ -173,7 +173,7 @@ class FacturaController extends Controller
 
         return redirect()->route('facturas.index')->with('success', 'Factura F-'.str_pad($id, 6, '0', STR_PAD_LEFT).' anulada correctamente. La lectura asociada volvió a estar pendiente.');
     }
-    
+
     /**
      * 4. Actualiza el monto de una factura (Descuento Manual).
      */
@@ -181,24 +181,24 @@ class FacturaController extends Controller
     {
         $factura = Factura::findOrFail($id);
 
-        if ($factura->estado !== 'impaga') { 
+        if ($factura->estado !== 'impaga') {
              return redirect()->back()->withErrors(['error_general' => 'Solo se pueden modificar facturas IMPAGAS.']);
         }
 
         $validated = $request->validate([
-            'monto_nuevo' => 'required|numeric|min:0|lte:' . $factura->monto_total, 
+            'monto_nuevo' => 'required|numeric|min:0|lte:' . $factura->monto_total,
             'justificacion_modificacion' => 'required|string|min:10|max:500',
         ], [
             'monto_nuevo.lte' => 'El monto nuevo no puede ser mayor al monto original.'
         ]);
-        
+
         $montoNuevo = $validated['monto_nuevo'];
 
         DB::transaction(function () use ($factura, $montoNuevo, $validated) {
             $montoAntiguo = $factura->monto_total;
             $factura->monto_total = $montoNuevo;
             $factura->deuda_pendiente = $montoNuevo;
-            $factura->justificacion_modificacion = $validated['justificacion_modificacion'] 
+            $factura->justificacion_modificacion = $validated['justificacion_modificacion']
                 . " (Monto anterior: Bs " . $montoAntiguo . " - Modificado por: " . Auth::user()->name . ")";
             if ($montoNuevo == 0) { $factura->estado = 'pagado'; }
             $factura->save();
@@ -226,17 +226,17 @@ class FacturaController extends Controller
 
         $query = Factura::with('conexion:id,codigo_medidor')
                          ->whereHas('conexion', fn($q) => $q->where('afiliado_id', $afiliadoId));
- 
+
         // Filtro de estado para el usuario ('impaga', 'pagado', 'todos')
-        $estadoFiltro = $request->input('estado', 'impaga'); 
+        $estadoFiltro = $request->input('estado', 'impaga');
         if ($estadoFiltro !== 'todos') {
             $query->where('estado', $estadoFiltro);
         }
-         
+
         $periodos = Factura::whereHas('conexion', fn($q) => $q->where('afiliado_id', $afiliadoId))
                              ->select('periodo')->distinct()->orderBy('periodo','desc')->pluck('periodo');
- 
-        return Inertia::render('Usuario/MisFacturas', [ 
+
+        return Inertia::render('Usuario/MisFacturas', [
              'facturas' => $query->orderBy('periodo', 'desc')
                                  ->paginate(10)
                                  ->withQueryString(),
@@ -247,7 +247,7 @@ class FacturaController extends Controller
     }
 
     /**
-     * Muestra la factura en HTML/Blade para imprimir 
+     * Muestra la factura en HTML/Blade para imprimir
      */
     public function imprimirFactura($id)
     {
@@ -308,6 +308,12 @@ class FacturaController extends Controller
             'descuentoEstimado'  => $descuentoEstimado,
             'porcentajeDescuento' => $porcentajeDescuento,
         ]);
+    }
+
+    public function marcarPagadoPrueba(Factura $factura)
+    {
+        $factura->update(['estado' => Factura::ESTADO_PAGADO, 'deuda_pendiente' => 0]);
+        return response()->json(['ok' => true]);
     }
 
 

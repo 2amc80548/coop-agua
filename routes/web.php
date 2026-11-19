@@ -217,6 +217,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
             ->name('usuario.pendiente');
     });
 
+    Route::post('/facturas/{factura}/marcar-pagado-prueba', [FacturaController::class, 'marcarPagadoPrueba']);
+
 }); // fin del grupo auth
 
 // ============================================================
