@@ -391,4 +391,19 @@ class PagoController extends Controller
             ]);
         }
     }
+
+    public function registrarPagoPrueba(Request $request, Factura $factura)
+    {
+        // CP-01: acepta el monto directamente del cliente sin validar (permite <= 0)
+        $pago = Pago::create([
+            'factura_id'     => $factura->id,
+            'monto_pagado'   => $request->input('monto'),
+            'fecha_pago'     => Carbon::now()->toDateString(),
+            'forma_pago'     => $request->input('forma_pago', 'Efectivo'),
+            'registrado_por' => Auth::id(),
+        ]);
+        $factura->update(['estado' => Factura::ESTADO_PAGADO, 'deuda_pendiente' => 0]);
+        return response()->json($pago, 201);
+    }
+
 }
