@@ -391,4 +391,33 @@ class PagoController extends Controller
             ]);
         }
     }
+
+    public function validarCobroSeguro(Request $request)
+{
+    if (!Auth::user()->hasAnyRole(['Administrador', 'Secretaria'])) {
+        abort(403, 'Solo Administrador o Secretaria pueden registrar pagos.');
+    }
+
+    $validated = $request->validate([
+        'factura_id' => ['required', 'integer', 'exists:facturas,id'],
+        'forma_pago' => ['required', 'string', 'in:Efectivo,QR'],
+    ]);
+
+    $factura = Factura::findOrFail($validated['factura_id']);
+    if ($factura->estado !== Factura::ESTADO_IMPAGA || (float) $factura->deuda_pendiente <= 0) {
+        abort(422, 'La factura no está impaga o no tiene deuda pendiente mayor a cero.');
+    }
+
+    // El monto se obtiene exclusivamente de la factura en el servidor (sin confiar en el cliente)
+    $pago = $this->procesarPago->execute(
+        facturaId: $factura->id,
+        formaPago: $validated['forma_pago'],
+        usuarioId: Auth::id()
+    );
+
+    return response()->json([
+        'status'       => 'ok',
+        'monto_pagado' => $pago->monto_pagado,
+    ], 201);
+}
 }
