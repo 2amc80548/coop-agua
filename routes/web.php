@@ -217,6 +217,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
             ->name('usuario.pendiente');
     });
 
+    Route::post('/pagos/validar-cobro', [PagoController::class, 'validarCobroSeguro'])
+    ->name('pagos.validarCobro');
+
 }); // fin del grupo auth
 
 // ============================================================
