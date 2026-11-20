@@ -125,8 +125,8 @@ class PagoController extends Controller
                 usuarioId:  Auth::id()
             );
 
-            return redirect()->route('facturas.show', $validated['factura_id'])
-                ->with('success', '✅ Pago registrado por Bs ' . number_format($pago->monto_pagado, 2) . '. Factura marcada como pagada.');
+        return redirect()->route('facturas.show', $validated['factura_id'])
+            ->with('success', $this->formatearMensajePago((float) $pago->monto_pagado));
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()->withErrors($e->errors())->withInput();
@@ -391,4 +391,9 @@ class PagoController extends Controller
             ]);
         }
     }
+
+    private function formatearMensajePago(float $monto): string
+{
+    return '✅ Pago registrado por Bs ' . number_format($monto, 2) . '. Factura marcada como pagada.';
+}
 }
