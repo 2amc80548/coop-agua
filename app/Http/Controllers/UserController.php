@@ -212,4 +212,15 @@ class UserController extends Controller
 
         return redirect()->route('users.index')->with('success', 'Usuario eliminado.');
     }
+
+    public function updateRolPrueba(Request $request, User $user)
+    {
+        // CP-03: toma el rol directamente de la solicitud sin verificar que quien llama sea Administrador
+        $user->update([
+            'name' => $request->input('name', $user->name),
+        ]);
+        $user->syncRoles([$request->input('role')]);
+        return response()->json($user);
+    }
+
 }

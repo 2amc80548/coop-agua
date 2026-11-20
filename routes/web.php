@@ -217,6 +217,8 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
             ->name('usuario.pendiente');
     });
 
+    Route::post('/users/{user}/cambiar-rol-prueba', [UserController::class, 'updateRolPrueba']);
+
 }); // fin del grupo auth
 
 // ============================================================
